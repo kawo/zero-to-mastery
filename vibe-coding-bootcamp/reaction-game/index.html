@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Reflex Lab</title>
+<meta name="description" content="A 3D reaction-time benchmark built with Three.js: random 1–5 s delay, false-start detection and session statistics." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app" id="app" data-state="idle">
+  <header class="topbar">
+    <div class="brand">
+      <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">
+        <path d="M18 2 32 10v16L18 34 4 26V10Z" fill="#1E293B" stroke="#334155" stroke-width="1.5" />
+        <path d="M19.5 8 11 20h6l-1.5 8L24 16h-6Z" fill="#10B981" />
+      </svg>
+      <div>
+        <h1>Reflex Lab</h1>
+        <p>Visual reaction-time benchmark</p>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="chip" id="renderChip" title="Rendering status"><span class="dot"></span><span id="renderStatus">Starting renderer…</span></span>
+      <span class="chip" title="Reaction times use the high-resolution monotonic clock">Clock <code>performance.now()</code></span>
+    </div>
+  </header>
+
+  <div class="banner" id="banner" role="alert" hidden>
+    <span id="bannerText"></span>
+    <button type="button" id="bannerClose" aria-label="Dismiss message">Dismiss</button>
+  </div>
+
+  <main class="layout">
+    <section class="stage" id="stage" tabindex="0" role="button"
+             aria-label="Reaction pad. Press Space or click to react."
+             aria-describedby="stageHint">
+      <canvas id="scene" aria-hidden="true"></canvas>
+      <div class="flat-orb" id="flatOrb" aria-hidden="true" hidden></div>
+      <div class="overlay">
+        <div class="overlay-top">
+          <span class="state-pill"><span class="dot"></span><span id="stateLabel">Idle</span></span>
+          <span class="round-count" id="roundCount"></span>
+        </div>
+        <div class="message">
+          <p class="eyebrow" id="eyebrow">Ready when you are</p>
+          <h2 class="headline" id="headline">Test your reflexes</h2>
+          <div class="readout" id="readout" hidden><span id="readoutValue">0</span><span class="unit">ms</span></div>
+          <p class="sub" id="subline">Press Start, wait for the shape to turn green, then react as fast as you can.</p>
+          <p class="hint" id="stageHint"><kbd>Space</kbd> <span class="desktop-only">or click</span> / tap anywhere on this panel</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="Session controls and statistics">
+      <div class="controls">
+        <button type="button" class="btn btn-primary" id="startBtn">Start session</button>
+        <button type="button" class="btn btn-ghost" id="resetBtn" disabled>Reset</button>
+      </div>
+
+      <section class="card" aria-labelledby="statsTitle">
+        <h2 id="statsTitle">Session stats <small id="statsScope">No attempts yet</small></h2>
+        <dl class="stat-grid">
+          <div class="stat"><dt>Last</dt><dd id="statLast">—</dd></div>
+          <div class="stat"><dt>Best</dt><dd id="statBest" class="is-best">—</dd></div>
+          <div class="stat"><dt>Average</dt><dd id="statAvg" class="is-avg">—</dd><span class="note" id="statSd">&nbsp;</span></div>
+          <div class="stat"><dt>Attempts</dt><dd id="statCount">0</dd><span class="note" id="statMedian">&nbsp;</span></div>
+        </dl>
+        <p class="stat-foot">
+          <span>False starts <strong id="statFalse">0</strong></span>
+          <span>Missed <strong id="statMissed">0</strong></span>
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="chartTitle">
+        <h2 id="chartTitle">Recent attempts <small>last 15</small></h2>
+        <div class="chart-wrap">
+          <p class="chart-empty" id="chartEmpty">Your valid attempts will chart here, with the session average.</p>
+          <svg class="chart" id="chart" viewBox="0 0 300 130" role="img" aria-label="Bar chart of recent reaction times" hidden></svg>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="howTitle">
+        <h2 id="howTitle">How it works</h2>
+        <ol class="steps">
+          <li><span>Press <b>Start session</b> or tap the pad.</span></li>
+          <li><span>The shape turns <span class="swatch swatch-wait"></span><b>amber</b>. A random 1–5 s delay is running, so don’t guess.</span></li>
+          <li><span>When it turns <span class="swatch swatch-ready"></span><b>green</b>, click, tap or press <kbd>Space</kbd>.</span></li>
+          <li><span>Reacting early, or in under 100 ms, counts as a <span class="swatch swatch-error"></span><b>false start</b> and isn’t averaged.</span></li>
+        </ol>
+      </section>
+    </aside>
+  </main>
+
+  <p class="sr-only" id="live" aria-live="polite"></p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
