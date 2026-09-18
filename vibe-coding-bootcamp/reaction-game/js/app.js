@@ -64,6 +64,37 @@
   const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
   const fmt = (ms) => Math.round(ms).toString();
 
+  /**
+   * Measure the effective resolution of performance.now(). Browsers coarsen it
+   * (and may add jitter) as a Spectre mitigation: typically 5 µs–0.1 ms in
+   * Chromium, 1 ms in Safari and Firefox without cross-origin isolation.
+   * Returns the smallest non-zero step seen, in ms, or null if unavailable.
+   */
+  function measureClockResolution() {
+    if (!window.performance || typeof performance.now !== 'function') return null;
+    const deadline = performance.now() + 30; // never block the page for long
+    let smallest = Infinity;
+    let steps = 0;
+    let prev = performance.now();
+    while (steps < 40) {
+      const t = performance.now();
+      if (t !== prev) {
+        const delta = t - prev;
+        if (delta > 0 && delta < smallest) smallest = delta;
+        prev = t;
+        steps += 1;
+      }
+      if (t > deadline) break;
+    }
+    return Number.isFinite(smallest) ? smallest : null;
+  }
+
+  function formatResolution(ms) {
+    if (ms < 0.01) return `${Math.max(1, Math.round(ms * 1000))} µs`;
+    if (ms < 1) return `${parseFloat(ms.toFixed(ms < 0.1 ? 3 : 2))} ms`;
+    return `${Math.round(ms)} ms`;
+  }
+
   /* ======================================================================
    * Statistics (pure functions over the session's valid times)
    * ==================================================================== */
@@ -432,6 +463,7 @@
     statFalse: $('statFalse'), statMissed: $('statMissed'),
     chart: $('chart'), chartEmpty: $('chartEmpty'),
     renderChip: $('renderChip'), renderStatus: $('renderStatus'),
+    clockChip: $('clockChip'), clockRes: $('clockRes'),
     banner: $('banner'), bannerText: $('bannerText'), bannerClose: $('bannerClose'),
     live: $('live'),
   };
@@ -910,7 +942,21 @@
 
     setState(STATE.IDLE);
     renderStats();
+    renderClockResolution();
     rafId = window.requestAnimationFrame(tick);
+  }
+
+  function renderClockResolution() {
+    const res = measureClockResolution();
+    if (res === null) {
+      dom.clockRes.textContent = 'unavailable';
+      dom.clockChip.title = 'This browser has no high-resolution clock; timings may be off by several ms.';
+      return;
+    }
+    dom.clockRes.textContent = `± ${formatResolution(res)}`;
+    dom.clockChip.title =
+      `performance.now() ticks every ${formatResolution(res)} in this browser, ` +
+      'so each reaction time is accurate to about that much (plus one screen refresh).';
   }
 
   window.addEventListener('error', (e) => {
