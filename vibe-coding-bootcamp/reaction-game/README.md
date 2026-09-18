@@ -4,11 +4,7 @@ A reaction-time game with a Three.js 3D scene. Plain HTML/CSS/JS, no build step.
 
 ## Run
 
-Open `index.html` in a browser, or serve the folder:
-
-```bash
-npx serve .
-```
+Open `index.html` in a browser.
 
 ## How to play
 
