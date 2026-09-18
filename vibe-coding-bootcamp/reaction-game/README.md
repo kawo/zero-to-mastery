@@ -44,6 +44,7 @@ Stats live in JavaScript memory only. There's no `localStorage` or cookies. Relo
 
 ```
 index.html      markup: stage, controls, stats and chart
+favicon.png     32×32 tab icon
 css/style.css   colour tokens, per-state styles, responsive layout
 js/app.js       config, stats, 3D scene (ReactionScene), game state machine, render loop
 ```
