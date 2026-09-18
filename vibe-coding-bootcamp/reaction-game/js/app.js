@@ -734,7 +734,7 @@
     const times = session.times.slice(-CONFIG.historySize);
     const empty = times.length === 0;
     dom.chartEmpty.hidden = !empty;
-    svg.hidden = empty;
+    svg.toggleAttribute('hidden', empty); // SVG elements have no .hidden property
     svg.replaceChildren();
     if (empty) return;
 
