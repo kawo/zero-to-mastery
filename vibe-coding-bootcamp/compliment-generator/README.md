@@ -8,6 +8,16 @@ Built with vanilla HTML, CSS and JavaScript: no framework, no library, no build 
 
 Open `index.html` in a browser. No server or installation is needed.
 
+To try the offline mode and installing it as an app, serve the folder over http instead, since service workers don't run from a `file://` page. For example, from this folder:
+
+```
+npx serve .
+# or
+python -m http.server 8000
+```
+
+Then open the address it prints (`http://localhost:…`).
+
 ## Features
 
 - **100 compliments:** each has its own emoji and exists in English and French.
@@ -61,6 +71,11 @@ Open `index.html` in a browser. No server or installation is needed.
 
   It's pure CSS, and only `transform` and `opacity` are animated, so the page stays smooth.
 - **Gentle motion:** the text fades in and the emoji pops in.
+- **Works offline, installable (Progressive Web App):**
+  - **Install:** on a server (https, or `localhost`), browsers offer to install the app: "Install" in the address bar on desktop Chrome and Edge, "Add to Home Screen" on phones. It then opens in its own window, with its own icon.
+  - **Offline:** after one visit, the app works with no connection. The service worker (`js/sw.js`) keeps a copy of the page, the styles, the scripts (which hold the compliments, the jokes and the interface text) and the icons. It also keeps the Nunito and Lato fonts, so the app looks the same offline. Favorites and the language choice are in `localStorage`, which works offline anyway.
+  - **Updates:** files are served from the copy straight away, and a fresh copy is fetched in the background. A change you publish shows on the visit after next.
+  - **Share links** (WhatsApp, X…) still need a connection, since they open other sites.
 - **Reduced motion:** when the system asks for it, the glows stop moving, the floating shapes are hidden, and the text and emoji appear without animation.
 
 ## Design
@@ -118,13 +133,18 @@ Open `index.html` in a browser. No server or installation is needed.
 ```
 compliment-generator/
 ├── index.html     page structure, background decoration, language switch, buttons, dialogs
+├── manifest.webmanifest  app name, icons and colours for installing (PWA)
+├── sw.js          one line that loads js/sw.js (must stay at the root, see below)
 ├── favicon.png    tab icon
 ├── images/
-│   └── og-image.png  1200×630 link-preview image (Facebook, WhatsApp, X…)
+│   ├── og-image.png  1200×630 link-preview image (Facebook, WhatsApp, X…)
+│   └── icons/        app icons: icon.svg (the source), 192 and 512 px PNGs,
+│                     "maskable" versions for Android, apple-touch-icon.png (180 px)
 ├── css/
 │   └── style.css  palette, background, layout, animations, responsive rules
 └── js/
     ├── i18n.js    interface text: one dictionary per language
+    ├── sw.js      service worker: keeps a copy of the app for offline use
     └── script.js  the 100 compliments, the 100 jokes, tags, logic
 ```
 
@@ -175,7 +195,13 @@ en: {
 - to change how strong each glow is, edit the opacity in its `radial-gradient` (`.glow-coral`, `.glow-yellow`, `.glow-peach`, `.glow-pink`);
 - to change the floating shapes (position, size, speed, colour), edit the `.float:nth-of-type(…)` lines.
 
+**Offline copy (`js/sw.js`).** The service worker code is in `js/sw.js`, but the one-line `sw.js` that loads it has to stay at the root: a service worker only looks after pages in its own folder and below, so one registered from `js/` would never handle `index.html`. Paths in `js/sw.js` are therefore relative to the root. When you add a file the app needs, add it to `APP_FILES`. When you change which files exist, or want returning visitors to download everything again at once, change `VERSION` (`'v1'` → `'v2'`): the old copy is deleted when the new version takes over. If you change the Google Fonts link in `index.html`, copy it into `FONT_CSS` too.
+
+**App icons.** Edit `images/icons/icon.svg`, then export it again as PNG at 192 and 512 px. For the "maskable" versions, use a full square with no rounded corners, and keep the drawing inside the central 80%: Android crops these icons into circles or rounded squares.
+
 ## Publishing online
+
+The site must be served over **https** for the offline mode and installing to work (`localhost` is the only exception). GitHub Pages and Netlify both use https.
 
 When the site goes online (GitHub Pages, Netlify…), finish the link previews. In `index.html`, uncomment the `og:url` and `og:image` lines and replace `https://YOUR-SITE/…` with the site's real address. Facebook only accepts full addresses for these two tags.
 
@@ -183,4 +209,4 @@ You can then check the preview with Facebook's [Sharing Debugger](https://develo
 
 ## Browser support
 
-The app works in current versions of Chrome, Edge, Firefox and Safari. The language choice and the favorites are saved with `localStorage`. If storage is blocked (private browsing, for example), the app still works but doesn't remember them after the page is closed.
+The app works in current versions of Chrome, Edge, Firefox and Safari. The offline mode works in all of them. Installing as an app works in Chrome and Edge (desktop and Android) and in Safari (iOS "Add to Home Screen", macOS "Add to Dock"); Firefox on desktop doesn't install web apps, but still works offline. The language choice and the favorites are saved with `localStorage`. If storage is blocked (private browsing, for example), the app still works but doesn't remember them after the page is closed.

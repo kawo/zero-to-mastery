@@ -12,6 +12,15 @@
   <!-- Tab icon -->
   <link rel="icon" type="image/png" sizes="32x32" href="favicon.png" />
 
+  <!-- Installable app (Progressive Web App): name, icons and colours are in the
+       manifest; the service worker (sw.js + js/sw.js, registered by script.js)
+       makes it work offline. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#FF6B6B" />
+  <link rel="apple-touch-icon" href="images/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="Compliments" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
   <!-- Link previews (Facebook, WhatsApp, X, Slack…). Facebook reads these tags
        itself: it doesn't run JavaScript, so they have to be written here. -->
   <meta property="og:type" content="website" />

@@ -1925,4 +1925,21 @@
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(lockComplimentHeight);
   }
+
+  /* ---------- Offline support ---------- */
+  // The service worker keeps a copy of the app so it works without a
+  // connection (and can be installed like an app). Its code is in js/sw.js,
+  // loaded by the one-line sw.js at the root, which must stay there to look
+  // after index.html. Service workers only run on a web server (http or https,
+  // or localhost), not when index.html is opened as a file.
+  if ('serviceWorker' in navigator && /^https?:$/.test(window.location.protocol)) {
+    const register = () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {
+        // No offline copy this time; the app works normally online.
+      });
+    };
+    // After the page has loaded, so it doesn't compete with the page's own downloads.
+    if (document.readyState === 'complete') register();
+    else window.addEventListener('load', register);
+  }
 })();
