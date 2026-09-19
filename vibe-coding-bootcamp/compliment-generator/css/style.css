@@ -1,0 +1,216 @@
+/* ==========================================================================
+   Compliment Generator: styles
+   ========================================================================== */
+
+/* ---------- Design tokens (the colour palette and fonts in one place) ---------- */
+:root {
+  --color-background: #F8F9FA;   /* Light Gray */
+  --color-text: #212529;         /* Charcoal */
+  --color-accent: #FF6B6B;       /* Living Coral: the button */
+  --color-accent-hover: #FFD166; /* Sunny Yellow: the button on hover */
+  --color-muted: #6C757D;        /* softer grey for small UI text */
+  --color-card: #FFFFFF;
+
+  --font-compliment: "Nunito", "Segoe UI", system-ui, sans-serif;
+  --font-ui: "Lato", "Segoe UI", system-ui, sans-serif;
+
+  --radius: 20px;
+  --shadow: 0 10px 30px rgba(33, 37, 41, 0.08), 0 2px 6px rgba(33, 37, 41, 0.05);
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Layout: centre the card vertically and horizontally with Flexbox ---------- */
+.page {
+  min-height: 100%;
+  display: flex;
+  align-items: center;       /* vertical centring */
+  justify-content: center;   /* horizontal centring */
+  padding: 24px 16px;        /* keeps the card off the screen edges on phones */
+}
+
+/* ---------- The card ---------- */
+.card {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: clamp(28px, 6vw, 48px);
+  background-color: var(--color-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);  /* the subtle depth asked for in the brief */
+  text-align: center;
+}
+
+/* ---------- Language switch (EN / FR) ---------- */
+.lang-switch {
+  align-self: flex-end;  /* top-right corner of the card */
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: -12px;  /* sit a little closer to the eyebrow text */
+  border: 1px solid rgba(33, 37, 41, 0.12);
+  border-radius: 999px;
+}
+
+.lang-option {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  min-width: 44px;
+  min-height: 32px;
+  background: transparent;
+  color: var(--color-muted);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.lang-option:hover {
+  color: var(--color-text);
+}
+
+/* The selected language */
+.lang-option[aria-pressed="true"] {
+  background-color: var(--color-text);
+  color: var(--color-background);
+}
+
+.lang-option:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ---------- The compliment ---------- */
+.compliment {
+  margin: 0;
+  width: 100%;
+  /* Reserve space for about three lines, so the button doesn't jump
+     when a longer or shorter compliment appears. */
+  min-height: 7.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compliment-text {
+  margin: 0;
+  font-family: var(--font-compliment);
+  font-weight: 800;
+  font-size: clamp(1.4rem, 4.5vw, 1.9rem); /* scales smoothly from phone to desktop */
+  line-height: 1.35;
+  text-wrap: balance;  /* evens out line lengths where supported */
+}
+
+/* Fade-and-rise animation, replayed by script.js each time the text changes */
+.compliment-text.is-changing {
+  animation: compliment-in 450ms ease-out;
+}
+
+@keyframes compliment-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- The button ---------- */
+.button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 14px 28px;
+  min-height: 48px;  /* comfortable tap target on touch screens */
+  background-color: var(--color-accent);
+  /* Charcoal text on coral and on yellow keeps contrast above the WCAG AA
+     4.5:1 minimum; white text on this coral would fall below it. */
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(255, 107, 107, 0.35);
+  /* Smooth colour change on hover, plus a gentle lift */
+  transition: background-color 250ms ease, box-shadow 250ms ease, transform 150ms ease;
+}
+
+.button:hover {
+  background-color: var(--color-accent-hover);
+  box-shadow: 0 6px 18px rgba(255, 209, 102, 0.45);
+  transform: translateY(-1px);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+/* A clearly visible focus ring for keyboard users */
+.button:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 3px;
+}
+
+/* ---------- Small screens: the button spans the card width ---------- */
+@media (max-width: 420px) {
+  .button {
+    width: 100%;
+  }
+}
+
+/* ---------- Respect people who prefer less motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .compliment-text.is-changing {
+    animation: none;
+  }
+
+  .button {
+    transition: background-color 250ms ease;
+  }
+
+  .lang-option {
+    transition: none;
+  }
+
+  .button:hover,
+  .button:active {
+    transform: none;
+  }
+}
