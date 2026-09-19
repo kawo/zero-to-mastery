@@ -17,6 +17,15 @@ Open `index.html` in a browser. No server or installation is needed.
   - Puns rarely survive translation. When the English joke relies on one, the French side is a French joke on the same theme instead of a literal translation.
   - English knock-knock jokes, for example, are paired with French "M. et Mme…" jokes.
 - **Two buttons below the card:** "Get a New Compliment" and "Tell Me a Joke". The same item is never shown twice in a row.
+- **Copy and share:** two buttons next to the heart.
+  - **Copy:** copies the emoji and the text, in the current language, with the Clipboard API. Older browsers fall back to `execCommand('copy')`. The icon turns into a ✓ for a moment, and "Copied!" is announced.
+  - **Share:** uses the device's share sheet (Web Share API) when there is one, for example on phones, in Safari, and in Edge and Chrome on Windows. Otherwise, a small menu offers WhatsApp, X and Email, plus Facebook when the site is online.
+  - **Page address:** it's added to shares only when the page is served online. A `file://` address means nothing to the person receiving it, so it's never shared.
+  - **Facebook shares the page link, not the compliment.** Facebook doesn't accept pre-filled text: its share window only takes a link, and only a public one, because Facebook's servers fetch the page to build the preview.
+    - Facebook appears in the menu only when the site is at a public address.
+    - It's hidden on `localhost`, on a local network address and in a local file, where Facebook would only show an error.
+    - To share the compliment itself on Facebook, use **Copy** and paste it into a post.
+  - **Closing the menu:** it closes with `Esc`, with a click elsewhere, or when a new item appears. Web links open in a new tab with `rel="noopener noreferrer"`.
 - **Favorites:**
   - **Heart:** the heart at the top left of the card adds or removes the compliment or joke on screen.
   - **List:** "My favorites (n)" opens the list, newest first. Click an item to show it on the card, or × to remove it. "Clear all" asks for a second press to confirm.
@@ -63,6 +72,10 @@ Open `index.html` in a browser. No server or installation is needed.
   - adding or removing a favorite is announced;
   - the list is a native `<dialog>`, which keeps focus inside and closes with `Esc`;
   - after an item is removed, focus moves to the next one.
+- **Copy and share:**
+  - both icon buttons are labelled in the current language;
+  - the share button reports whether its menu is open (`aria-expanded`);
+  - when the menu opens, focus moves into it, and `Esc` returns focus to the button.
 - **Keyboard:** everything works with the keyboard, with a visible focus ring.
 - **Without JavaScript:** a first compliment is written in the HTML, so the page isn't empty if the script doesn't run.
 
@@ -72,6 +85,8 @@ Open `index.html` in a browser. No server or installation is needed.
 compliment-generator/
 ├── index.html     page structure, background decoration, language switch, buttons
 ├── favicon.png    tab icon
+├── images/
+│   └── og-image.png  1200×630 link-preview image (Facebook, WhatsApp, X…)
 ├── css/
 │   └── style.css  palette, background, layout, animations, responsive rules
 └── js/
@@ -104,6 +119,12 @@ Add, remove or edit entries freely. The random draw and the card's height adapt 
 
 - to change how strong each glow is, edit the opacity in its `radial-gradient` (`.glow-coral`, `.glow-yellow`, `.glow-peach`, `.glow-pink`);
 - to change the floating shapes (position, size, speed, colour), edit the `.float:nth-of-type(…)` lines.
+
+## Publishing online
+
+When the site goes online (GitHub Pages, Netlify…), finish the link previews. In `index.html`, uncomment the `og:url` and `og:image` lines and replace `https://YOUR-SITE/…` with the site's real address. Facebook only accepts full addresses for these two tags.
+
+You can then check the preview with Facebook's [Sharing Debugger](https://developers.facebook.com/tools/debug/). It also refreshes Facebook's cached copy of the page after a change.
 
 ## Browser support
 

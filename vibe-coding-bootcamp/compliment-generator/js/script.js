@@ -681,6 +681,12 @@
         cleared: 'All favorites cleared.',
         noStorage: 'Your browser is blocking storage, so favorites will be lost when you close this page.',
       },
+      copy: 'Copy to clipboard',
+      copied: 'Copied!',
+      copyFailed: 'Couldn’t copy. Select the text and copy it by hand.',
+      share: 'Share',
+      shareOn: 'Share on',
+      email: 'Email',
     },
     fr: {
       title: 'Générateur de compliments',
@@ -706,6 +712,12 @@
         cleared: 'Tous les favoris ont été effacés.',
         noStorage: 'Ton navigateur bloque le stockage : les favoris seront perdus à la fermeture de la page.',
       },
+      copy: 'Copier dans le presse-papiers',
+      copied: 'Copié !',
+      copyFailed: 'Impossible de copier. Sélectionne le texte et copie-le à la main.',
+      share: 'Partager',
+      shareOn: 'Partager sur',
+      email: 'E-mail',
     },
   };
 
@@ -736,11 +748,17 @@
   const favoritesNote = document.getElementById('favorites-note');
   const favoritesClear = document.getElementById('favorites-clear');
   const statusEl = document.getElementById('status');
+  const copyButton = document.getElementById('copy-button');
+  const shareButton = document.getElementById('share-button');
+  const shareMenu = document.getElementById('share-menu');
+  const shareMenuTitle = document.getElementById('share-menu-title');
+  const shareLinks = document.getElementById('share-links');
 
   // Stop quietly if the page doesn't have the expected elements.
   const required = [complimentBox, complimentEl, emojiEl, complimentButton, jokeButton, eyebrowEl, langSwitch,
     favToggle, openFavoritesButton, openFavoritesLabel, favoritesCount, favoritesDialog, favoritesTitle,
-    favoritesClose, favoritesEmpty, favoritesList, favoritesNote, favoritesClear, statusEl];
+    favoritesClose, favoritesEmpty, favoritesList, favoritesNote, favoritesClear, statusEl,
+    copyButton, shareButton, shareMenu, shareMenuTitle, shareLinks];
   if (required.some((element) => !element)) {
     return;
   }
@@ -885,6 +903,7 @@
     // Jokes get their own timing in the CSS (the punchline arrives a beat later).
     complimentBox.classList.toggle('is-joke', currentMode === 'joke');
     renderFavoriteToggle();
+    closeShareMenu();
 
     // Restart the CSS animation: remove the class, force the browser to apply
     // that change (reading offsetWidth does this), then add the class back.
@@ -914,6 +933,12 @@
 
     renderFavorites();
     if (favoritesDialog.open) renderFavoritesList();
+
+    copyButton.setAttribute('aria-label', text.copy);
+    copyButton.title = copyButton.classList.contains('is-done') ? text.copied : text.copy;
+    shareButton.setAttribute('aria-label', text.share);
+    shareButton.title = text.share;
+    if (!shareMenu.hidden) renderShareLinks();
   }
 
   /**
@@ -1151,11 +1176,190 @@
     if (favoritesDialog.open) renderFavoritesList();
   }
 
+  /* ---------- Copy and share ---------- */
+
+  /** What gets copied or shared: the emoji and the text on the card, in the current language. */
+  function shareableText() {
+    const item = collections[currentMode][currentIndex];
+    return `${item.emoji} ${item[currentLang]}`;
+  }
+
+  /** The page's address, only when it's online (a file:// path means nothing to someone else). */
+  function pageUrl() {
+    return /^https?:$/.test(window.location.protocol) ? window.location.href.split('#')[0] : '';
+  }
+
+  /**
+   * True if the address can be reached from the internet. Facebook's servers
+   * fetch the shared page to build its preview, so localhost, local network
+   * addresses and .local names can't be shared there.
+   */
+  function isPublicUrl(url) {
+    if (!url) return false;
+    const host = new URL(url).hostname;
+    if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host === '[::1]') return false;
+    const ip = host.match(/^(\d+)\.(\d+)\.\d+\.\d+$/);
+    if (ip) {
+      const [a, b] = [Number(ip[1]), Number(ip[2])];
+      if (a === 10 || a === 127 || a === 0 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31) || (a === 169 && b === 254)) return false;
+    }
+    return true;
+  }
+
+  /** Older browsers: copy through a hidden, temporarily selected text field. */
+  function copyWithTextarea(text) {
+    const field = document.createElement('textarea');
+    field.value = text;
+    field.setAttribute('readonly', '');
+    field.style.cssText = 'position:fixed;top:-1000px;left:0;opacity:0;';
+    document.body.appendChild(field);
+    field.select();
+    let copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch (error) {
+      copied = false;
+    }
+    field.remove();
+    return copied;
+  }
+
+  let copyTimer = 0;
+
+  /** Copies the card's text, then shows a check mark for a moment and announces it. */
+  /** Puts text on the clipboard. Resolves to true if it worked. */
+  async function writeClipboard(text) {
+    // The modern Clipboard API needs a secure context (https, localhost or a local file).
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (error) {
+        // Permission refused: try the older way below.
+      }
+    }
+    return copyWithTextarea(text);
+  }
+
+  async function copyToClipboard() {
+    const copied = await writeClipboard(shareableText());
+
+    const labels = uiText[currentLang];
+    announce(copied ? labels.copied : labels.copyFailed);
+    if (copied) {
+      clearTimeout(copyTimer);
+      copyButton.classList.add('is-done');
+      copyButton.title = labels.copied;
+      copyTimer = setTimeout(() => {
+        copyButton.classList.remove('is-done');
+        copyButton.title = uiText[currentLang].copy;
+      }, 1600);
+    }
+  }
+
+  /**
+   * Share: the device's own share sheet when there is one (phones, Safari,
+   * Edge and Chrome on Windows…), otherwise a small menu of share links.
+   */
+  async function share() {
+    if (!shareMenu.hidden) {
+      closeShareMenu();
+      return;
+    }
+    const text = shareableText();
+    const url = pageUrl();
+    const data = { title: uiText[currentLang].eyebrow[currentMode], text };
+    if (url) data.url = url;
+
+    if (typeof navigator.share === 'function' && (!navigator.canShare || navigator.canShare(data))) {
+      try {
+        await navigator.share(data);
+        return;
+      } catch (error) {
+        if (error && error.name === 'AbortError') return; // the person closed the share sheet
+        // Any other failure: fall back to the menu below.
+      }
+    }
+    openShareMenu();
+  }
+
+  /** Builds the share links for the text on the card (and the page address, when online). */
+  function renderShareLinks() {
+    const text = shareableText();
+    const url = pageUrl();
+    const withUrl = url ? `${text}\n\n${url}` : text;
+    const enc = encodeURIComponent;
+    const labels = uiText[currentLang];
+
+    // Facebook doesn't accept pre-filled text: its share window only takes a
+    // link, and only a public one, since its servers fetch the page to build the
+    // preview (see the Open Graph tags in index.html). So Facebook shares the
+    // page link, and is only offered when the page is online at a public address.
+    const services = [
+      { name: 'WhatsApp', badge: 'W', color: '#C9F2D5', href: `https://wa.me/?text=${enc(withUrl)}` },
+      { name: 'X', badge: 'X', color: '#E9ECEF', href: `https://x.com/intent/post?text=${enc(text)}${url ? `&url=${enc(url)}` : ''}` },
+      isPublicUrl(url) && { name: 'Facebook', badge: 'f', color: '#D6E4FF', href: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}` },
+      { name: labels.email, badge: '@', color: '#FFE8B3', href: `mailto:?subject=${enc(labels.eyebrow[currentMode])}&body=${enc(withUrl)}` },
+    ].filter(Boolean);
+
+    shareMenuTitle.textContent = labels.shareOn;
+    shareLinks.replaceChildren(...services.map((service) => {
+      const li = document.createElement('li');
+      const link = document.createElement('a');
+      link.className = 'share-link';
+      link.href = service.href;
+      // Web services open in a new tab; email opens the mail app.
+      if (!service.href.startsWith('mailto:')) {
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+      }
+      const badge = document.createElement('span');
+      badge.className = 'share-badge';
+      badge.setAttribute('aria-hidden', 'true');
+      badge.style.setProperty('--badge', service.color);
+      badge.textContent = service.badge;
+      const label = document.createElement('span');
+      label.className = 'share-label';
+      label.textContent = service.name;
+      link.append(badge, label);
+      li.appendChild(link);
+      return li;
+    }));
+  }
+
+  function openShareMenu() {
+    renderShareLinks();
+    shareMenu.hidden = false;
+    shareButton.setAttribute('aria-expanded', 'true');
+    const first = shareLinks.querySelector('a');
+    if (first) first.focus();
+  }
+
+  function closeShareMenu({ returnFocus = false } = {}) {
+    if (shareMenu.hidden) return;
+    shareMenu.hidden = true;
+    shareButton.setAttribute('aria-expanded', 'false');
+    if (returnFocus) shareButton.focus();
+  }
+
   /* ---------- Wire up the controls ---------- */
   complimentButton.addEventListener('click', () => showNew('compliment'));
   jokeButton.addEventListener('click', () => showNew('joke'));
 
   favToggle.addEventListener('click', toggleFavorite);
+  copyButton.addEventListener('click', copyToClipboard);
+  shareButton.addEventListener('click', share);
+
+  // The share menu closes after picking a service, on Esc, or on a click elsewhere.
+  shareLinks.addEventListener('click', (event) => {
+    if (event.target.closest('a')) closeShareMenu();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !shareMenu.hidden) closeShareMenu({ returnFocus: true });
+  });
+  document.addEventListener('click', (event) => {
+    if (!shareMenu.hidden && !shareMenu.contains(event.target) && !shareButton.contains(event.target)) closeShareMenu();
+  });
   openFavoritesButton.addEventListener('click', openFavorites);
   favoritesClose.addEventListener('click', closeFavorites);
   favoritesClear.addEventListener('click', clearFavorites);
