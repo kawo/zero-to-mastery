@@ -32,7 +32,7 @@ Each level has a target time. Beat it **3 rounds in a row** to level up. **2 fai
 - **Subtle levels:** the "React!" text and the green border flash are gone. Only the shape and the glow turn green.
 - **Visual noise:** the waiting animation spins faster at each level. The speed stays constant within a round, so it can't hint at when "go" will fire.
 
-The levels are defined in the `LEVELS` table at the top of `js/app.js`.
+The levels are defined in the `LEVELS` table in `js/config.js`.
 
 ## How timing works
 
@@ -61,5 +61,6 @@ Stats live in JavaScript memory only. There's no `localStorage` or cookies. Relo
 index.html      markup: stage, controls, stats and chart
 favicon.png     32×32 tab icon
 css/style.css   colour tokens, per-state styles, responsive layout
-js/app.js       config, stats, 3D scene (ReactionScene), game state machine, render loop
+js/config.js    settings: timings, difficulty levels (LEVELS), colours, 3D presets
+js/app.js       stats, 3D scene (ReactionScene), game state machine, render loop
 ```

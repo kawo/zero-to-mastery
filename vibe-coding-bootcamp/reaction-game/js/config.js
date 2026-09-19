@@ -1,0 +1,75 @@
+/*
+ * Reflex Lab: game settings, difficulty levels and 3D state presets.
+ *
+ * Loaded as a classic script before app.js (ES modules can't load over file://).
+ * Everything is exposed on a single frozen global, window.ReflexLabConfig.
+ */
+(() => {
+  'use strict';
+
+  /** Freeze an object and everything nested inside it. */
+  const deepFreeze = (obj) => {
+    for (const value of Object.values(obj)) {
+      if (value && typeof value === 'object' && !Object.isFrozen(value)) deepFreeze(value);
+    }
+    return Object.freeze(obj);
+  };
+
+  const CONFIG = {
+    minDelayMs: 1000,        // earliest the stimulus can fire after a round starts
+    maxDelayMs: 5000,        // latest
+    anticipationMs: 100,     // faster than visual processing allows → counted as a guess
+    timeoutMs: 3000,         // no reaction within this window → round voided
+    historySize: 15,         // bars shown in the chart
+    maxPixelRatio: 2,
+    slowFrameMs: 25,         // average frame time that triggers a resolution drop
+    levelUpStreak: 3,        // rounds in a row under the target to level up
+    levelDownStreak: 2,      // failed rounds in a row to drop a level
+    decoyDurationMs: 450,    // how long a decoy flash stays on screen
+    decoyBlameMs: 1000,      // a false start this soon after a decoy is blamed on it
+  };
+
+  const COLORS = {
+    idle: 0x94a3b8,
+    waiting: 0xf59e0b,
+    go: 0x10b981,
+    result: 0x3b82f6,
+    decoy: 0x3b82f6,
+    error: 0xef4444,
+  };
+
+  /**
+   * Progressive difficulty.
+   * - target:    time to beat for a round to count towards the next level
+   * - decoy:     chance per round of a fake-out flash (blue cube) before the real signal
+   * - subtle:    no text or border cue on "go"; only the shape itself turns green
+   * - agitation: speed multiplier for the waiting animation (visual noise). It is
+   *              constant within a round, so it never hints at when "go" will fire.
+   */
+  const LEVELS = [
+    { name: 'Warm-up', target: 500, decoy: 0,    subtle: false, agitation: 1,
+      brief: 'Beat 500 ms three times in a row to move up.' },
+    { name: 'Steady',  target: 400, decoy: 0,    subtle: false, agitation: 1.25,
+      brief: 'A tighter target, and the waiting animation gets busier.' },
+    { name: 'Decoys',  target: 380, decoy: 0.35, subtle: false, agitation: 1.45,
+      brief: 'Blue cubes may flash while you wait. They’re decoys: only green counts.' },
+    { name: 'Sharp',   target: 340, decoy: 0.45, subtle: false, agitation: 1.65,
+      brief: 'Faster target, more decoys.' },
+    { name: 'Subtle',  target: 320, decoy: 0.5,  subtle: true,  agitation: 1.85,
+      brief: 'No “React!” text or border flash. Watch the shape itself.' },
+    { name: 'Elite',   target: 290, decoy: 0.6,  subtle: true,  agitation: 2.1,
+      brief: 'Top level: 290 ms target, decoys in most rounds, no text cue.' },
+  ];
+
+  // Visual preset for each scene mode. The game maps its states onto these.
+  const PRESETS = {
+    idle:    { shape: 'idle',    color: COLORS.idle,    spin: 0.25, radius: 2.5, orbit: 0.12, glow: 0.12, light: 0.6 },
+    waiting: { shape: 'waiting', color: COLORS.waiting, spin: 0.7,  radius: 2.1, orbit: 0.45, glow: 0.3,  light: 1.3 },
+    go:      { shape: 'go',      color: COLORS.go,      spin: 1.6,  radius: 3.0, orbit: 1.1,  glow: 0.75, light: 2.8 },
+    result:  { shape: 'result',  color: COLORS.result,  spin: 0.35, radius: 2.6, orbit: 0.2,  glow: 0.25, light: 1.1 },
+    decoy:   { shape: 'decoy',   color: COLORS.decoy,   spin: 1.3,  radius: 2.5, orbit: 0.9,  glow: 0.6,  light: 2.2 },
+    error:   { shape: 'error',   color: COLORS.error,   spin: 0.9,  radius: 3.2, orbit: -0.6, glow: 0.4,  light: 1.7 },
+  };
+
+  window.ReflexLabConfig = deepFreeze({ CONFIG, COLORS, LEVELS, PRESETS });
+})();
