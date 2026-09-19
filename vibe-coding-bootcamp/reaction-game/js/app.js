@@ -20,7 +20,7 @@
     }
     return;
   }
-  const { CONFIG, COLORS, LEVELS, PRESETS, POWERUPS } = window.ReflexLabConfig;
+  const { CONFIG, COLORS, LEVELS, PRESETS, POWERUPS, PALETTES, TEXT_SCALES } = window.ReflexLabConfig;
   const POWERUP_BY_ID = Object.fromEntries(POWERUPS.map((p) => [p.id, p]));
   const Storage = window.ReflexLabStorage;
   const Achievements = window.ReflexLabAchievements;
@@ -55,6 +55,23 @@
     const ts = event && event.timeStamp;
     if (typeof ts === 'number' && ts > 0 && ts <= now + 1 && now - ts < 1000) return ts;
     return now;
+  }
+
+  // Display settings (colour-vision palette, text size, motion); see applyDisplay().
+  const display = { palette: 'standard', textScale: 1, reduceMotion: false };
+
+  /**
+   * Replace {go}, {wait} and {decoy} with the colour names of the active
+   * palette ("green" by default, "blue" in the red–green safe palette…).
+   * A capitalised placeholder ({Go}) gives a capitalised word.
+   */
+  function fillWords(text) {
+    if (!text) return text;
+    const words = (PALETTES[display.palette] || PALETTES.standard).words;
+    return String(text).replace(/\{(go|wait|decoy)\}/gi, (m, key) => {
+      const word = words[key.toLowerCase()];
+      return key[0] === key[0].toUpperCase() ? word[0].toUpperCase() + word.slice(1) : word;
+    });
   }
 
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -130,7 +147,10 @@
       this.onQualityChange = onQualityChange || (() => {});
       this.ready = false;
       this.contextLost = false;
-      this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      this.systemReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      this.reducedMotion = this.systemReducedMotion;
+      this.colorMap = { ...COLORS };  // replaced by the colour-vision palette
+      this.goRing = false;            // bright white ring on "go" (colour-safe palettes)
 
       this.mode = 'idle';
       this.params = { ...PRESETS.idle };
@@ -257,6 +277,13 @@
       this.stars = new THREE.Points(starGeo, starMat);
       scene.add(this.stars);
 
+      // "Go" cue ring for colour-safe palettes (hidden otherwise). It faces the camera.
+      const cueGeo = this._trackGeo(new THREE.TorusGeometry(1.55, 0.06, 12, 128));
+      const cueMat = this._track(new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      this.cueRing = new THREE.Mesh(cueGeo, cueMat);
+      this.cueRing.visible = false;
+      scene.add(this.cueRing);
+
       // Shield power-up: a faint geodesic bubble. It stays constant through a
       // round (it never reacts to "go"), so it can't act as a cue.
       const bubbleGeo = this._trackGeo(new THREE.IcosahedronGeometry(1.8, 2));
@@ -323,7 +350,7 @@
       const shapeChanged = preset.shape !== this.target.shape;
       this.mode = mode;
       this.target = { ...preset };
-      this.targetColor.setHex(preset.color);
+      this.targetColor.setHex(this.colorMap[mode] !== undefined ? this.colorMap[mode] : preset.color);
 
       if (instant) {
         this.color.copy(this.targetColor);
@@ -338,6 +365,20 @@
         this.morph = { t, next: preset.shape, swapped: false };
       }
       if (mode === 'error' && !this.reducedMotion) this.shake = 1;
+    }
+
+    /** Apply a colour-vision palette (see PALETTES in config.js). */
+    setPalette(palette) {
+      if (!palette) return;
+      this.colorMap = { ...palette.colors };
+      this.goRing = !!palette.goRing;
+      if (!this.ready) return;
+      this.targetColor.setHex(this.colorMap[this.mode]);
+      this.color.copy(this.targetColor); // a settings change, not gameplay: switch at once
+    }
+
+    setReducedMotion(on) {
+      this.reducedMotion = !!on || this.systemReducedMotion;
     }
 
     setShield(on) {
@@ -433,6 +474,11 @@
 
       this.halo.rotation.z += dt * 0.2 * motion;
       this.halo.scale.setScalar(this.params.radius / 2.5);
+
+      // Colour-safe palettes: a thick white ring appears on the "go" frame itself,
+      // a brightness cue that works for every kind of colour vision.
+      this.cueRing.visible = this.goRing && this.mode === 'go';
+      if (this.cueRing.visible) this.cueRing.rotation.z += dt * 0.6 * motion;
 
       // Orbiting cubes.
       this.orbitAngle += this.params.orbit * dt * motion * busy;
@@ -540,6 +586,8 @@
     tourneyBtn: $('tourneyBtn'), tourneyCard: $('tourneyCard'), tourneyMeta: $('tourneyMeta'), tourneyList: $('tourneyList'),
     penaltyNote: $('penaltyNote'),
     powerSlots: $('powerSlots'), powerActive: $('powerActive'), powerBadges: $('powerBadges'),
+    a11yBtn: $('a11yBtn'), a11yDialog: $('a11yDialog'), a11yClose: $('a11yClose'), a11yDone: $('a11yDone'),
+    paletteOptions: $('paletteOptions'), textScalePick: $('textScalePick'), reduceMotion: $('reduceMotion'),
     tourneyDialog: $('tourneyDialog'), tourneyForm: $('tourneyForm'), tourneyClose: $('tourneyClose'), tourneyCancel: $('tourneyCancel'),
     playerPicks: $('playerPicks'), newPlayerName: $('newPlayerName'), addPlayerBtn: $('addPlayerBtn'),
     tourneyError: $('tourneyError'), roundsPick: $('roundsPick'), tourneyLevel: $('tourneyLevel'), tourneyRules: $('tourneyRules'),
@@ -724,7 +772,7 @@
     return null;
   }
 
-  /* ---------- Decoys: a blue cube that flashes during the wait ---------- */
+  /* ---------- Decoys: a cube in the decoy colour that flashes during the wait ---------- */
   function scheduleDecoy(stimulusDelay) {
     const level = currentLevel();
     // Leave room for the decoy to finish at least 250 ms before the real signal.
@@ -761,10 +809,10 @@
   /* ---------- View: one place that maps a state to on-screen copy ---------- */
   const VIEW = {
     idle:    { pill: 'Idle',        eyebrow: 'Ready when you are', headline: 'Test your reflexes',
-               sub: 'Press Start, wait for the shape to turn green, then react as fast as you can.' },
-    waiting: { pill: 'Wait',        eyebrow: 'Hold steady',        headline: 'Wait for green…',
+               sub: 'Press Start, wait for the shape to turn {go}, then react as fast as you can.' },
+    waiting: { pill: 'Wait',        eyebrow: 'Hold steady',        headline: 'Wait for {go}…',
                sub: 'The signal fires after a random 1–5 second delay. Don’t guess.',
-               hint: 'React only when the shape turns green' },
+               hint: 'React only when the shape turns {go}' },
     go:      { pill: 'Go',          eyebrow: 'Now',                headline: 'React!', sub: '' },
     result:  { pill: 'Result',      hint: '<kbd>Space</kbd>, click or tap for the next round' },
     false:   { pill: 'False start', eyebrow: 'Too soon',          hint: '<kbd>Space</kbd>, click or tap to try again' },
@@ -773,21 +821,25 @@
                hint: '<kbd>Space</kbd>, click or tap to try again' },
   };
 
+  let lastView = null; // so a palette change can redraw the current message
+
   function setState(next, copy = {}) {
     game.state = next;
     // On subtle levels the text keeps saying "wait": only the shape signals go.
     const base = next === STATE.GO && currentLevel().subtle ? VIEW.waiting : VIEW[next];
     const view = { ...base, ...copy };
+    lastView = { state: next, copy };
 
     dom.app.dataset.state = next;
     delete dom.app.dataset.decoy;
     dom.stateLabel.textContent = view.pill;
-    dom.eyebrow.textContent = view.eyebrow || '';
-    dom.headline.textContent = view.headline || '';
+    // Colour words ({go}, {wait}, {decoy}) follow the active palette.
+    dom.eyebrow.textContent = fillWords(view.eyebrow) || '';
+    dom.headline.textContent = fillWords(view.headline) || '';
     dom.headline.hidden = !view.headline;
-    dom.subline.innerHTML = view.sub || '';
+    dom.subline.innerHTML = fillWords(view.sub) || '';
     dom.subline.hidden = !view.sub;
-    dom.hint.innerHTML = view.hint || HINT_DEFAULT;
+    dom.hint.innerHTML = fillWords(view.hint) || HINT_DEFAULT;
 
     const showReadout = typeof view.readout === 'number';
     dom.readout.hidden = !showReadout;
@@ -811,7 +863,6 @@
     persist();
     beginRound();
     dom.stage.focus({ preventScroll: true }); // so Space reacts instead of re-pressing the button
-    announce('Session started. Wait for green.');
   }
 
   function stopSession(copy) {
@@ -840,6 +891,8 @@
     }, delay);
     scheduleDecoy(delay);
     Sound.play('arm'); // marks the start of the wait, never the signal itself
+    // Screen readers hear when a round starts (never when the signal fires).
+    announce(fillWords(`Round ${session.rounds}. Wait for {go}.`));
   }
 
   /** Called from the render loop on the frame that shows the stimulus. */
@@ -1007,12 +1060,12 @@
       copy = {
         eyebrow: 'Decoy',
         headline: 'That was a decoy',
-        sub: 'The blue cube is a fake-out. Only react when the shape turns green.',
+        sub: 'The {decoy} cube is a fake-out. Only react when the shape turns {go}.',
       };
     } else {
       copy = {
         headline: 'Too soon!',
-        sub: 'You reacted before the shape turned green. False starts aren’t averaged, but they are counted.',
+        sub: 'You reacted before the shape turned {go}. False starts aren’t averaged, but they are counted.',
       };
     }
     const roundLevel = session.level;
@@ -1962,7 +2015,7 @@
     dom.levelNum.textContent = String(session.level);
     dom.levelName.textContent = level.name;
     dom.levelOf.textContent = `${session.level} of ${LEVELS.length}`;
-    dom.levelBrief.textContent = level.brief;
+    dom.levelBrief.textContent = fillWords(level.brief);
     const target = effectiveTarget();
     dom.levelTarget.textContent = target > level.target
       ? `≤ ${target} ms (+${target - level.target})`
@@ -1989,7 +2042,8 @@
   }
 
   function msMarkup(ms) {
-    return `${fmt(ms)}<span class="u">ms</span>`;
+    // Screen readers say "milliseconds" rather than spelling out "m s".
+    return `${fmt(ms)}<span class="u" aria-hidden="true">ms</span><span class="sr-only"> milliseconds</span>`;
   }
 
   function renderStats(summary = summarize(session.times)) {
@@ -2057,28 +2111,32 @@
       const x = left + i * slot + (slot - barW) / 2;
       const isBest = t === summary.best;
       const isLast = i === times.length - 1;
+      // Colours come from CSS classes so they follow the colour-vision palette.
       const bar = svgEl('rect', {
         x, y: y(t), width: barW, height: Math.max(1, y(0) - y(t)), rx: 2,
-        fill: isBest ? '#10B981' : '#3B82F6',
-        'fill-opacity': isLast || isBest ? 1 : 0.6,
+        class: `bar${isBest ? ' is-best' : ''}${isLast ? ' is-last' : ''}`,
       });
       bar.appendChild(svgEl('title', {}, `Attempt ${firstIndex + i + 1}: ${fmt(t)} ms${isBest ? ' (best)' : ''}`));
       svg.appendChild(bar);
+      // The best bar is also marked with a star, not by colour alone.
+      if (isBest) svg.appendChild(svgEl('text', { x: x + barW / 2, y: Math.max(top + 7, y(t) - 3), 'text-anchor': 'middle', class: 'avg-label', 'aria-hidden': 'true' }, '★'));
     });
 
     // Session average (all attempts, not only the visible ones).
     const avgY = y(Math.min(summary.mean, maxVal));
     svg.appendChild(svgEl('line', {
       x1: left, x2: W - right, y1: avgY, y2: avgY,
-      stroke: '#F1F5F9', 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.7,
+      class: 'avg-line', 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.7,
     }));
     const labelY = avgY - 4 < top + 8 ? avgY + 11 : avgY - 4;
-    svg.appendChild(svgEl('text', { x: W - right, y: labelY, 'text-anchor': 'end', style: 'fill:#F1F5F9' }, `avg ${fmt(summary.mean)}`));
+    svg.appendChild(svgEl('text', { x: W - right, y: labelY, 'text-anchor': 'end', class: 'avg-label' }, `avg ${fmt(summary.mean)}`));
     svg.appendChild(svgEl('text', { x: left, y: H - 4 }, `#${firstIndex + 1}`));
     svg.appendChild(svgEl('text', { x: W - right, y: H - 4, 'text-anchor': 'end' }, `#${session.times.length}`));
 
+    // The chart's text alternative lists the values, not just a summary.
     svg.setAttribute('aria-label',
-      `Bar chart of the last ${times.length} reaction times. Average ${fmt(summary.mean)} ms, best ${fmt(summary.best)} ms.`);
+      `Bar chart of the last ${times.length} reaction times, oldest first: ${times.map((t) => fmt(t)).join(', ')} milliseconds. ` +
+      `Session average ${fmt(summary.mean)}, best ${fmt(summary.best)}.`);
   }
 
   function showBanner(message) {
@@ -2229,6 +2287,101 @@
   }
 
   /* ======================================================================
+   * Display & accessibility settings
+   * ==================================================================== */
+  const hexCss = (n) => `#${n.toString(16).padStart(6, '0')}`;
+
+  /** Apply palette, text size and motion settings everywhere, then save them. */
+  function applyDisplay(changes = {}, { save = true } = {}) {
+    Object.assign(display, changes);
+    if (!PALETTES[display.palette]) display.palette = 'standard';
+    if (!TEXT_SCALES.includes(display.textScale)) display.textScale = 1;
+
+    const root = document.documentElement;
+    // data-palette is only set for the colour-safe palettes (CSS keys off its presence).
+    if (display.palette === 'standard') delete root.dataset.palette;
+    else root.dataset.palette = display.palette;
+    root.style.setProperty('--text-scale', String(display.textScale));
+    if (display.reduceMotion) root.dataset.motion = 'reduced';
+    else delete root.dataset.motion;
+
+    if (scene) {
+      scene.setPalette(PALETTES[display.palette]);
+      scene.setReducedMotion(display.reduceMotion);
+    }
+
+    // Colour words in the static help text.
+    document.querySelectorAll('[data-word]').forEach((el) => {
+      el.textContent = fillWords(`{${el.dataset.word}}`);
+    });
+    // Redraw the current message with the new colour words (never mid-round).
+    if (lastView && game.state !== STATE.WAITING && game.state !== STATE.GO) {
+      setState(lastView.state, lastView.copy);
+    }
+    renderLevel();
+    renderStats(); // chart colours come from CSS, but its labels are re-laid out
+    if (save) Storage.savePrefs({ ...display });
+  }
+
+  function renderDisplaySettings() {
+    dom.paletteOptions.replaceChildren(...Object.entries(PALETTES).map(([id, p]) => {
+      const label = document.createElement('label');
+      label.className = 'palette-option';
+      label.innerHTML = `<input type="radio" name="palette" id="palette-${id}" value="${id}">
+        <span><span class="p-title"></span><span class="p-desc"></span></span>
+        <span class="palette-swatches" aria-hidden="true"><i>W</i><i>G</i><i>D</i></span>`;
+      label.querySelector('.p-title').textContent = p.name;
+      label.querySelector('.p-desc').textContent = p.desc;
+      const [w, g, d] = label.querySelectorAll('.palette-swatches i');
+      w.style.background = hexCss(p.colors.waiting);
+      g.style.background = hexCss(p.colors.go);
+      d.style.background = hexCss(p.colors.decoy);
+      w.title = 'Wait'; g.title = 'Go'; d.title = 'Decoy';
+      label.querySelector('input').checked = id === display.palette;
+      return label;
+    }));
+    dom.textScalePick.replaceChildren(...TEXT_SCALES.map((scale) => {
+      const label = document.createElement('label');
+      const pct = Math.round(scale * 100);
+      label.innerHTML = `<input type="radio" name="textScale" value="${scale}" id="textScale${pct}"><span>${pct}%</span>`;
+      label.querySelector('input').checked = scale === display.textScale;
+      label.querySelector('input').setAttribute('aria-label', `Text size ${pct}%`);
+      return label;
+    }));
+    dom.reduceMotion.checked = display.reduceMotion;
+  }
+
+  function openDisplaySettings() {
+    if (game.running && (game.state === STATE.WAITING || game.state === STATE.GO)) {
+      stopSession({ eyebrow: 'Paused', headline: 'Paused', sub: 'The round was paused while you changed settings. Press Start to continue.' });
+    }
+    renderDisplaySettings();
+    dom.a11yDialog.showModal();
+  }
+
+  function bindDisplayEvents() {
+    dom.a11yBtn.addEventListener('click', openDisplaySettings);
+    dom.a11yClose.addEventListener('click', () => dom.a11yDialog.close());
+    dom.a11yDone.addEventListener('click', () => dom.a11yDialog.close());
+    dom.a11yDialog.addEventListener('click', (e) => { if (e.target === dom.a11yDialog) dom.a11yDialog.close(); });
+    dom.a11yDialog.addEventListener('close', () => dom.a11yBtn.focus());
+
+    dom.paletteOptions.addEventListener('change', (e) => {
+      if (!(e.target instanceof HTMLInputElement) || !PALETTES[e.target.value]) return;
+      applyDisplay({ palette: e.target.value });
+      announce(`${PALETTES[display.palette].name} colours on. The signal to react is now ${fillWords('{go}')}.`);
+    });
+    dom.textScalePick.addEventListener('change', (e) => {
+      if (!(e.target instanceof HTMLInputElement)) return;
+      applyDisplay({ textScale: Number(e.target.value) });
+      announce(`Text size ${Math.round(display.textScale * 100)} percent.`);
+    });
+    dom.reduceMotion.addEventListener('change', () => {
+      applyDisplay({ reduceMotion: dom.reduceMotion.checked });
+    });
+  }
+
+  /* ======================================================================
    * Audio controls
    * ==================================================================== */
   function renderAudioControls() {
@@ -2250,6 +2403,7 @@
     paint(dom.musicToggle, prefs.music, 'Music', 'M');
     dom.volumeSlider.value = String(Math.round(prefs.volume * 100));
     dom.volumeSlider.title = `Volume ${dom.volumeSlider.value}%`;
+    dom.volumeSlider.setAttribute('aria-valuetext', `${dom.volumeSlider.value}%`);
   }
 
   function toggleAudio(kind) {
@@ -2270,6 +2424,7 @@
       Sound.unlock();
       Sound.setVolume(Number(dom.volumeSlider.value) / 100);
       dom.volumeSlider.title = `Volume ${dom.volumeSlider.value}%`;
+      dom.volumeSlider.setAttribute('aria-valuetext', `${dom.volumeSlider.value}%`);
     });
     dom.volumeSlider.addEventListener('change', () => {
       Storage.savePrefs(Sound.getPrefs());
@@ -2313,6 +2468,7 @@
     bindProfileEvents();
     bindAudioEvents();
     bindTournamentEvents();
+    bindDisplayEvents();
 
     try {
       scene = new ReactionScene(dom.canvas, dom.stage, {
@@ -2323,6 +2479,9 @@
       console.error('[Reflex Lab] 3D init failed', err);
       enterFlatMode(err && err.message ? err.message : 'WebGL could not start');
     }
+
+    const prefs = Storage.loadPrefs();
+    applyDisplay({ palette: prefs.palette, textScale: prefs.textScale, reduceMotion: prefs.reduceMotion }, { save: false });
 
     applyLevel();
     setState(STATE.IDLE);

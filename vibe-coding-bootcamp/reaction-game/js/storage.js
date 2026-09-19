@@ -199,29 +199,40 @@
     return rows.sort((a, b) => a.ms - b.ms || a.at.localeCompare(b.at)).slice(0, limit);
   }
 
-  /* ---------- Device preferences (audio), kept apart from player data ---------- */
+  /* ---------- Device preferences (audio, display), kept apart from player data ---------- */
   const PREFS_KEY = 'reflexlab.prefs.v1';
-  const DEFAULT_PREFS = Object.freeze({ sfx: true, music: true, volume: 0.7 });
+  const DEFAULT_PREFS = Object.freeze({
+    sfx: true, music: true, volume: 0.7,
+    palette: 'standard', textScale: 1, reduceMotion: false,
+  });
+  const PALETTE_IDS = ['standard', 'redgreen', 'blueyellow', 'mono'];
+  const TEXT_SCALES = [1, 1.15, 1.3, 1.5];
+
+  // In-memory copy, so a save works even when storage is blocked.
+  let memoryPrefs = null;
 
   function loadPrefs() {
-    if (!store) return { ...DEFAULT_PREFS };
-    try {
-      const raw = JSON.parse(store.getItem(PREFS_KEY) || 'null');
-      if (!raw || typeof raw !== 'object') return { ...DEFAULT_PREFS };
-      return {
-        sfx: typeof raw.sfx === 'boolean' ? raw.sfx : DEFAULT_PREFS.sfx,
-        music: typeof raw.music === 'boolean' ? raw.music : DEFAULT_PREFS.music,
-        volume: Number.isFinite(raw.volume) ? Math.min(1, Math.max(0, raw.volume)) : DEFAULT_PREFS.volume,
-      };
-    } catch (err) {
-      return { ...DEFAULT_PREFS };
-    }
+    if (memoryPrefs) return { ...memoryPrefs };
+    let raw = null;
+    try { raw = store ? JSON.parse(store.getItem(PREFS_KEY) || 'null') : null; } catch (err) { raw = null; }
+    const r = raw && typeof raw === 'object' ? raw : {};
+    memoryPrefs = {
+      sfx: typeof r.sfx === 'boolean' ? r.sfx : DEFAULT_PREFS.sfx,
+      music: typeof r.music === 'boolean' ? r.music : DEFAULT_PREFS.music,
+      volume: Number.isFinite(r.volume) ? Math.min(1, Math.max(0, r.volume)) : DEFAULT_PREFS.volume,
+      palette: PALETTE_IDS.includes(r.palette) ? r.palette : DEFAULT_PREFS.palette,
+      textScale: TEXT_SCALES.includes(r.textScale) ? r.textScale : DEFAULT_PREFS.textScale,
+      reduceMotion: typeof r.reduceMotion === 'boolean' ? r.reduceMotion : DEFAULT_PREFS.reduceMotion,
+    };
+    return { ...memoryPrefs };
   }
 
-  function savePrefs(prefs) {
+  /** Merge `changes` into the saved preferences (audio and display save separately). */
+  function savePrefs(changes) {
+    memoryPrefs = { ...loadPrefs(), ...changes };
     if (!store) return false;
     try {
-      store.setItem(PREFS_KEY, JSON.stringify(prefs));
+      store.setItem(PREFS_KEY, JSON.stringify(memoryPrefs));
       return true;
     } catch (err) {
       return false;

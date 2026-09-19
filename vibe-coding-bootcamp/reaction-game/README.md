@@ -88,6 +88,29 @@ All the audio is generated with the Web Audio API, so there are no sound files. 
 - If WebGL or the CDN isn't available, a 2D fallback runs and the game still works.
 - The game supports `prefers-reduced-motion`.
 
+## Accessibility
+
+To open **Display & accessibility**, use the ♿ button in the top bar. Your settings are saved in this browser.
+
+- **Colour vision:**
+  - The game has four palettes, based on the Okabe–Ito colours:
+    - **Standard;**
+    - **Red–green safe** (protanopia and deuteranopia): orange wait, blue go, pink decoys;
+    - **Blue–yellow safe** (tritanopia): red wait, green go, white decoys;
+    - **Monochrome** (for players who see no colour): grey wait, white go, dark decoys.
+  - Each palette applies to the page and to the 3D scene.
+  - The text names the colours of the active palette ("Wait for blue…"), using `{go}`, `{wait}` and `{decoy}` placeholders.
+  - Colour is never the only cue. Each state has its own 3D shape and its own text. The colour-safe palettes also add a **bright white ring** on "go", because a change in brightness is visible whatever your colour vision. The best bar in the chart also has a ★.
+- **Contrast:** every palette meets WCAG AA. Small text is 4.5:1 or better, and large text and the decoy shape are 3:1 or better. The "go" colour's brightness is close to the "wait" colour's (ratio about 1.0–1.2), except in Monochrome. That's why the white ring matters.
+- **Text size:** 100 %, 115 %, 130 % or 150 %. All font sizes are in `rem`, so they also follow the browser's font-size setting.
+- **Motion:** a "Reduce motion" setting, on top of the system `prefers-reduced-motion` preference. It slows the 3D animation and turns off the camera shake and pop-in effects.
+- **Screen readers:**
+  - The reaction pad is a labelled `region`. Its messages are readable, and a skip link leads to it.
+  - A live region announces the start of each round, the results, level changes, power-ups and achievements.
+  - Units are read as "milliseconds", and the chart's text description lists the times.
+  - Buttons and toggles have labels, and the windows are `<dialog>` elements with keyboard-navigable tabs.
+  - **The "go" signal itself is not announced.** This is a visual reaction test, and an audio cue would measure something else.
+
 ## Profiles, high scores and achievements
 
 To open your profile, click your name in the top bar. Opening it pauses the current session.

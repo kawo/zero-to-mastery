@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+<a class="skip-link" href="#stage">Skip to the reaction pad</a>
 <div class="app" id="app" data-state="idle">
   <header class="topbar">
     <div class="brand">
@@ -41,6 +42,10 @@
         <label class="sr-only" for="volumeSlider">Volume</label>
         <input type="range" class="volume" id="volumeSlider" min="0" max="100" step="5" value="70" />
       </div>
+      <button type="button" class="icon-toggle a11y-btn" id="a11yBtn" aria-haspopup="dialog" aria-controls="a11yDialog" title="Display and accessibility">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="7" r="1.3" /><path d="M7 10l5 1 5-1M12 11v4l-2.5 4M12 15l2.5 4" /></svg>
+        <span class="sr-only">Display and accessibility settings</span>
+      </button>
       <button type="button" class="profile-btn" id="profileBtn" aria-haspopup="dialog" aria-controls="profileDialog">
         <span class="avatar" id="profileAvatar" aria-hidden="true">P</span>
         <span class="profile-text">
@@ -57,8 +62,8 @@
   </div>
 
   <main class="layout">
-    <section class="stage" id="stage" tabindex="0" role="button"
-             aria-label="Reaction pad. Press Space or click to react."
+    <section class="stage" id="stage" tabindex="0" role="region"
+             aria-label="Reaction pad"
              aria-describedby="stageHint">
       <canvas id="scene" aria-hidden="true"></canvas>
       <div class="flat-orb" id="flatOrb" aria-hidden="true" hidden></div>
@@ -73,7 +78,7 @@
         <div class="message">
           <p class="eyebrow" id="eyebrow">Ready when you are</p>
           <h2 class="headline" id="headline">Test your reflexes</h2>
-          <div class="readout" id="readout" hidden><span id="readoutValue">0</span><span class="unit">ms</span></div>
+          <div class="readout" id="readout" hidden><span id="readoutValue">0</span><span class="unit" aria-hidden="true">ms</span><span class="sr-only"> milliseconds</span></div>
           <p class="sub" id="subline">Press Start, wait for the shape to turn green, then react as fast as you can.</p>
           <p class="hint" id="stageHint"><kbd>Space</kbd> <span class="desktop-only">or click</span> / tap anywhere on this panel</p>
         </div>
@@ -135,10 +140,10 @@
         <h2 id="howTitle">How it works</h2>
         <ol class="steps">
           <li><span>Press <b>Start session</b> or tap the pad.</span></li>
-          <li><span>The shape turns <span class="swatch swatch-wait"></span><b>amber</b>. A random 1–5 s delay is running, so don’t guess.</span></li>
-          <li><span>When it turns <span class="swatch swatch-ready"></span><b>green</b>, click, tap or press <kbd>Space</kbd>.</span></li>
+          <li><span>The shape turns <span class="swatch swatch-wait"></span><b data-word="wait">amber</b>. A random 1–5 s delay is running, so don’t guess.</span></li>
+          <li><span>When it turns <span class="swatch swatch-ready"></span><b data-word="go">green</b>, click, tap or press <kbd>Space</kbd>.</span></li>
           <li><span>Reacting early, or in under 100 ms, counts as a <span class="swatch swatch-error"></span><b>false start</b> and isn’t averaged.</span></li>
-          <li><span>Beat the level’s target <b>3 times in a row</b> to level up. Higher levels add <span class="swatch swatch-decoy"></span><b>blue decoys</b> and drop the text cue. Two misses in a row drops you a level.</span></li>
+          <li><span>Beat the level’s target <b>3 times in a row</b> to level up. Higher levels add <span class="swatch swatch-decoy"></span><b><span data-word="decoy">blue</span> decoys</b> and drop the text cue. Two misses in a row drops you a level.</span></li>
           <li><span>Rounds under the target can drop <b>power-ups</b> (Shield, Double, Leeway, Calm). Use them between rounds with <kbd>1</kbd>–<kbd>3</kbd>. They help you level up but never change your times.</span></li>
           <li><span>Playing with friends? <b>Tournament</b> lets 2–8 players take turns on this device and ranks everyone at the end.</span></li>
         </ol>
@@ -147,7 +152,7 @@
   </main>
 
   <p class="sr-only" id="live" aria-live="polite"></p>
-  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="toasts" id="toasts"></div>
 </div>
 
 <dialog class="dialog" id="profileDialog" aria-labelledby="dialogTitle">
@@ -210,6 +215,41 @@
   <section class="tab-panel" role="tabpanel" id="panel-achievements" aria-labelledby="tab-achievements" hidden>
     <ul class="ach-grid" id="achList"></ul>
   </section>
+</dialog>
+
+<dialog class="dialog" id="a11yDialog" aria-labelledby="a11yTitle">
+  <div class="dialog-head">
+    <div class="dialog-id">
+      <h2 id="a11yTitle">Display &amp; accessibility</h2>
+      <p>Changes apply straight away and are saved on this device.</p>
+    </div>
+    <button type="button" class="icon-btn" id="a11yClose" aria-label="Close display settings">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+    </button>
+  </div>
+  <div class="tab-panel">
+    <fieldset class="field-set">
+      <legend class="section-label">Colour vision</legend>
+      <div class="palette-options" id="paletteOptions"></div>
+      <p class="fine-print">Colour is never the only signal: each state has its own 3D shape and text, and the colour-safe modes add a bright white ring when it’s time to react.</p>
+    </fieldset>
+    <fieldset class="field-set">
+      <legend class="section-label">Text size</legend>
+      <div class="segmented" id="textScalePick"></div>
+      <p class="fine-print">Also follows your browser’s font-size setting.</p>
+    </fieldset>
+    <fieldset class="field-set">
+      <legend class="section-label">Motion</legend>
+      <label class="check-row" for="reduceMotion">
+        <input type="checkbox" id="reduceMotion" />
+        <span><span>Reduce motion</span><span class="p-desc">Slower 3D animation, no camera shake or pop-in effects. Your system setting is also respected.</span></span>
+      </label>
+    </fieldset>
+    <p class="fine-print">Screen readers: round starts, results, level changes, power-ups and achievements are announced. The signal to react is visual on purpose, because this is a visual reaction-time test.</p>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-primary" id="a11yDone">Done</button>
+    </div>
+  </div>
 </dialog>
 
 <dialog class="dialog" id="tourneyDialog" aria-labelledby="tourneyTitle">

@@ -65,8 +65,8 @@
   /**
    * Progressive difficulty.
    * - target:    time to beat for a round to count towards the next level
-   * - decoy:     chance per round of a fake-out flash (blue cube) before the real signal
-   * - subtle:    no text or border cue on "go"; only the shape itself turns green
+   * - decoy:     chance per round of a fake-out flash (a cube) before the real signal
+   * - subtle:    no text or border cue on "go"; only the shape itself changes
    * - agitation: speed multiplier for the waiting animation (visual noise). It is
    *              constant within a round, so it never hints at when "go" will fire.
    */
@@ -76,7 +76,7 @@
     { name: 'Steady',  target: 400, decoy: 0,    subtle: false, agitation: 1.25,
       brief: 'A tighter target, and the waiting animation gets busier.' },
     { name: 'Decoys',  target: 380, decoy: 0.35, subtle: false, agitation: 1.45,
-      brief: 'Blue cubes may flash while you wait. They’re decoys: only green counts.' },
+      brief: '{Decoy} cubes may flash while you wait. They’re decoys: only {go} counts.' },
     { name: 'Sharp',   target: 340, decoy: 0.45, subtle: false, agitation: 1.65,
       brief: 'Faster target, more decoys.' },
     { name: 'Subtle',  target: 320, decoy: 0.5,  subtle: true,  agitation: 1.85,
@@ -95,5 +95,36 @@
     error:   { shape: 'error',   color: COLORS.error,   spin: 0.9,  radius: 3.2, orbit: -0.6, glow: 0.4,  light: 1.7 },
   };
 
-  window.ReflexLabConfig = deepFreeze({ CONFIG, COLORS, LEVELS, PRESETS, POWERUPS });
+  /**
+   * Colour-vision palettes for the 3D scene; css/style.css has the matching
+   * [data-palette] token sets. Non-standard palettes also turn on `goRing`:
+   * a bright white ring on "go", a brightness cue that doesn't depend on hue.
+   * `words` name the colours in on-screen text ({go}, {wait}, {decoy} placeholders).
+   */
+  const PALETTES = {
+    standard: {
+      name: 'Standard', desc: 'The default colours.', goRing: false,
+      words: { wait: 'amber', go: 'green', decoy: 'blue' },
+      colors: { idle: 0x94a3b8, waiting: 0xf59e0b, go: 0x10b981, result: 0x3b82f6, decoy: 0x3b82f6, error: 0xef4444 },
+    },
+    redgreen: {
+      name: 'Red–green safe', desc: 'For protanopia and deuteranopia: orange wait, sky-blue go, pink decoys.', goRing: true,
+      words: { wait: 'orange', go: 'blue', decoy: 'pink' },
+      colors: { idle: 0x94a3b8, waiting: 0xe69f00, go: 0x56b4e9, result: 0xf0e442, decoy: 0xcc79a7, error: 0xd55e00 },
+    },
+    blueyellow: {
+      name: 'Blue–yellow safe', desc: 'For tritanopia: red-orange wait, green go, white decoys.', goRing: true,
+      words: { wait: 'red', go: 'green', decoy: 'white' },
+      colors: { idle: 0x94a3b8, waiting: 0xd55e00, go: 0x009e73, result: 0xcc79a7, decoy: 0xe2e8f0, error: 0xf43f5e },
+    },
+    mono: {
+      name: 'Monochrome', desc: 'No colour needed: grey wait, white go, dark decoys. Brightness and shape only.', goRing: true,
+      words: { wait: 'grey', go: 'white', decoy: 'dark' },
+      colors: { idle: 0x94a3b8, waiting: 0x8a8a8a, go: 0xf8fafc, result: 0xcbd5e1, decoy: 0x6b7280, error: 0x8b8b8b },
+    },
+  };
+
+  const TEXT_SCALES = [1, 1.15, 1.3, 1.5];
+
+  window.ReflexLabConfig = deepFreeze({ CONFIG, COLORS, LEVELS, PRESETS, POWERUPS, PALETTES, TEXT_SCALES });
 })();
