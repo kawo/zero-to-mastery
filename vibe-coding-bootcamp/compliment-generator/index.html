@@ -44,9 +44,18 @@
     <section class="card" aria-labelledby="card-title">
       <!-- Language switch. Each option is written in its own language so it's
            recognisable whatever language the page is in. -->
-      <div class="lang-switch" role="group" aria-label="Language" id="lang-switch">
-        <button type="button" class="lang-option" data-lang="en" lang="en" aria-label="English" aria-pressed="true">EN</button>
-        <button type="button" class="lang-option" data-lang="fr" lang="fr" aria-label="Français" aria-pressed="false">FR</button>
+      <div class="card-top">
+        <!-- Favorite toggle for the compliment or joke on screen -->
+        <button type="button" class="fav-toggle" id="fav-toggle" aria-pressed="false" aria-label="Add to favorites" title="Add to favorites">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.7 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z" />
+          </svg>
+        </button>
+
+        <div class="lang-switch" role="group" aria-label="Language" id="lang-switch">
+          <button type="button" class="lang-option" data-lang="en" lang="en" aria-label="English" aria-pressed="true">EN</button>
+          <button type="button" class="lang-option" data-lang="fr" lang="fr" aria-label="Français" aria-pressed="false">FR</button>
+        </div>
       </div>
 
       <p class="eyebrow" id="card-title">A little something for you</p>
@@ -66,7 +75,34 @@
       <button type="button" class="button" id="new-compliment">Get a New Compliment</button>
       <button type="button" class="button button-joke" id="new-joke">Tell Me a Joke</button>
     </div>
+
+    <button type="button" class="button-secondary" id="open-favorites" aria-haspopup="dialog" aria-controls="favorites-dialog">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.7 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z" />
+      </svg>
+      <span id="open-favorites-label">My favorites</span>
+      <span class="count" id="favorites-count">0</span>
+    </button>
   </main>
+
+  <!-- Favorites list -->
+  <dialog class="favorites" id="favorites-dialog" aria-labelledby="favorites-title">
+    <div class="favorites-head">
+      <h2 id="favorites-title">My favorites</h2>
+      <button type="button" class="icon-button" id="favorites-close" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+      </button>
+    </div>
+    <p class="favorites-empty" id="favorites-empty">No favorites yet.</p>
+    <ul class="favorites-list" id="favorites-list"></ul>
+    <p class="favorites-note" id="favorites-note" hidden></p>
+    <div class="favorites-foot">
+      <button type="button" class="button-secondary button-danger" id="favorites-clear">Clear all</button>
+    </div>
+  </dialog>
+
+  <!-- Short announcements for screen readers ("Added to favorites"…) -->
+  <p class="sr-only" id="status" aria-live="polite"></p>
 
   <!-- Script is loaded last so the elements above already exist when it runs -->
   <script src="js/script.js"></script>

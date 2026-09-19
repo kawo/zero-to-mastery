@@ -664,6 +664,23 @@
       complimentButton: 'Get a New Compliment',
       jokeButton: 'Tell Me a Joke',
       switchLabel: 'Language',
+      favorites: {
+        add: 'Add to favorites',
+        remove: 'Remove from favorites',
+        open: 'My favorites',
+        title: 'My favorites',
+        empty: 'No favorites yet. Tap the heart on a compliment or joke you love, and it will be kept here.',
+        type: { compliment: 'Compliment', joke: 'Joke' },
+        show: 'Show on the card',
+        removeItem: 'Remove from favorites',
+        clear: 'Clear all',
+        clearConfirm: 'Clear all? Tap again',
+        close: 'Close',
+        added: 'Added to favorites.',
+        removed: 'Removed from favorites.',
+        cleared: 'All favorites cleared.',
+        noStorage: 'Your browser is blocking storage, so favorites will be lost when you close this page.',
+      },
     },
     fr: {
       title: 'Générateur de compliments',
@@ -672,6 +689,23 @@
       complimentButton: 'Un nouveau compliment',
       jokeButton: 'Raconte-moi une blague',
       switchLabel: 'Langue',
+      favorites: {
+        add: 'Ajouter aux favoris',
+        remove: 'Retirer des favoris',
+        open: 'Mes favoris',
+        title: 'Mes favoris',
+        empty: 'Aucun favori pour l’instant. Touche le cœur sur un compliment ou une blague que tu aimes, et il sera gardé ici.',
+        type: { compliment: 'Compliment', joke: 'Blague' },
+        show: 'Afficher sur la carte',
+        removeItem: 'Retirer des favoris',
+        clear: 'Tout effacer',
+        clearConfirm: 'Tout effacer ? Touche à nouveau',
+        close: 'Fermer',
+        added: 'Ajouté aux favoris.',
+        removed: 'Retiré des favoris.',
+        cleared: 'Tous les favoris ont été effacés.',
+        noStorage: 'Ton navigateur bloque le stockage : les favoris seront perdus à la fermeture de la page.',
+      },
     },
   };
 
@@ -679,6 +713,7 @@
   const collections = { compliment: compliments, joke: jokes };
 
   const STORAGE_KEY = 'compliment-generator.lang';
+  const FAVORITES_KEY = 'compliment-generator.favorites';
 
   /* ---------- Page elements ---------- */
   const complimentBox = document.getElementById('compliment-box');
@@ -689,9 +724,24 @@
   const eyebrowEl = document.getElementById('card-title');
   const langSwitch = document.getElementById('lang-switch');
   const descriptionMeta = document.querySelector('meta[name="description"]');
+  const favToggle = document.getElementById('fav-toggle');
+  const openFavoritesButton = document.getElementById('open-favorites');
+  const openFavoritesLabel = document.getElementById('open-favorites-label');
+  const favoritesCount = document.getElementById('favorites-count');
+  const favoritesDialog = document.getElementById('favorites-dialog');
+  const favoritesTitle = document.getElementById('favorites-title');
+  const favoritesClose = document.getElementById('favorites-close');
+  const favoritesEmpty = document.getElementById('favorites-empty');
+  const favoritesList = document.getElementById('favorites-list');
+  const favoritesNote = document.getElementById('favorites-note');
+  const favoritesClear = document.getElementById('favorites-clear');
+  const statusEl = document.getElementById('status');
 
   // Stop quietly if the page doesn't have the expected elements.
-  if (!complimentBox || !complimentEl || !emojiEl || !complimentButton || !jokeButton || !eyebrowEl || !langSwitch) {
+  const required = [complimentBox, complimentEl, emojiEl, complimentButton, jokeButton, eyebrowEl, langSwitch,
+    favToggle, openFavoritesButton, openFavoritesLabel, favoritesCount, favoritesDialog, favoritesTitle,
+    favoritesClose, favoritesEmpty, favoritesList, favoritesNote, favoritesClear, statusEl];
+  if (required.some((element) => !element)) {
     return;
   }
 
@@ -704,6 +754,24 @@
   const startText = complimentEl.textContent.trim();
   let currentIndex = compliments.findIndex((c) => c.en === startText || c.fr === startText);
   if (currentIndex < 0) currentIndex = 0; // the HTML text was edited: fall back to the first one
+
+  /* ---------- Favorites: state ---------- */
+  // Saved in localStorage as a list, newest first:
+  //   [{ type: 'compliment' | 'joke', en: '<the English text>', at: '<ISO date>' }]
+  // The type and English text identify an item, so favorites still point to
+  // the right one if the lists are reordered. A favorite whose text has since
+  // been edited no longer matches anything and is dropped quietly.
+  const favoriteKey = (type, item) => `${type}:${item.en}`;
+
+  // Look-up from a favorite's key to the item's place in its list.
+  const itemByKey = new Map();
+  for (const [type, list] of Object.entries(collections)) {
+    list.forEach((item, index) => itemByKey.set(favoriteKey(type, item), { type, index }));
+  }
+
+  let storageWorks = true; // false if the browser blocks storage (favorites then last for this visit only)
+  let favorites = loadFavorites();
+  let clearTimer = 0;
 
   /**
    * Chooses the language to start in: the one saved from a previous visit,
@@ -764,7 +832,12 @@
     setup.textContent = text.slice(0, newline);
     const punchline = document.createElement('span');
     punchline.className = 'joke-punchline';
-    punchline.textContent = text.slice(newline + 1);
+    // Inner span: the highlighter effect is drawn on it, so it follows the
+    // text line by line instead of filling a rectangle.
+    const punchlineText = document.createElement('span');
+    punchlineText.className = 'joke-punchline-text';
+    punchlineText.textContent = text.slice(newline + 1);
+    punchline.appendChild(punchlineText);
     element.replaceChildren(setup, punchline);
   }
 
@@ -809,6 +882,9 @@
     emojiEl.textContent = item.emoji;
     setText(complimentEl, item[currentLang]);
     eyebrowEl.textContent = uiText[currentLang].eyebrow[currentMode];
+    // Jokes get their own timing in the CSS (the punchline arrives a beat later).
+    complimentBox.classList.toggle('is-joke', currentMode === 'joke');
+    renderFavoriteToggle();
 
     // Restart the CSS animation: remove the class, force the browser to apply
     // that change (reading offsetWidth does this), then add the class back.
@@ -835,6 +911,9 @@
     langSwitch.querySelectorAll('[data-lang]').forEach((option) => {
       option.setAttribute('aria-pressed', String(option.dataset.lang === currentLang));
     });
+
+    renderFavorites();
+    if (favoritesDialog.open) renderFavoritesList();
   }
 
   /**
@@ -857,9 +936,258 @@
     renderItem(); // same compliment or joke, now in the other language
   }
 
+  /* ---------- Favorites: storage ---------- */
+
+  /**
+   * Reads the saved favorites. Anything that isn't a valid favorite (hand-edited
+   * data, an item that no longer exists, a duplicate) is left out.
+   */
+  function loadFavorites() {
+    let stored = null;
+    try {
+      stored = localStorage.getItem(FAVORITES_KEY);
+    } catch (error) {
+      storageWorks = false; // storage is blocked
+      return [];
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(stored || '[]');
+    } catch (error) {
+      return []; // unreadable data: start with an empty list
+    }
+    if (!Array.isArray(parsed)) return [];
+
+    const seen = new Set();
+    const valid = [];
+    for (const entry of parsed) {
+      if (!entry || typeof entry.en !== 'string' || !collections[entry.type]) continue;
+      const key = favoriteKey(entry.type, entry);
+      if (!itemByKey.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      valid.push({ type: entry.type, en: entry.en, at: typeof entry.at === 'string' ? entry.at : new Date().toISOString() });
+    }
+    return valid;
+  }
+
+  /** Saves the favorites. If storage is blocked or full, they stay in memory. */
+  function saveFavorites() {
+    try {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+      storageWorks = true;
+    } catch (error) {
+      storageWorks = false;
+    }
+    renderFavoritesNote();
+  }
+
+  /* ---------- Favorites: actions ---------- */
+
+  /** Reads a short message aloud to screen readers (e.g. "Added to favorites"). */
+  function announce(message) {
+    statusEl.textContent = '';
+    // A short delay makes screen readers announce the same message twice in a row.
+    setTimeout(() => { statusEl.textContent = message; }, 50);
+  }
+
+  function currentKey() {
+    return favoriteKey(currentMode, collections[currentMode][currentIndex]);
+  }
+
+  function isFavorite(key) {
+    return favorites.some((favorite) => favoriteKey(favorite.type, favorite) === key);
+  }
+
+  /** Adds the item on the card to the favorites, or removes it if it's already there. */
+  function toggleFavorite() {
+    const key = currentKey();
+    const text = uiText[currentLang].favorites;
+    if (isFavorite(key)) {
+      favorites = favorites.filter((favorite) => favoriteKey(favorite.type, favorite) !== key);
+      announce(text.removed);
+    } else {
+      const item = collections[currentMode][currentIndex];
+      favorites.unshift({ type: currentMode, en: item.en, at: new Date().toISOString() });
+      announce(text.added);
+      // Replay the little heart "pop" from css/style.css.
+      favToggle.classList.remove('is-popping');
+      void favToggle.offsetWidth;
+      favToggle.classList.add('is-popping');
+    }
+    saveFavorites();
+    renderFavorites();
+  }
+
+  /** Removes one favorite from the list, keeping keyboard focus in a sensible place. */
+  function removeFavorite(key) {
+    const position = favorites.findIndex((favorite) => favoriteKey(favorite.type, favorite) === key);
+    if (position < 0) return;
+    favorites.splice(position, 1);
+    saveFavorites();
+    renderFavorites();
+    announce(uiText[currentLang].favorites.removed);
+
+    // Focus the next item's remove button (or the previous one), else the close button.
+    const buttons = favoritesList.querySelectorAll('.favorites-remove');
+    const next = buttons[Math.min(position, buttons.length - 1)];
+    (next || favoritesClose).focus();
+  }
+
+  /** "Clear all" needs a second press within 4 seconds, so it can't happen by accident. */
+  function clearFavorites() {
+    const text = uiText[currentLang].favorites;
+    if (!favoritesClear.classList.contains('is-confirming')) {
+      favoritesClear.classList.add('is-confirming');
+      favoritesClear.textContent = text.clearConfirm;
+      clearTimer = setTimeout(resetClearButton, 4000);
+      return;
+    }
+    favorites = [];
+    saveFavorites();
+    resetClearButton();
+    renderFavorites();
+    announce(text.cleared);
+    favoritesClose.focus();
+  }
+
+  function resetClearButton() {
+    clearTimeout(clearTimer);
+    favoritesClear.classList.remove('is-confirming');
+    favoritesClear.textContent = uiText[currentLang].favorites.clear;
+  }
+
+  function openFavorites() {
+    resetClearButton();
+    renderFavoritesList();
+    if (typeof favoritesDialog.showModal === 'function') favoritesDialog.showModal();
+    else favoritesDialog.setAttribute('open', '');
+  }
+
+  function closeFavorites() {
+    if (typeof favoritesDialog.close === 'function') favoritesDialog.close();
+    else favoritesDialog.removeAttribute('open');
+  }
+
+  /* ---------- Favorites: display ---------- */
+
+  /** Heart on the card: filled when the item on screen is a favorite. */
+  function renderFavoriteToggle() {
+    const pressed = isFavorite(currentKey());
+    const label = uiText[currentLang].favorites[pressed ? 'remove' : 'add'];
+    favToggle.setAttribute('aria-pressed', String(pressed));
+    favToggle.setAttribute('aria-label', label);
+    favToggle.title = label;
+  }
+
+  /** The "My favorites" button and its counter. */
+  function renderFavoritesButton() {
+    openFavoritesLabel.textContent = uiText[currentLang].favorites.open;
+    favoritesCount.textContent = String(favorites.length);
+  }
+
+  function renderFavoritesNote() {
+    favoritesNote.textContent = uiText[currentLang].favorites.noStorage;
+    favoritesNote.hidden = storageWorks;
+  }
+
+  /** The list in the dialog, in the current language, newest first. */
+  function renderFavoritesList() {
+    const text = uiText[currentLang].favorites;
+    favoritesTitle.textContent = text.title;
+    favoritesClose.setAttribute('aria-label', text.close);
+    favoritesEmpty.textContent = text.empty;
+    favoritesEmpty.hidden = favorites.length > 0;
+    favoritesClear.disabled = favorites.length === 0;
+    if (!favoritesClear.classList.contains('is-confirming')) favoritesClear.textContent = text.clear;
+    renderFavoritesNote();
+
+    favoritesList.replaceChildren(...favorites.map((favorite) => {
+      const key = favoriteKey(favorite.type, favorite);
+      const { type, index } = itemByKey.get(key);
+      const item = collections[type][index];
+
+      const li = document.createElement('li');
+      li.className = 'favorites-item';
+
+      // The whole entry is a button that shows the item on the card.
+      const show = document.createElement('button');
+      show.type = 'button';
+      show.className = 'favorites-show';
+      show.dataset.key = key;
+      show.title = text.show;
+      const emoji = document.createElement('span');
+      emoji.className = 'favorites-emoji';
+      emoji.setAttribute('aria-hidden', 'true');
+      emoji.textContent = item.emoji;
+      const body = document.createElement('span');
+      body.className = 'favorites-body';
+      const label = document.createElement('span');
+      label.className = 'favorites-type';
+      label.textContent = text.type[type];
+      const content = document.createElement('span');
+      content.className = 'favorites-text';
+      setText(content, item[currentLang]);
+      body.append(label, content);
+      show.append(emoji, body);
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'favorites-remove';
+      remove.dataset.key = key;
+      remove.textContent = '×';
+      remove.setAttribute('aria-label', `${text.removeItem}: ${item[currentLang].replace('\n', ' ')}`);
+      remove.title = text.removeItem;
+
+      li.append(show, remove);
+      return li;
+    }));
+  }
+
+  /** Everything that depends on the favorites. */
+  function renderFavorites() {
+    renderFavoriteToggle();
+    renderFavoritesButton();
+    if (favoritesDialog.open) renderFavoritesList();
+  }
+
   /* ---------- Wire up the controls ---------- */
   complimentButton.addEventListener('click', () => showNew('compliment'));
   jokeButton.addEventListener('click', () => showNew('joke'));
+
+  favToggle.addEventListener('click', toggleFavorite);
+  openFavoritesButton.addEventListener('click', openFavorites);
+  favoritesClose.addEventListener('click', closeFavorites);
+  favoritesClear.addEventListener('click', clearFavorites);
+  favoritesDialog.addEventListener('close', resetClearButton);
+
+  // A click on the dimmed backdrop (outside the dialog box) closes it.
+  favoritesDialog.addEventListener('click', (event) => {
+    if (event.target === favoritesDialog) closeFavorites();
+  });
+
+  // One listener for the whole list: show an item on the card, or remove it.
+  favoritesList.addEventListener('click', (event) => {
+    const show = event.target.closest('.favorites-show');
+    const remove = event.target.closest('.favorites-remove');
+    if (remove) {
+      removeFavorite(remove.dataset.key);
+    } else if (show) {
+      const found = itemByKey.get(show.dataset.key);
+      if (!found) return;
+      currentMode = found.type;
+      currentIndex = found.index;
+      renderItem();
+      closeFavorites();
+    }
+  });
+
+  // Favorites changed in another tab: pick up the new list.
+  window.addEventListener('storage', (event) => {
+    if (event.key !== FAVORITES_KEY && event.key !== null) return;
+    favorites = loadFavorites();
+    renderFavorites();
+  });
 
   // One listener on the switch handles both language buttons.
   langSwitch.addEventListener('click', (event) => {
