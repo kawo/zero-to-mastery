@@ -31,7 +31,27 @@
     tournamentRoundOptions: [3, 5, 10],
     tournamentDefaultRounds: 5,
     tournamentMinPlayers: 2,
+    powerUpDropChance: 0.25,         // per round beaten under the target (a new record always drops one)
+    powerUpSlots: 3,
   };
+
+  /**
+   * Power-ups (solo only). They never change a measured time: records and
+   * averages stay honest. They only bend the game layer: streak, level changes,
+   * the pass/fail target and decoys.
+   * - rounds: how many rounds the effect lasts once used; null = until it triggers
+   * - color:  CSS colour for the UI; hex3d: the matching colour in the 3D scene
+   */
+  const POWERUPS = [
+    { id: 'shield', name: 'Shield', rounds: null, color: '#93C5FD', hex3d: 0x93c5fd,
+      desc: 'Your next failed round (false start, miss or over the target) won’t break your streak or count toward a level drop.' },
+    { id: 'double', name: 'Double', rounds: null, color: '#F59E0B', hex3d: 0xf59e0b,
+      desc: 'Your next round under the target counts twice toward levelling up.' },
+    { id: 'leeway', name: 'Leeway', rounds: 3, bonusMs: 50, color: '#6EE7B7', hex3d: 0x6ee7b7,
+      desc: 'The level target is 50 ms more generous for the next 3 rounds.' },
+    { id: 'calm', name: 'Calm', rounds: 3, color: '#CBD5E1', hex3d: 0xcbd5e1,
+      desc: 'No decoys and a calmer animation for the next 3 rounds.' },
+  ];
 
   const COLORS = {
     idle: 0x94a3b8,
@@ -75,5 +95,5 @@
     error:   { shape: 'error',   color: COLORS.error,   spin: 0.9,  radius: 3.2, orbit: -0.6, glow: 0.4,  light: 1.7 },
   };
 
-  window.ReflexLabConfig = deepFreeze({ CONFIG, COLORS, LEVELS, PRESETS });
+  window.ReflexLabConfig = deepFreeze({ CONFIG, COLORS, LEVELS, PRESETS, POWERUPS });
 })();

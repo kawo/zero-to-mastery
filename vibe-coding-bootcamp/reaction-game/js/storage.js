@@ -59,6 +59,9 @@
       longestClean: 0,    // most rounds in a row without a false start or miss
       tournamentsPlayed: 0,
       tournamentsWon: 0,
+      powerUpsCollected: 0,
+      powerUpsUsed: 0,
+      shieldSaves: 0,
     };
   }
 
@@ -114,6 +117,9 @@
         longestClean: count(s.longestClean),
         tournamentsPlayed: count(s.tournamentsPlayed),
         tournamentsWon: count(s.tournamentsWon),
+        powerUpsCollected: count(s.powerUpsCollected),
+        powerUpsUsed: count(s.powerUpsUsed),
+        shieldSaves: count(s.shieldSaves),
       },
       achievements,
       top,

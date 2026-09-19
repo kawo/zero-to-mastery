@@ -171,6 +171,21 @@
     missed: (t, d) => arpeggio([67, 62], t, 0.16, { type: 'triangle', dur: 0.22, gain: 0.14, dest: d }),
     levelUp: (t, d) => arpeggio([72, 76, 79, 84, 88], t, 0.08, { type: 'triangle', dur: 0.3, gain: 0.13, dest: d }),
     levelDown: (t, d) => arpeggio([72, 68, 65], t, 0.12, { type: 'triangle', dur: 0.3, gain: 0.12, dest: d }),
+    // A power-up drops: quick rising sparkle
+    powerup: (t, d) => {
+      arpeggio([79, 86, 91], t, 0.05, { type: 'sine', dur: 0.2, gain: 0.1, dest: d });
+      noiseBurst({ at: t, dur: 0.12, gain: 0.03, freq: 6000, dest: d });
+    },
+    // A power-up is used: upward sweep
+    powerOn: (t, d) => {
+      voice({ type: 'triangle', freq: 330, to: 990, at: t, dur: 0.24, gain: 0.12, dest: d });
+      voice({ type: 'sine', freq: midi(84), at: t + 0.18, dur: 0.3, gain: 0.08, dest: d });
+    },
+    // The shield absorbs a failed round: metallic ping
+    shield: (t, d) => {
+      voice({ type: 'sine', freq: 1568, at: t, dur: 0.7, attack: 0.002, gain: 0.09, dest: d });
+      voice({ type: 'sine', freq: 2349, at: t, dur: 0.45, attack: 0.002, gain: 0.04, dest: d });
+    },
     achievement: (t, d) => {
       [[88, 0.12], [95, 0.06], [100, 0.035]].forEach(([n, g]) =>
         voice({ type: 'sine', freq: midi(n), at: t, dur: 1.1, attack: 0.004, gain: g, dest: d }));

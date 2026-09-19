@@ -34,6 +34,23 @@ Each level has a target time. Beat it **3 rounds in a row** to level up. **2 fai
 
 The levels are defined in the `LEVELS` table in `js/config.js`.
 
+## Power-ups
+
+In solo play, a round that beats the target has a 25 % chance to drop a power-up, and a new personal record always drops one. You can hold up to **3**. Use one between rounds by clicking its slot in the level card or pressing `1`, `2` or `3`. You can't use a power-up while a round is being timed.
+
+| Power-up | Effect |
+|----------|--------|
+| Shield   | Your next failed round (false start, miss or over the target) doesn't break your streak or count toward a level drop. |
+| Double   | Your next round under the target counts twice toward levelling up. |
+| Leeway   | For 3 rounds, the level target is 50 ms more generous. |
+| Calm     | For 3 rounds, there are no decoys and the waiting animation is calmer. |
+
+**Power-ups never change a measured time.** The false start is still counted, the times are the real ones, and so are the records and averages. Power-ups only act on the game layer: streak, levels, the pass/fail target and decoys.
+
+- **3D:** an active shield shows as a faint bubble around the shape, and a gem pops out of the shape when a power-up drops. Neither changes at the moment of "go", so they can't act as a signal.
+- **Tournaments:** power-ups are off, so the result can't depend on a random drop.
+- **Achievements:** "Saved by the Shield" and "Power Player" (use 10 power-ups).
+
 ## Tournament (local multiplayer)
 
 With **Tournament**, 2 to 8 players take turns on the same device ("hot-seat").
@@ -77,7 +94,7 @@ To open your profile, click your name in the top bar. Opening it pauses the curr
 
 - **Profile:** your display name, avatar colour and lifetime stats: best time, average, peak level, sessions, false starts and decoys dodged. The profile also lists everyone who has played on this device. You can switch player, add a player (up to 8) or delete one (you press the button twice to confirm).
 - **High scores:** your personal best, your best average over 5 reactions in a row and your longest run without a false start or miss. There's also a top-10 leaderboard of every player on this device. A result screen tells you when you set a new personal record.
-- **Achievements:** there are 18 achievements, covering speed, consistency, dodging decoys, levels, volume and tournaments. Some of them count toward a goal, and those show a progress bar. When you unlock one, a notification pops up.
+- **Achievements:** there are 20 achievements, covering speed, consistency, dodging decoys, levels, volume, tournaments and power-ups. Some of them count toward a goal, and those show a progress bar. When you unlock one, a notification pops up.
 
 **Reset** clears only the current session's stats. It never touches your profile.
 
@@ -99,7 +116,7 @@ The current session's stats (average, chart, level) stay in memory only.
 index.html          markup: stage, controls, stats, chart, profile window
 favicon.png         32×32 tab icon
 css/style.css       colour tokens, per-state styles, profile window, responsive layout
-js/config.js        settings: timings, difficulty levels (LEVELS), colours, 3D presets
+js/config.js        settings: timings, difficulty levels (LEVELS), power-ups (POWERUPS), colours, 3D presets
 js/storage.js       saving and loading, data checks, leaderboard
 js/achievements.js  achievement definitions and their rules
 js/audio.js         synthesised sound effects and music (Web Audio API)

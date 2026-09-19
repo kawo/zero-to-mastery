@@ -65,7 +65,10 @@
       <div class="overlay">
         <div class="overlay-top">
           <span class="state-pill"><span class="dot"></span><span id="stateLabel">Idle</span></span>
-          <span class="round-count" id="roundCount"></span>
+          <span class="overlay-meta">
+            <span class="power-badges" id="powerBadges" aria-hidden="true"></span>
+            <span class="round-count" id="roundCount"></span>
+          </span>
         </div>
         <div class="message">
           <p class="eyebrow" id="eyebrow">Ready when you are</p>
@@ -98,6 +101,11 @@
           <span>Target <strong id="levelTarget">≤ 500 ms</strong></span>
           <span>Streak <span class="pips" id="levelPips" role="img" aria-label="Streak 0 of 3"></span></span>
         </p>
+        <div class="powerups" role="group" aria-labelledby="powerTitle">
+          <p class="powerups-head"><span class="section-label" id="powerTitle">Power-ups</span> <span class="powerups-keys">keys <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></span></p>
+          <div class="slots" id="powerSlots"></div>
+          <p class="power-active" id="powerActive">Beat the target to find power-ups. They never change your measured times.</p>
+        </div>
       </section>
 
       <section class="card" aria-labelledby="statsTitle">
@@ -131,6 +139,7 @@
           <li><span>When it turns <span class="swatch swatch-ready"></span><b>green</b>, click, tap or press <kbd>Space</kbd>.</span></li>
           <li><span>Reacting early, or in under 100 ms, counts as a <span class="swatch swatch-error"></span><b>false start</b> and isn’t averaged.</span></li>
           <li><span>Beat the level’s target <b>3 times in a row</b> to level up. Higher levels add <span class="swatch swatch-decoy"></span><b>blue decoys</b> and drop the text cue. Two misses in a row drops you a level.</span></li>
+          <li><span>Rounds under the target can drop <b>power-ups</b> (Shield, Double, Leeway, Calm). Use them between rounds with <kbd>1</kbd>–<kbd>3</kbd>. They help you level up but never change your times.</span></li>
           <li><span>Playing with friends? <b>Tournament</b> lets 2–8 players take turns on this device and ranks everyone at the end.</span></li>
         </ol>
       </section>

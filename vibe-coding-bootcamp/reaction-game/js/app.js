@@ -20,7 +20,8 @@
     }
     return;
   }
-  const { CONFIG, COLORS, LEVELS, PRESETS } = window.ReflexLabConfig;
+  const { CONFIG, COLORS, LEVELS, PRESETS, POWERUPS } = window.ReflexLabConfig;
+  const POWERUP_BY_ID = Object.fromEntries(POWERUPS.map((p) => [p.id, p]));
   const Storage = window.ReflexLabStorage;
   const Achievements = window.ReflexLabAchievements;
   const Sound = window.ReflexLabAudio;
@@ -256,6 +257,27 @@
       this.stars = new THREE.Points(starGeo, starMat);
       scene.add(this.stars);
 
+      // Shield power-up: a faint geodesic bubble. It stays constant through a
+      // round (it never reacts to "go"), so it can't act as a cue.
+      const bubbleGeo = this._trackGeo(new THREE.IcosahedronGeometry(1.8, 2));
+      this.bubbleMat = this._track(new THREE.MeshBasicMaterial({
+        color: 0xbfdbfe, wireframe: true, transparent: true, opacity: 0, depthWrite: false,
+      }));
+      this.bubble = new THREE.Mesh(bubbleGeo, this.bubbleMat);
+      this.bubble.visible = false;
+      scene.add(this.bubble);
+      this.shieldOn = false;
+
+      // Power-up pickup: one reusable gem that pops out of the core and flies off.
+      const gemGeo = this._trackGeo(new THREE.OctahedronGeometry(0.3, 0));
+      this.gemMat = this._track(new THREE.MeshStandardMaterial({
+        color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.8, metalness: 0.2, roughness: 0.3, flatShading: true,
+      }));
+      this.gem = new THREE.Mesh(gemGeo, this.gemMat);
+      this.gem.visible = false;
+      this.gemT = 1;
+      scene.add(this.gem);
+
       this.canvas.addEventListener('webglcontextlost', this._onLost, false);
       this.canvas.addEventListener('webglcontextrestored', this._onRestored, false);
 
@@ -316,6 +338,20 @@
         this.morph = { t, next: preset.shape, swapped: false };
       }
       if (mode === 'error' && !this.reducedMotion) this.shake = 1;
+    }
+
+    setShield(on) {
+      this.shieldOn = !!on;
+      if (this.shieldOn && this.bubble) this.bubble.visible = true;
+    }
+
+    /** Animate a power-up gem of the given colour popping out of the core. */
+    spawnPickup(hex) {
+      if (!this.gem) return;
+      this.gemMat.color.setHex(hex);
+      this.gemMat.emissive.setHex(hex);
+      this.gemT = 0;
+      this.gem.visible = true;
     }
 
     setAgitation(value) {
@@ -416,6 +452,24 @@
 
       this.stars.rotation.y += dt * 0.012 * motion;
 
+      // Shield bubble fades in and out, then hides so it costs nothing.
+      const bubbleTarget = this.shieldOn ? 0.22 : 0;
+      this.bubbleMat.opacity += (bubbleTarget - this.bubbleMat.opacity) * (1 - Math.exp(-dt * 5));
+      if (!this.shieldOn && this.bubbleMat.opacity < 0.01) this.bubble.visible = false;
+      this.bubble.rotation.y -= dt * 0.25 * motion;
+      this.bubble.rotation.z += dt * 0.1 * motion;
+
+      // Pickup gem: grow out of the core, then arc up and away to the right.
+      if (this.gem.visible) {
+        this.gemT = Math.min(1, this.gemT + dt / 1.1);
+        const t = this.gemT;
+        const rise = easeInOut(Math.max(0, (t - 0.25) / 0.75));
+        this.gem.position.set(rise * 2.6, 0.2 + rise * 2.1 + Math.sin(t * Math.PI) * 0.4, rise * 0.8);
+        this.gem.scale.setScalar(t < 0.25 ? easeInOut(t / 0.25) * 1.3 : 1.3 - rise * 1.1);
+        this.gem.rotation.set(time * 3, time * 4, 0);
+        if (t >= 1) this.gem.visible = false;
+      }
+
       // Camera: gentle pointer parallax plus a decaying shake on errors.
       const cam = this.camera;
       const shakeAmt = this.shake * 0.18;
@@ -485,6 +539,7 @@
     achList: $('achList'),
     tourneyBtn: $('tourneyBtn'), tourneyCard: $('tourneyCard'), tourneyMeta: $('tourneyMeta'), tourneyList: $('tourneyList'),
     penaltyNote: $('penaltyNote'),
+    powerSlots: $('powerSlots'), powerActive: $('powerActive'), powerBadges: $('powerBadges'),
     tourneyDialog: $('tourneyDialog'), tourneyForm: $('tourneyForm'), tourneyClose: $('tourneyClose'), tourneyCancel: $('tourneyCancel'),
     playerPicks: $('playerPicks'), newPlayerName: $('newPlayerName'), addPlayerBtn: $('addPlayerBtn'),
     tourneyError: $('tourneyError'), roundsPick: $('roundsPick'), tourneyLevel: $('tourneyLevel'), tourneyRules: $('tourneyRules'),
@@ -511,7 +566,17 @@
     fails: 0,    // failed rounds in a row (too slow, false start, missed)
     cleanRun: 0,     // rounds in a row without a false start or miss
     falseStreak: 0,  // false starts in a row
+    powerUps: freshPowerUps(),
   };
+
+  function freshPowerUps() {
+    return {
+      inventory: [],                                            // power-up ids, oldest first
+      active: { shield: false, double: false, leeway: 0, calm: 0 }, // flags, or rounds left
+    };
+  }
+  // Messages from power-ups during a round, shown with that round's result.
+  let powerNotes = [];
 
   // Saved profiles (see storage.js). `saved.state` is the document written to disk.
   const saved = { state: null, persistent: false, saveFailed: false };
@@ -575,10 +640,20 @@
   /** Push the current level's settings to the page and the scene. */
   function applyLevel() {
     const level = currentLevel();
+    const { active } = session.powerUps;
     dom.app.dataset.subtle = String(level.subtle);
-    if (scene) scene.setAgitation(level.agitation);
+    if (scene) {
+      scene.setAgitation(active.calm > 0 ? 1 : level.agitation); // Calm quiets the waiting animation
+      scene.setShield(active.shield);
+    }
     Sound.setIntensity(session.level);
     renderLevel();
+  }
+
+  /** Target for the pass/fail check: the level's, loosened while Leeway is active. */
+  function effectiveTarget() {
+    const bonus = session.powerUps.active.leeway > 0 ? POWERUP_BY_ID.leeway.bonusMs : 0;
+    return currentLevel().target + bonus;
   }
 
   /**
@@ -588,9 +663,24 @@
   function registerOutcome(passed) {
     if (tournament.active) return null; // the level is fixed for everyone in a tournament
     let change = null;
+    const { active } = session.powerUps;
+    if (!passed && active.shield) {
+      // Shield: the failure is still recorded in the stats, but the streak and
+      // level are untouched.
+      active.shield = false;
+      activeProfile().stats.shieldSaves += 1;
+      powerNotes.push('Your shield absorbed it: streak and level are safe.');
+      Sound.play('shield', { delay: 0.3 });
+      applyLevel();
+      return null;
+    }
     if (passed) {
       session.fails = 0;
-      session.streak += 1;
+      session.streak += active.double ? 2 : 1;
+      if (active.double) {
+        active.double = false;
+        powerNotes.push('Double: this round counted twice.');
+      }
       if (session.streak >= CONFIG.levelUpStreak && session.level < LEVELS.length) {
         session.level += 1;
         session.streak = 0;
@@ -640,6 +730,7 @@
     // Leave room for the decoy to finish at least 250 ms before the real signal.
     const earliest = 600;
     const latest = stimulusDelay - CONFIG.decoyDurationMs - 250;
+    if (session.powerUps.active.calm > 0) return; // Calm: no decoys
     if (level.decoy <= 0 || latest <= earliest || random01() >= level.decoy) return;
     game.decoyTimer = window.setTimeout(showDecoy, earliest + random01() * (latest - earliest));
   }
@@ -703,6 +794,8 @@
     if (showReadout) dom.readoutValue.textContent = fmt(view.readout);
 
     if (scene) scene.setMode(SCENE_MODE[next], { instant: next === STATE.GO });
+    // Slots lock while a round is timed. Skipped on "go" to keep that frame lean.
+    if (next !== STATE.GO) renderPowerUps();
     // Duck the music while waiting; restore it once the round is over. The music
     // is deliberately left alone on "go" so it can't act as an audio cue.
     if (next === STATE.WAITING) Sound.setFocus(true);
@@ -770,6 +863,133 @@
     return { ...copy, eyebrow: lc.eyebrow, sub: `${copy.sub || ''} <strong>${lc.note}</strong>`.trim() };
   }
 
+  /** Append power-up messages from this round (texts are fixed strings, not user input). */
+  function withPowerNotes(copy) {
+    const notes = powerNotes;
+    powerNotes = [];
+    if (!notes.length) return copy;
+    return { ...copy, sub: `${copy.sub || ''} ${notes.map((n) => `<span class="power-note">${n}</span>`).join(' ')}`.trim() };
+  }
+
+  /* ---------- Power-ups ---------- */
+
+  /**
+   * End-of-round bookkeeping: count down timed effects, then maybe drop a new
+   * power-up. Solo only; tournaments stay luck-free.
+   */
+  function powerUpsAfterRound(last) {
+    if (tournament.active) return;
+    const pu = session.powerUps;
+    // The round just played used these effects; count them down now.
+    for (const id of ['leeway', 'calm']) {
+      if (pu.active[id] > 0) {
+        pu.active[id] -= 1;
+        if (pu.active[id] === 0) powerNotes.push(`${POWERUP_BY_ID[id].name} has worn off.`);
+      }
+    }
+
+    const earned = last.type === 'result' && last.passed &&
+      (last.isRecord || random01() < CONFIG.powerUpDropChance);
+    if (earned) {
+      if (pu.inventory.length >= CONFIG.powerUpSlots) {
+        powerNotes.push('You earned a power-up, but your slots are full. Use one to make room.');
+      } else {
+        const def = POWERUPS[Math.floor(random01() * POWERUPS.length)];
+        pu.inventory.push(def.id);
+        activeProfile().stats.powerUpsCollected += 1;
+        powerNotes.push(`Power-up found: <strong>${def.name}</strong>. Press ${pu.inventory.length} to use it.`);
+        if (scene) scene.spawnPickup(def.hex3d);
+        Sound.play('powerup', { delay: 0.25 });
+        newSlotIndex = pu.inventory.length - 1;
+        announce(`Power-up found: ${def.name}.`);
+      }
+    }
+    applyLevel();
+  }
+
+  let newSlotIndex = -1; // slot to animate on the next render
+
+  /** Use the power-up in a slot. Only between rounds, never while one is being timed. */
+  function activatePowerUp(index) {
+    if (tournament.active) return;
+    if (game.state === STATE.WAITING || game.state === STATE.GO) return;
+    const pu = session.powerUps;
+    const id = pu.inventory[index];
+    if (!id) return;
+    const def = POWERUP_BY_ID[id];
+    if (pu.active[id]) {
+      announce(`${def.name} is already active.`);
+      return;
+    }
+    pu.inventory.splice(index, 1);
+    pu.active[id] = def.rounds || true;
+    activeProfile().stats.powerUpsUsed += 1;
+    Sound.play('powerOn');
+    applyLevel();
+    unlockAchievements(null);
+    persist();
+    renderProfileChip();
+    announce(`${def.name} activated. ${def.desc}`);
+  }
+
+  function effectLabel(id, value) {
+    const def = POWERUP_BY_ID[id];
+    if (typeof value === 'number') return `${def.name} · ${value} round${value === 1 ? '' : 's'}`;
+    return `${def.name} ready`;
+  }
+
+  function renderPowerUps() {
+    const pu = session.powerUps;
+    const locked = tournament.active;
+    const between = game.state !== STATE.WAITING && game.state !== STATE.GO;
+
+    dom.powerSlots.replaceChildren(...Array.from({ length: CONFIG.powerUpSlots }, (_, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'slot';
+      const id = pu.inventory[i];
+      if (!id) {
+        btn.classList.add('is-empty');
+        btn.disabled = true;
+        btn.textContent = 'Empty';
+        btn.setAttribute('aria-label', `Slot ${i + 1}: empty`);
+        return btn;
+      }
+      const def = POWERUP_BY_ID[id];
+      btn.style.setProperty('--pu', def.color);
+      btn.innerHTML = `${iconSvg(`pu-${id}`, 20)}<span class="slot-name"></span><span class="slot-key">key ${i + 1}</span>`;
+      btn.querySelector('.slot-name').textContent = def.name;
+      btn.title = def.desc;
+      btn.disabled = locked || !between || !!pu.active[id];
+      btn.setAttribute('aria-label', `Use ${def.name} (key ${i + 1}). ${def.desc}${pu.active[id] ? ' Already active.' : ''}`);
+      if (i === newSlotIndex) btn.classList.add('is-new');
+      btn.addEventListener('click', () => activatePowerUp(i));
+      return btn;
+    }));
+    newSlotIndex = -1;
+
+    const effects = Object.entries(pu.active).filter(([, v]) => v);
+    const chips = effects.map(([id, v]) => {
+      const chip = document.createElement('span');
+      chip.className = 'effect-chip';
+      chip.style.setProperty('--pu', POWERUP_BY_ID[id].color);
+      chip.innerHTML = iconSvg(`pu-${id}`, 14);
+      chip.append(effectLabel(id, v));
+      return chip;
+    });
+    if (chips.length) dom.powerActive.replaceChildren(...chips);
+    else dom.powerActive.textContent = 'Beat the target to find power-ups. They never change your measured times.';
+
+    // Compact icons on the play area, so active effects are visible mid-round.
+    dom.powerBadges.replaceChildren(...effects.map(([id]) => {
+      const b = document.createElement('span');
+      b.className = 'effect-chip';
+      b.style.setProperty('--pu', POWERUP_BY_ID[id].color);
+      b.innerHTML = iconSvg(`pu-${id}`, 14);
+      return b;
+    }));
+  }
+
   function falseStart(reactionMs) {
     const byDecoy = game.decoyActive ||
       (game.lastDecoyAt > 0 && performance.now() - game.lastDecoyAt < CONFIG.decoyBlameMs);
@@ -797,8 +1017,9 @@
     }
     const roundLevel = session.level;
     const change = registerOutcome(false);
+    powerUpsAfterRound({ type: 'false' });
     Sound.play('false');
-    setState(STATE.FALSE_START, withLevelChange(copy, change));
+    setState(STATE.FALSE_START, withPowerNotes(withLevelChange(copy, change)));
     renderStats();
     afterRound({ type: 'false', level: roundLevel });
     tournamentAfterRound({ type: 'false' });
@@ -812,8 +1033,9 @@
     session.missed += 1;
     const roundLevel = session.level;
     const change = registerOutcome(false);
+    powerUpsAfterRound({ type: 'missed' });
     Sound.play('missed');
-    setState(STATE.MISSED, withLevelChange({ sub: VIEW.missed.sub }, change));
+    setState(STATE.MISSED, withPowerNotes(withLevelChange({ sub: VIEW.missed.sub }, change)));
     renderStats();
     afterRound({ type: 'missed', level: roundLevel });
     tournamentAfterRound({ type: 'missed' });
@@ -842,7 +1064,7 @@
     }
 
     // Every valid time goes into the stats; the level target only decides the streak.
-    const target = currentLevel().target;
+    const target = effectiveTarget(); // Leeway loosens the pass/fail line, never the time
     const roundLevel = session.level;
     const passed = ms <= target;
     // The time is already measured, so feedback sound can't affect it.
@@ -861,7 +1083,8 @@
       sub += ' The streak resets.';
     }
 
-    setState(STATE.RESULT, withLevelChange({ eyebrow, headline: '', readout: ms, sub }, change));
+    powerUpsAfterRound({ type: 'result', passed, isRecord: isRecord || allTimeBest === null });
+    setState(STATE.RESULT, withPowerNotes(withLevelChange({ eyebrow, headline: '', readout: ms, sub }, change)));
     renderStats(now);
     afterRound({ type: 'result', ms, level: roundLevel, passed });
     tournamentAfterRound({ type: 'result', ms });
@@ -884,6 +1107,8 @@
     session.fails = 0;
     session.cleanRun = 0;
     session.falseStreak = 0;
+    session.powerUps = freshPowerUps();
+    powerNotes = [];
     applyLevel();
     setState(STATE.IDLE, copy || { eyebrow: 'Session cleared', headline: 'Test your reflexes' });
     renderStats();
@@ -969,6 +1194,10 @@
     focus: '<circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.2" />',
     decoy: '<path d="M12 3 20 6v6c0 5-3.4 8.2-8 9-4.6-.8-8-4-8-9V6z" /><path d="m8.5 12 2.5 2.5 4.5-5" />',
     level: '<path d="m6 15 6-6 6 6" /><path d="m6 20 6-6 6 6" /><path d="M6 4h12" />',
+    'pu-shield': '<path d="M12 3 20 6v6c0 5-3.4 8.2-8 9-4.6-.8-8-4-8-9V6z" />',
+    'pu-double': '<path d="m6 12 6-6 6 6" /><path d="m6 18 6-6 6 6" />',
+    'pu-leeway': '<circle cx="12" cy="12" r="3.5" /><path d="M2.5 12h4M17.5 12h4M12 2.5v4M12 17.5v4" />',
+    'pu-calm': '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />',
     volume: '<path d="M5 20V11" /><path d="M12 20V5" /><path d="M19 20v-7" />',
     fun: '<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />',
   };
@@ -1370,6 +1599,7 @@
     session.times.length = 0;
     Object.assign(session, {
       falseStarts: 0, missed: 0, rounds: 0, streak: 0, fails: 0, cleanRun: 0, falseStreak: 0,
+      powerUps: freshPowerUps(), // power-ups are off in tournaments
       level: tournament.level,
       peakLevel: 1, // levels are chosen, not reached, in a tournament
     });
@@ -1733,7 +1963,11 @@
     dom.levelName.textContent = level.name;
     dom.levelOf.textContent = `${session.level} of ${LEVELS.length}`;
     dom.levelBrief.textContent = level.brief;
-    dom.levelTarget.textContent = `≤ ${level.target} ms`;
+    const target = effectiveTarget();
+    dom.levelTarget.textContent = target > level.target
+      ? `≤ ${target} ms (+${target - level.target})`
+      : `≤ ${level.target} ms`;
+    renderPowerUps();
 
     if (dom.levelTrack.children.length !== LEVELS.length) {
       dom.levelTrack.replaceChildren(...LEVELS.map(() => document.createElement('span')));
@@ -1939,8 +2173,13 @@
         stopSession();
         return;
       }
-      // Shortcuts: M toggles music, S toggles sound effects.
+      // Shortcuts: M toggles music, S toggles sound effects, 1–3 use a power-up.
       const key = e.key.length === 1 ? e.key.toLowerCase() : '';
+      if (key >= '1' && key <= String(CONFIG.powerUpSlots) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.target instanceof Element && e.target.closest('input, textarea, select')) return;
+        if (!e.repeat) activatePowerUp(Number(key) - 1);
+        return;
+      }
       if ((key === 'm' || key === 's') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         if (e.target instanceof Element && e.target.closest('input, textarea, select')) return;
         if (Sound.supported && !e.repeat) toggleAudio(key === 'm' ? 'music' : 'sfx');
