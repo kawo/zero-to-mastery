@@ -27,6 +27,13 @@
     <div class="meta">
       <span class="chip" id="renderChip" title="Rendering status"><span class="dot"></span><span id="renderStatus">Starting renderer…</span></span>
       <span class="chip" id="clockChip" title="Smallest step of the clock used to time reactions, measured in this browser">Timer precision <code id="clockRes">measuring…</code></span>
+      <button type="button" class="profile-btn" id="profileBtn" aria-haspopup="dialog" aria-controls="profileDialog">
+        <span class="avatar" id="profileAvatar" aria-hidden="true">P</span>
+        <span class="profile-text">
+          <span class="profile-name" id="profileName">Player</span>
+          <span class="profile-sub" id="profileSub">No record yet</span>
+        </span>
+      </button>
     </div>
   </header>
 
@@ -109,10 +116,75 @@
   </main>
 
   <p class="sr-only" id="live" aria-live="polite"></p>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
 </div>
+
+<dialog class="dialog" id="profileDialog" aria-labelledby="dialogTitle">
+  <div class="dialog-head">
+    <span class="avatar avatar-lg" id="dlgAvatar" aria-hidden="true">P</span>
+    <div class="dialog-id">
+      <h2 id="dialogTitle">Player</h2>
+      <p id="dlgSince">Playing since today</p>
+    </div>
+    <button type="button" class="icon-btn" id="dialogClose" aria-label="Close profile">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+    </button>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Profile sections">
+    <button type="button" role="tab" id="tab-profile" aria-controls="panel-profile" aria-selected="true">Profile</button>
+    <button type="button" role="tab" id="tab-records" aria-controls="panel-records" aria-selected="false" tabindex="-1">High scores</button>
+    <button type="button" role="tab" id="tab-achievements" aria-controls="panel-achievements" aria-selected="false" tabindex="-1">Achievements <span class="tab-count" id="achCount">0/16</span></button>
+  </div>
+
+  <section class="tab-panel" role="tabpanel" id="panel-profile" aria-labelledby="tab-profile">
+    <form class="profile-form" id="profileForm" novalidate>
+      <label class="field-label" for="nameInput">Display name</label>
+      <div class="field-row">
+        <input class="input" id="nameInput" name="name" type="text" maxlength="20" autocomplete="nickname" spellcheck="false" required />
+        <button type="submit" class="btn btn-ghost btn-sm">Save name</button>
+      </div>
+      <p class="field-error" id="nameError" role="alert" hidden>Enter a name between 1 and 20 characters.</p>
+      <fieldset class="color-field">
+        <legend class="field-label">Avatar colour</legend>
+        <div class="color-options" id="colorOptions"></div>
+      </fieldset>
+    </form>
+
+    <h3 class="section-label">Lifetime stats</h3>
+    <dl class="stat-grid lifetime-grid" id="lifetimeGrid"></dl>
+
+    <h3 class="section-label">Players on this device</h3>
+    <div class="switcher">
+      <label class="sr-only" for="profileSelect">Active player</label>
+      <select class="input" id="profileSelect"></select>
+      <button type="button" class="btn btn-ghost btn-sm" id="newProfileBtn">New player</button>
+      <button type="button" class="btn btn-danger btn-sm" id="deleteProfileBtn">Delete player</button>
+    </div>
+    <p class="fine-print" id="storageNote">Profiles are saved in this browser only.</p>
+  </section>
+
+  <section class="tab-panel" role="tabpanel" id="panel-records" aria-labelledby="tab-records" hidden>
+    <dl class="stat-grid records-grid" id="recordsGrid"></dl>
+    <h3 class="section-label">Top 10 on this device</h3>
+    <p class="chart-empty" id="boardEmpty">No times yet. Play a round to open the leaderboard.</p>
+    <div class="table-wrap" id="boardWrap" hidden>
+      <table class="board">
+        <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col" class="num">Time</th><th scope="col" class="num">Level</th><th scope="col">Date</th></tr></thead>
+        <tbody id="boardBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="tab-panel" role="tabpanel" id="panel-achievements" aria-labelledby="tab-achievements" hidden>
+    <ul class="ach-grid" id="achList"></ul>
+  </section>
+</dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="js/config.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/achievements.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

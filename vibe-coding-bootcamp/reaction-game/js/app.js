@@ -2,20 +2,26 @@
   'use strict';
 
   /* ======================================================================
-   * Configuration (defined in js/config.js, loaded before this file)
+   * Dependencies (js/config.js, js/storage.js, js/achievements.js load first)
    * ==================================================================== */
-  const settings = window.ReflexLabConfig;
-  if (!settings) {
-    console.error('[Reflex Lab] js/config.js did not load');
+  const missing = [
+    ['ReflexLabConfig', 'js/config.js'],
+    ['ReflexLabStorage', 'js/storage.js'],
+    ['ReflexLabAchievements', 'js/achievements.js'],
+  ].filter(([globalName]) => !window[globalName]).map(([, file]) => file);
+  if (missing.length) {
+    console.error('[Reflex Lab] missing scripts:', missing.join(', '));
     const banner = document.getElementById('banner');
     const text = document.getElementById('bannerText');
     if (banner && text) {
-      text.textContent = 'Reflex Lab couldn’t load its settings (js/config.js). Check that the file exists next to app.js, then reload.';
+      text.textContent = `Reflex Lab couldn’t load ${missing.join(', ')}. Check the file exists next to app.js, then reload.`;
       banner.hidden = false;
     }
     return;
   }
-  const { CONFIG, COLORS, LEVELS, PRESETS } = settings;
+  const { CONFIG, COLORS, LEVELS, PRESETS } = window.ReflexLabConfig;
+  const Storage = window.ReflexLabStorage;
+  const Achievements = window.ReflexLabAchievements;
 
   /* ======================================================================
    * Utilities
@@ -464,7 +470,16 @@
     renderChip: $('renderChip'), renderStatus: $('renderStatus'),
     clockChip: $('clockChip'), clockRes: $('clockRes'),
     banner: $('banner'), bannerText: $('bannerText'), bannerClose: $('bannerClose'),
-    live: $('live'),
+    live: $('live'), toasts: $('toasts'),
+    profileBtn: $('profileBtn'), profileAvatar: $('profileAvatar'), profileName: $('profileName'), profileSub: $('profileSub'),
+    dialog: $('profileDialog'), dialogClose: $('dialogClose'), dlgAvatar: $('dlgAvatar'), dialogTitle: $('dialogTitle'), dlgSince: $('dlgSince'),
+    tabs: Array.from(document.querySelectorAll('#profileDialog [role="tab"]')),
+    achCount: $('achCount'),
+    profileForm: $('profileForm'), nameInput: $('nameInput'), nameError: $('nameError'), colorOptions: $('colorOptions'),
+    lifetimeGrid: $('lifetimeGrid'), profileSelect: $('profileSelect'),
+    newProfileBtn: $('newProfileBtn'), deleteProfileBtn: $('deleteProfileBtn'), storageNote: $('storageNote'),
+    recordsGrid: $('recordsGrid'), boardEmpty: $('boardEmpty'), boardWrap: $('boardWrap'), boardBody: $('boardBody'),
+    achList: $('achList'),
   };
   const HINT_DEFAULT = dom.hint.innerHTML;
 
@@ -484,7 +499,13 @@
     level: 1, peakLevel: 1,
     streak: 0,   // rounds in a row under the level's target
     fails: 0,    // failed rounds in a row (too slow, false start, missed)
+    cleanRun: 0,     // rounds in a row without a false start or miss
+    falseStreak: 0,  // false starts in a row
   };
+
+  // Saved profiles (see storage.js). `saved.state` is the document written to disk.
+  const saved = { state: null, persistent: false, saveFailed: false };
+  const activeProfile = () => saved.state.profiles[saved.state.activeId];
 
   const game = {
     state: STATE.IDLE,
@@ -661,6 +682,8 @@
   function startSession() {
     if (game.running) return;
     game.running = true;
+    activeProfile().stats.sessions += 1;
+    persist();
     beginRound();
     dom.stage.focus({ preventScroll: true }); // so Space reacts instead of re-pressing the button
     announce('Session started. Wait for green.');
@@ -696,6 +719,7 @@
   /** Called from the render loop on the frame that shows the stimulus. */
   function commitStimulus() {
     game.pendingStimulus = false;
+    if (game.lastDecoyAt > 0) activeProfile().stats.decoysDodged += 1; // held steady through it
     setState(STATE.GO);
   }
 
@@ -738,9 +762,11 @@
         sub: 'You reacted before the shape turned green. False starts aren’t averaged, but they are counted.',
       };
     }
+    const roundLevel = session.level;
     const change = registerOutcome(false);
     setState(STATE.FALSE_START, withLevelChange(copy, change));
     renderStats();
+    afterRound({ type: 'false', level: roundLevel });
     announce(`${copy.headline}. False start.${change === 'down' ? ` Back to level ${session.level}.` : ''}`);
   }
 
@@ -749,9 +775,11 @@
     if (game.state !== STATE.GO) return;
     clearTimers();
     session.missed += 1;
+    const roundLevel = session.level;
     const change = registerOutcome(false);
     setState(STATE.MISSED, withLevelChange({ sub: VIEW.missed.sub }, change));
     renderStats();
+    afterRound({ type: 'missed', level: roundLevel });
     announce(`Too slow. Round not counted.${change === 'down' ? ` Back to level ${session.level}.` : ''}`);
   }
 
@@ -761,8 +789,13 @@
     session.times.push(ms);
     const now = summarize(session.times);
 
+    const allTimeBest = activeProfile().stats.bestMs;
     let sub;
-    if (prev.n === 0) {
+    if (allTimeBest !== null && ms < allTimeBest) {
+      sub = `<strong>New personal record</strong>, ${fmt(allTimeBest - ms)} ms faster than your all-time best.`;
+    } else if (allTimeBest === null) {
+      sub = 'Your first recorded time. It’s your personal record for now.';
+    } else if (prev.n === 0) {
       sub = 'First valid attempt of the session.';
     } else if (ms < prev.best) {
       sub = `<strong>New session best</strong>, ${fmt(prev.best - ms)} ms faster than your previous record.`;
@@ -773,6 +806,7 @@
 
     // Every valid time goes into the stats; the level target only decides the streak.
     const target = currentLevel().target;
+    const roundLevel = session.level;
     const passed = ms <= target;
     const change = registerOutcome(passed);
     let eyebrow = rate(ms);
@@ -787,12 +821,14 @@
 
     setState(STATE.RESULT, withLevelChange({ eyebrow, headline: '', readout: ms, sub }, change));
     renderStats(now);
+    afterRound({ type: 'result', ms, level: roundLevel, passed });
     const levelNote = change === 'up' ? ` Level up, now level ${session.level}.`
       : change === 'down' ? ` Back to level ${session.level}.` : '';
     announce(`${fmt(ms)} milliseconds. ${eyebrow}.${levelNote}`);
   }
 
-  function resetSession() {
+  /** Clear this page view's stats. Saved profile data is never touched here. */
+  function resetSession(copy) {
     clearTimers();
     game.running = false;
     session.times.length = 0;
@@ -803,10 +839,405 @@
     session.peakLevel = 1;
     session.streak = 0;
     session.fails = 0;
+    session.cleanRun = 0;
+    session.falseStreak = 0;
     applyLevel();
-    setState(STATE.IDLE, { eyebrow: 'Session cleared', headline: 'Test your reflexes' });
+    setState(STATE.IDLE, copy || { eyebrow: 'Session cleared', headline: 'Test your reflexes' });
     renderStats();
-    announce('Session cleared.');
+    if (!copy) announce('Session cleared. Your profile and records are kept.');
+  }
+
+  /* ======================================================================
+   * Profile: lifetime stats, records, achievements
+   * ==================================================================== */
+  function persist() {
+    if (!saved.persistent) return;
+    if (Storage.save(saved.state)) {
+      saved.saveFailed = false;
+    } else if (!saved.saveFailed) {
+      saved.saveFailed = true; // warn once, not after every round
+      showBanner('Progress couldn’t be saved: browser storage is full or blocked. Your records will last until you close this page.');
+    }
+  }
+
+  /** Fold the round that just ended into the saved profile. */
+  function afterRound(last) {
+    const profile = activeProfile();
+    const s = profile.stats;
+    profile.lastPlayedAt = new Date().toISOString();
+
+    if (last.type === 'result') {
+      s.attempts += 1;
+      s.totalMs += last.ms;
+      if (s.bestMs === null || last.ms < s.bestMs) s.bestMs = last.ms;
+      Storage.recordTop(profile, {
+        ms: Math.round(last.ms * 10) / 10, level: last.level, at: profile.lastPlayedAt,
+      });
+      const five = session.times.slice(-5);
+      if (five.length === 5) {
+        const avg = five.reduce((a, b) => a + b, 0) / 5;
+        if (s.bestAvg5 === null || avg < s.bestAvg5) s.bestAvg5 = avg;
+      }
+      session.cleanRun += 1;
+      session.falseStreak = 0;
+    } else if (last.type === 'false') {
+      s.falseStarts += 1;
+      session.cleanRun = 0;
+      session.falseStreak += 1;
+    } else {
+      s.missed += 1;
+      session.cleanRun = 0;
+      session.falseStreak = 0;
+    }
+    s.longestClean = Math.max(s.longestClean, session.cleanRun);
+    s.peakLevel = Math.max(s.peakLevel, session.peakLevel);
+
+    unlockAchievements(last);
+    persist();
+    renderProfileChip();
+    if (dom.dialog.open) renderDialog();
+  }
+
+  function achievementContext(last = null) {
+    return {
+      stats: activeProfile().stats,
+      session: { times: session.times, cleanRun: session.cleanRun, falseStreak: session.falseStreak },
+      last,
+    };
+  }
+
+  function unlockAchievements(last) {
+    const profile = activeProfile();
+    const unlocked = Achievements.evaluate(profile.achievements, achievementContext(last));
+    const at = new Date().toISOString();
+    unlocked.forEach((a, i) => {
+      profile.achievements[a.id] = at;
+      window.setTimeout(() => showToast(a), i * 450); // stagger several unlocks
+    });
+    if (unlocked.length) {
+      announce(`Achievement unlocked: ${unlocked.map((a) => a.title).join(', ')}.`);
+    }
+  }
+
+  /* ---------- Icons for achievements ---------- */
+  const ICONS = {
+    speed: '<path d="M13 2 4 14h7l-1 8 9-12h-7z" />',
+    focus: '<circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.2" />',
+    decoy: '<path d="M12 3 20 6v6c0 5-3.4 8.2-8 9-4.6-.8-8-4-8-9V6z" /><path d="m8.5 12 2.5 2.5 4.5-5" />',
+    level: '<path d="m6 15 6-6 6 6" /><path d="m6 20 6-6 6 6" /><path d="M6 4h12" />',
+    volume: '<path d="M5 20V11" /><path d="M12 20V5" /><path d="M19 20v-7" />',
+    fun: '<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />',
+  };
+  function iconSvg(kind, size = 20) {
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[kind] || ICONS.fun}</svg>`;
+  }
+
+  function showToast(achievement) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `<span class="ach-icon">${iconSvg(achievement.kind)}</span>
+      <div><p class="toast-kicker">Achievement unlocked</p><p class="toast-title"></p><p class="toast-desc"></p></div>`;
+    toast.querySelector('.toast-title').textContent = achievement.title;
+    toast.querySelector('.toast-desc').textContent = achievement.desc;
+    dom.toasts.appendChild(toast);
+    // Keep at most three on screen.
+    while (dom.toasts.children.length > 3) dom.toasts.firstElementChild.remove();
+    window.setTimeout(() => {
+      toast.classList.add('is-leaving');
+      window.setTimeout(() => toast.remove(), 240);
+    }, 4200);
+  }
+
+  /* ---------- Rendering ---------- */
+  const dateFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const formatDate = (iso) => (iso ? dateFmt.format(new Date(iso)) : '—');
+
+  function initials(name) {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : (parts[0] || 'P').slice(0, 2);
+    return letters.toUpperCase();
+  }
+
+  function paintAvatar(el, profile) {
+    el.textContent = initials(profile.name);
+    el.style.setProperty('--avatar', profile.color);
+  }
+
+  function unlockedCount(profile) {
+    return Achievements.LIST.filter((a) => profile.achievements[a.id]).length;
+  }
+
+  function renderProfileChip() {
+    const p = activeProfile();
+    paintAvatar(dom.profileAvatar, p);
+    dom.profileName.textContent = p.name;
+    const record = p.stats.bestMs !== null ? `Best ${fmt(p.stats.bestMs)} ms` : 'No record yet';
+    dom.profileSub.textContent = `${record} · ${unlockedCount(p)}/${Achievements.LIST.length} achievements`;
+    dom.profileBtn.setAttribute('aria-label', `Open profile for ${p.name}. ${dom.profileSub.textContent}.`);
+  }
+
+  function statTile(label, value, note) {
+    const wrap = document.createElement('div');
+    wrap.className = 'stat';
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    if (value === null) {
+      dd.textContent = '—';
+      dd.classList.add('is-empty');
+    } else {
+      dd.innerHTML = value; // only ever built from numbers below
+    }
+    wrap.append(dt, dd);
+    if (note) {
+      const n = document.createElement('span');
+      n.className = 'note';
+      n.textContent = note;
+      wrap.appendChild(n);
+    }
+    return wrap;
+  }
+
+  function renderDialog() {
+    const p = activeProfile();
+    const s = p.stats;
+    paintAvatar(dom.dlgAvatar, p);
+    dom.dialogTitle.textContent = p.name;
+    dom.dlgSince.textContent = `Playing since ${formatDate(p.createdAt)}` +
+      (p.lastPlayedAt ? ` · last played ${formatDate(p.lastPlayedAt)}` : '');
+    if (document.activeElement !== dom.nameInput) dom.nameInput.value = p.name;
+
+    // Colour choices
+    if (!dom.colorOptions.children.length) {
+      Storage.PROFILE_COLORS.forEach((color, i) => {
+        const label = document.createElement('label');
+        label.innerHTML = `<input type="radio" name="avatarColor" value="${color}" id="avatarColor${i}"><span class="dot" style="--swatch:${color}"></span><span class="sr-only">Colour ${i + 1}</span>`;
+        dom.colorOptions.appendChild(label);
+      });
+    }
+    dom.colorOptions.querySelectorAll('input').forEach((input) => { input.checked = input.value === p.color; });
+
+    // Lifetime stats
+    const avg = s.attempts ? s.totalMs / s.attempts : null;
+    dom.lifetimeGrid.replaceChildren(
+      statTile('Best time', s.bestMs !== null ? msMarkup(s.bestMs) : null),
+      statTile('Average', avg !== null ? msMarkup(avg) : null, s.attempts ? `over ${s.attempts} reactions` : ''),
+      statTile('Peak level', `${s.peakLevel}<span class="u">/ ${LEVELS.length}</span>`, LEVELS[s.peakLevel - 1] ? LEVELS[s.peakLevel - 1].name : ''),
+      statTile('Sessions', String(s.sessions)),
+      statTile('False starts', String(s.falseStarts), s.missed ? `${s.missed} missed` : ''),
+      statTile('Decoys dodged', String(s.decoysDodged)),
+    );
+
+    // Player switcher
+    const profiles = Object.values(saved.state.profiles)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    dom.profileSelect.replaceChildren(...profiles.map((pr) => {
+      const opt = document.createElement('option');
+      opt.value = pr.id;
+      opt.textContent = pr.name + (pr.stats.bestMs !== null ? ` (best ${fmt(pr.stats.bestMs)} ms)` : '');
+      opt.selected = pr.id === p.id;
+      return opt;
+    }));
+    dom.newProfileBtn.disabled = profiles.length >= Storage.MAX_PROFILES;
+    dom.newProfileBtn.title = dom.newProfileBtn.disabled ? `Up to ${Storage.MAX_PROFILES} players per device` : '';
+    resetDeleteButton();
+    dom.storageNote.textContent = saved.persistent
+      ? 'Profiles, records and achievements are saved in this browser only. Clearing site data removes them.'
+      : 'This browser is blocking storage, so nothing will be kept after you close the page.';
+
+    // Records
+    dom.recordsGrid.replaceChildren(
+      statTile('Personal best', s.bestMs !== null ? msMarkup(s.bestMs) : null, p.top[0] ? formatDate(p.top[0].at) : ''),
+      statTile('Best 5 in a row', s.bestAvg5 !== null ? msMarkup(s.bestAvg5) : null, 'average'),
+      statTile('Longest clean run', String(s.longestClean), 'rounds'),
+    );
+    const rows = Storage.leaderboard(saved.state);
+    dom.boardEmpty.hidden = rows.length > 0;
+    dom.boardWrap.hidden = rows.length === 0;
+    dom.boardBody.replaceChildren(...rows.map((row, i) => {
+      const tr = document.createElement('tr');
+      if (row.profileId === p.id) tr.className = 'is-me';
+      tr.innerHTML = `<td class="rank">${i + 1}</td><td><span class="who"><span class="avatar" aria-hidden="true"></span><span class="who-name"></span></span></td>` +
+        `<td class="num time">${fmt(row.ms)} ms</td><td class="num">${row.level}</td><td>${formatDate(row.at)}</td>`;
+      paintAvatar(tr.querySelector('.avatar'), row);
+      tr.querySelector('.who-name').textContent = row.name;
+      return tr;
+    }));
+
+    // Achievements
+    const ctx = achievementContext();
+    const unlocked = unlockedCount(p);
+    dom.achCount.textContent = `${unlocked}/${Achievements.LIST.length}`;
+    dom.achList.replaceChildren(...Achievements.LIST.map((a) => {
+      const at = p.achievements[a.id];
+      const li = document.createElement('li');
+      li.className = `ach${at ? ' is-unlocked' : ''}`;
+      li.innerHTML = `<span class="ach-icon">${iconSvg(a.kind)}</span><div><p class="ach-title"></p><p class="ach-desc"></p><p class="ach-meta"></p></div>`;
+      li.querySelector('.ach-title').textContent = a.title;
+      li.querySelector('.ach-desc').textContent = a.desc;
+      const meta = li.querySelector('.ach-meta');
+      const prog = Achievements.progressOf(a, ctx);
+      if (at) {
+        meta.textContent = `Unlocked ${formatDate(at)}`;
+      } else if (prog) {
+        meta.textContent = `${prog.current} / ${prog.goal}`;
+        const bar = document.createElement('div');
+        bar.className = 'ach-bar';
+        bar.innerHTML = `<span style="width:${Math.round((prog.current / prog.goal) * 100)}%"></span>`;
+        li.lastElementChild.appendChild(bar);
+      } else {
+        meta.textContent = 'Locked';
+      }
+      li.setAttribute('aria-label', `${a.title}. ${a.desc} ${at ? 'Unlocked.' : prog ? `Progress ${prog.current} of ${prog.goal}.` : 'Locked.'}`);
+      return li;
+    }));
+  }
+
+  /* ---------- Dialog behaviour ---------- */
+  function openProfile(tabId = 'tab-profile') {
+    if (game.running) {
+      stopSession({
+        eyebrow: 'Paused', headline: 'Paused',
+        sub: 'The session is paused while your profile is open. Press Start to continue.',
+      });
+    }
+    renderDialog();
+    selectTab(tabId, false);
+    if (typeof dom.dialog.showModal === 'function') dom.dialog.showModal();
+    else dom.dialog.setAttribute('open', '');
+  }
+
+  function closeProfile() {
+    if (typeof dom.dialog.close === 'function') dom.dialog.close();
+    else dom.dialog.removeAttribute('open');
+  }
+
+  function selectTab(tabId, focus = true) {
+    dom.tabs.forEach((tab) => {
+      const selected = tab.id === tabId;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      document.getElementById(tab.getAttribute('aria-controls')).hidden = !selected;
+      if (selected && focus) tab.focus();
+    });
+  }
+
+  function saveName(event) {
+    event.preventDefault();
+    const name = Storage.cleanName(dom.nameInput.value);
+    const valid = name.length > 0;
+    dom.nameError.hidden = valid;
+    dom.nameInput.setAttribute('aria-invalid', String(!valid));
+    if (!valid) { dom.nameInput.focus(); return; }
+    activeProfile().name = name;
+    persist();
+    renderProfileChip();
+    renderDialog();
+    announce(`Name saved: ${name}.`);
+  }
+
+  function switchProfile(id) {
+    if (!saved.state.profiles[id] || id === saved.state.activeId) return;
+    saved.state.activeId = id;
+    persist();
+    // A new player starts a fresh session: stats on screen belong to one person.
+    resetSession({ eyebrow: 'Player switched', headline: `Hi, ${activeProfile().name}` });
+    renderProfileChip();
+    renderDialog();
+    announce(`Switched to ${activeProfile().name}.`);
+  }
+
+  function createPlayer() {
+    const count = Object.keys(saved.state.profiles).length;
+    if (count >= Storage.MAX_PROFILES) return;
+    const used = new Set(Object.values(saved.state.profiles).map((p) => p.color));
+    const color = Storage.PROFILE_COLORS.find((c) => !used.has(c)) || Storage.PROFILE_COLORS[count % Storage.PROFILE_COLORS.length];
+    const profile = Storage.createProfile(`Player ${count + 1}`, color);
+    saved.state.profiles[profile.id] = profile;
+    saved.state.activeId = ''; // force switchProfile to run
+    switchProfile(profile.id);
+    selectTab('tab-profile', false);
+    dom.nameInput.focus();
+    dom.nameInput.select();
+  }
+
+  let deleteTimer = null;
+  function resetDeleteButton() {
+    window.clearTimeout(deleteTimer);
+    dom.deleteProfileBtn.classList.remove('is-confirming');
+    dom.deleteProfileBtn.textContent = 'Delete player';
+  }
+
+  /** Two-step delete: the first press arms the button for a few seconds. */
+  function deletePlayer() {
+    if (!dom.deleteProfileBtn.classList.contains('is-confirming')) {
+      dom.deleteProfileBtn.classList.add('is-confirming');
+      dom.deleteProfileBtn.textContent = `Delete ${activeProfile().name}? Press again`;
+      deleteTimer = window.setTimeout(resetDeleteButton, 4000);
+      return;
+    }
+    const gone = activeProfile().name;
+    delete saved.state.profiles[saved.state.activeId];
+    let next = Object.values(saved.state.profiles)[0];
+    if (!next) {
+      next = Storage.createProfile('Player');
+      saved.state.profiles[next.id] = next;
+    }
+    saved.state.activeId = '';
+    switchProfile(next.id);
+    announce(`${gone} deleted. Now playing as ${next.name}.`);
+  }
+
+  function reloadFromStorage() {
+    const { state } = Storage.load();
+    saved.state = state;
+    renderProfileChip();
+    if (dom.dialog.open) renderDialog();
+  }
+
+  function bindProfileEvents() {
+    dom.profileBtn.addEventListener('click', () => openProfile());
+    dom.dialogClose.addEventListener('click', closeProfile);
+    dom.dialog.addEventListener('click', (e) => { if (e.target === dom.dialog) closeProfile(); }); // backdrop
+    dom.dialog.addEventListener('close', () => { resetDeleteButton(); dom.profileBtn.focus(); });
+
+    dom.tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => selectTab(tab.id));
+      tab.addEventListener('keydown', (e) => {
+        const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (e.key === 'Home' || e.key === 'End') {
+          e.preventDefault();
+          selectTab(dom.tabs[e.key === 'Home' ? 0 : dom.tabs.length - 1].id);
+        } else if (step) {
+          e.preventDefault();
+          selectTab(dom.tabs[(i + step + dom.tabs.length) % dom.tabs.length].id);
+        }
+      });
+    });
+
+    dom.profileForm.addEventListener('submit', saveName);
+    dom.nameInput.addEventListener('input', () => {
+      if (!dom.nameError.hidden && Storage.cleanName(dom.nameInput.value)) {
+        dom.nameError.hidden = true;
+        dom.nameInput.removeAttribute('aria-invalid');
+      }
+    });
+    dom.colorOptions.addEventListener('change', (e) => {
+      if (!(e.target instanceof HTMLInputElement) || !Storage.PROFILE_COLORS.includes(e.target.value)) return;
+      activeProfile().color = e.target.value;
+      persist();
+      renderProfileChip();
+      paintAvatar(dom.dlgAvatar, activeProfile());
+    });
+    dom.profileSelect.addEventListener('change', () => switchProfile(dom.profileSelect.value));
+    dom.newProfileBtn.addEventListener('click', createPlayer);
+    dom.deleteProfileBtn.addEventListener('click', deletePlayer);
+
+    // Another tab saved progress: pick it up, unless a round is being timed here.
+    Storage.onExternalChange(() => {
+      if (game.state === STATE.WAITING || game.state === STATE.GO) return;
+      reloadFromStorage();
+    });
   }
 
   /** Single entry point for a reaction from mouse, touch, pen or keyboard. */
@@ -1053,6 +1484,7 @@
     dom.stage.addEventListener('contextmenu', (e) => e.preventDefault());
 
     document.addEventListener('keydown', (e) => {
+      if (dom.dialog.open) return; // the dialog handles its own keys (Esc closes it)
       if (e.key === 'Escape' && game.running) {
         stopSession();
         return;
@@ -1109,7 +1541,18 @@
    * Boot
    * ==================================================================== */
   function boot() {
+    const loaded = Storage.load();
+    saved.state = loaded.state;
+    saved.persistent = loaded.persistent;
+    if (loaded.notice === 'blocked') {
+      showBanner('This browser is blocking storage, so your profile and records will only last until you close the page.');
+    } else if (loaded.notice === 'corrupt') {
+      showBanner(`Saved progress couldn’t be read, so a fresh profile was started. The old data was kept under “${Storage.KEY}.backup” in this browser’s storage.`);
+      persist();
+    }
+
     bindEvents();
+    bindProfileEvents();
 
     try {
       scene = new ReactionScene(dom.canvas, dom.stage, {
@@ -1124,6 +1567,7 @@
     applyLevel();
     setState(STATE.IDLE);
     renderStats();
+    renderProfileChip();
     renderClockResolution();
     rafId = window.requestAnimationFrame(tick);
   }

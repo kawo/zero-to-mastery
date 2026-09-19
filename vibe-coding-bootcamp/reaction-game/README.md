@@ -51,16 +51,36 @@ The levels are defined in the `LEVELS` table in `js/config.js`.
 - If WebGL or the CDN isn't available, a 2D fallback runs and the game still works.
 - The game supports `prefers-reduced-motion`.
 
+## Profiles, high scores and achievements
+
+To open your profile, click your name in the top bar. Opening it pauses the current session.
+
+- **Profile:** your display name, avatar colour and lifetime stats: best time, average, peak level, sessions, false starts and decoys dodged. The profile also lists everyone who has played on this device. You can switch player, add a player (up to 8) or delete one (you press the button twice to confirm).
+- **High scores:** your personal best, your best average over 5 reactions in a row and your longest run without a false start or miss. There's also a top-10 leaderboard of every player on this device. A result screen tells you when you set a new personal record.
+- **Achievements:** there are 16 achievements, covering speed, consistency, dodging decoys, levels and volume. Some of them count toward a goal, and those show a progress bar. When you unlock one, a notification pops up.
+
+**Reset** clears only the current session's stats. It never touches your profile.
+
 ## Data
 
-Stats live in JavaScript memory only. There's no `localStorage` or cookies. Reloading the page clears them.
+Profiles are saved in `localStorage` under the key `reflexlab.v1`. That means they're saved in this browser only. Clearing site data removes them.
+
+- Every value is checked when it's loaded. A missing or wrong value is replaced with a safe default.
+- If the saved data can't be read, the game copies it to `reflexlab.v1.backup` and starts a fresh profile.
+- If the browser blocks storage (private browsing, for example), the game still works. Your progress lasts until you close the page, and a message tells you that.
+- If saving fails (for example when storage is full), a message appears once. The game keeps running.
+- Progress saved in another tab of this browser is picked up automatically, unless a round is being timed.
+
+The current session's stats (average, chart, level) stay in memory only.
 
 ## Structure
 
 ```
-index.html      markup: stage, controls, stats and chart
-favicon.png     32×32 tab icon
-css/style.css   colour tokens, per-state styles, responsive layout
-js/config.js    settings: timings, difficulty levels (LEVELS), colours, 3D presets
-js/app.js       stats, 3D scene (ReactionScene), game state machine, render loop
+index.html          markup: stage, controls, stats, chart, profile window
+favicon.png         32×32 tab icon
+css/style.css       colour tokens, per-state styles, profile window, responsive layout
+js/config.js        settings: timings, difficulty levels (LEVELS), colours, 3D presets
+js/storage.js       saving and loading, data checks, leaderboard
+js/achievements.js  achievement definitions and their rules
+js/app.js           stats, 3D scene (ReactionScene), game state machine, profile window, render loop
 ```
