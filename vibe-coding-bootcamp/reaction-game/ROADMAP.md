@@ -3,7 +3,7 @@
 | Fonctionnalité                                                              | Objectif                 | Effort |
 | --------------------------------------------------------------------------- | ------------------------ | ------ |
 | ~~**Difficulty scaling & progressive levels**~~                             | Increases replayability  | Medium |
-| ~~ **Persistent high scores, player profiles & achievements**~~             | Retention                | Low    |
+| ~~**Persistent high scores, player profiles & achievements**~~              | Retention                | Low    |
 | ~~**Sound effects + music + toggle settings**~~                             | Polish                   | Low    |
 | ~~**Touch / mobile support** (tap regions) + configurable input mapping~~   | Reach & accessibility    | Medium |
 | ~~**Multiplayer** (local hotseat or simple WebSocket matchmaking)~~         | Big engagement boost     | High   |
