@@ -754,6 +754,7 @@
   const shareButton = document.getElementById('share-button');
   const shareMenu = document.getElementById('share-menu');
   const shareLinks = document.getElementById('share-links');
+  const speakButton = document.getElementById('speak-button');
   const complimentTags = document.getElementById('compliment-tags');
   const openBrowseButton = document.getElementById('open-browse');
   const browseDialog = document.getElementById('browse-dialog');
@@ -770,7 +771,7 @@
   // Stop quietly if the page doesn't have the expected elements.
   const required = [complimentBox, complimentEl, emojiEl, complimentButton, jokeButton, eyebrowEl, langSwitch,
     favToggle, openFavoritesButton, favoritesCount, favoritesDialog, favoritesClose, favoritesEmpty,
-    favoritesList, favoritesNote, favoritesClear, statusEl, copyButton, shareButton, shareMenu, shareLinks,
+    favoritesList, favoritesNote, favoritesClear, statusEl, copyButton, shareButton, shareMenu, shareLinks, speakButton,
     complimentTags, openBrowseButton, browseDialog, browseClose, browseSearch, browseType, browseTags,
     browseSummary, browseList, browseEmpty, browseClear, browseRandom];
   if (required.some((element) => !element)) {
@@ -924,6 +925,7 @@
     renderFavoriteToggle();
     renderCardTags();
     closeShareMenu();
+    stopSpeaking(); // the text being read is no longer on the card
 
     // Restart the CSS animation: remove the class, force the browser to apply
     // that change (reading offsetWidth does this), then add the class back.
@@ -997,6 +999,7 @@
     favoritesClear.textContent = t(favoritesClear.classList.contains('is-confirming') ? 'favorites.clearConfirm' : 'favorites.clear');
 
     copyButton.title = t(copyButton.classList.contains('is-done') ? 'copy.done' : 'copy.label');
+    speakButton.title = t(speakButton.getAttribute('aria-pressed') === 'true' ? 'speak.stop' : 'speak.label');
     if (!shareMenu.hidden) renderShareLinks();
 
     renderCardTags();
@@ -1535,6 +1538,85 @@
     if (giveFocusBack) shareButton.focus();
   }
 
+  /* ---------- Read aloud (Web Speech API) ---------- */
+
+  const speech = 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function'
+    ? window.speechSynthesis
+    : null;
+  // Silence before a joke's punchline, the same beat as the card's animation.
+  const PUNCHLINE_PAUSE = 700;
+  // Goes up every time reading starts or stops, so the callbacks of a reading
+  // that was stopped (or replaced) know they're out of date and do nothing.
+  let speechRun = 0;
+  let punchlineTimer = 0;
+
+  /**
+   * The best installed voice for a language: one for the exact locale
+   * ("fr-FR") first, then any of the same language ("fr-CA"), preferring
+   * voices on the device and the system default. Null if there's none: the
+   * browser then chooses from the utterance's language.
+   */
+  function voiceFor(lang) {
+    const voices = speech.getVoices();
+    const tag = (voice) => voice.lang.toLowerCase().replace('_', '-');
+    const locale = localeOf(lang).toLowerCase();
+    const best = (list) => list.find((v) => v.localService && v.default) || list.find((v) => v.localService) || list[0];
+    return best(voices.filter((v) => tag(v) === locale)) || best(voices.filter((v) => tag(v).split('-')[0] === lang)) || null;
+  }
+
+  function renderSpeakButton(speaking) {
+    speakButton.setAttribute('aria-pressed', String(speaking));
+    speakButton.title = t(speaking ? 'speak.stop' : 'speak.label');
+  }
+
+  function stopSpeaking() {
+    if (!speech) return;
+    speechRun += 1;
+    clearTimeout(punchlineTimer);
+    if (speech.speaking || speech.pending) speech.cancel();
+    renderSpeakButton(false);
+  }
+
+  /**
+   * Reads the card aloud in its language: a compliment in one go; a joke as
+   * the setup, a short pause, then the punchline. The emoji isn't read.
+   */
+  function speakCard() {
+    const busy = speech.speaking || speech.pending;
+    stopSpeaking();
+    const run = speechRun;
+
+    const item = collections[currentMode][currentIndex];
+    // An item with no translation is shown in English, so it's read in English.
+    const lang = item[currentLang] ? currentLang : DEFAULT_LANG;
+    const parts = textOf(item).split('\n'); // [text] or [setup, punchline]
+    const voice = voiceFor(lang);
+
+    const say = (index) => {
+      if (run !== speechRun) return; // stopped in the meantime
+      const utterance = new SpeechSynthesisUtterance(parts[index]);
+      utterance.lang = localeOf(lang); // pronunciation, even without a matching voice
+      if (voice) utterance.voice = voice;
+      utterance.onend = () => {
+        if (run !== speechRun) return;
+        if (index + 1 < parts.length) punchlineTimer = setTimeout(() => say(index + 1), PUNCHLINE_PAUSE);
+        else renderSpeakButton(false);
+      };
+      utterance.onerror = (event) => {
+        if (run !== speechRun) return;
+        // "interrupted"/"canceled" just mean it was stopped; anything else is a real failure.
+        if (event.error !== 'interrupted' && event.error !== 'canceled') announce(t('speak.failed'));
+        stopSpeaking();
+      };
+      speech.speak(utterance);
+    };
+
+    renderSpeakButton(true);
+    // Chrome can drop a speak() that comes right after cancel(): wait a moment then.
+    if (busy) punchlineTimer = setTimeout(() => say(0), 60);
+    else say(0);
+  }
+
   /* ---------- Tags on the card ---------- */
 
   /** Chips under the text; each opens the search filtered on that tag. */
@@ -1839,6 +1921,18 @@
 
   copyButton.addEventListener('click', copyToClipboard);
   shareButton.addEventListener('click', share);
+
+  // Read aloud: only offered where the browser can speak.
+  if (speech) {
+    speakButton.hidden = false;
+    speech.getVoices(); // some browsers only load their voice list when first asked
+    speakButton.addEventListener('click', () => {
+      if (speakButton.getAttribute('aria-pressed') === 'true') stopSpeaking();
+      else speakCard();
+    });
+    // Don't keep talking after leaving the page.
+    window.addEventListener('pagehide', stopSpeaking);
+  }
 
   // The share menu closes after picking a service, on Esc, when focus leaves
   // it (Tab), or on a click elsewhere. Up/Down/Home/End move between the links.

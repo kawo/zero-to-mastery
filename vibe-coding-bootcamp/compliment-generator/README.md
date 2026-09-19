@@ -43,7 +43,12 @@ Then open the address it prints (`http://localhost:…`).
   - **Search:** the search field looks in both languages and in the tag names, so "chien" finds the dog jokes even in English. It ignores case and accents ("ecole" finds "école"), every word you type must match, and matches are highlighted.
   - **Filters:** All / Compliments / Jokes, plus tag chips. Selected tags combine, so Animals + Puns shows only animal puns. The result count updates as you type.
   - **Results:** click a result to show it on the card, click ♥ to favorite it, or use "🎲 Random from these" to show a random item from the current results.
-- **Copy and share:** two buttons next to the heart.
+- **Read aloud:** the 🔈 button next to the heart reads the card with the browser's own voices (Web Speech API).
+  - **Compliments** are read in one go. **Jokes** are read as the setup, a short pause (0.7 s, the same beat as the punchline's animation), then the punchline.
+  - **Language:** the card is read in the page language, with the best installed voice for it. The exact locale (`en-GB`, `fr-FR`) is tried first, then any voice for the same language, preferring voices on the device over online ones. An item with no translation is read in English.
+  - **Stopping:** press the button again. Reading also stops when the card shows another item, when the language changes, or when you leave the page. While it reads, the button stays highlighted and its sound waves pulse.
+  - **Voices come from the system.** If none is installed for a language, the browser reads the text with another voice and the accent will be off. On Windows, add one in Settings › Time & language › Speech; on macOS, in System Settings › Accessibility › Spoken Content. In browsers without speech synthesis, the button doesn't appear.
+- **Copy and share:** two more buttons next to the heart.
   - **Copy:** copies the emoji and the text, in the current language, with the Clipboard API. Older browsers fall back to `execCommand('copy')`. The icon turns into a ✓ for a moment, and "Copied!" is announced.
   - **Share:** uses the device's share sheet (Web Share API) when there is one, for example on phones, in Safari, and in Edge and Chrome on Windows. Otherwise, a small menu offers WhatsApp, X and Email, plus Facebook when the site is online.
   - **Page address:** it's added to shares only when the page is served online. A `file://` address means nothing to the person receiving it, so it's never shared.
@@ -105,6 +110,7 @@ Then open the address it prints (`http://localhost:…`).
   - adding or removing a favorite is announced, and so is the "Clear all? Tap again" confirmation;
   - the list is a native `<dialog>`, which keeps focus inside and closes with `Esc`;
   - after an item is removed, focus moves to the next one.
+- **Read aloud:** a toggle button. Its name stays "Read aloud", `aria-pressed` is true while it speaks, and the tooltip says "Stop reading" then. It only appears when the browser can speak. A real failure is announced; stopping the reading on purpose isn't.
 - **Copy and share:**
   - both icon buttons are labelled in the current language;
   - the share menu is a disclosure: the button reports whether it's open (`aria-expanded`), focus moves into it when it opens, and `Esc` returns focus to the button.
@@ -209,4 +215,4 @@ You can then check the preview with Facebook's [Sharing Debugger](https://develo
 
 ## Browser support
 
-The app works in current versions of Chrome, Edge, Firefox and Safari. The offline mode works in all of them. Installing as an app works in Chrome and Edge (desktop and Android) and in Safari (iOS "Add to Home Screen", macOS "Add to Dock"); Firefox on desktop doesn't install web apps, but still works offline. The language choice and the favorites are saved with `localStorage`. If storage is blocked (private browsing, for example), the app still works but doesn't remember them after the page is closed.
+The app works in current versions of Chrome, Edge, Firefox and Safari. The offline mode works in all of them. Installing as an app works in Chrome and Edge (desktop and Android) and in Safari (iOS "Add to Home Screen", macOS "Add to Dock"); Firefox on desktop doesn't install web apps, but still works offline. Read aloud works in all of them (voices depend on the system). The language choice and the favorites are saved with `localStorage`. If storage is blocked (private browsing, for example), the app still works but doesn't remember them after the page is closed.

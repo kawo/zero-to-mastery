@@ -105,6 +105,18 @@
             </svg>
           </button>
 
+          <!-- Read aloud (Web Speech API): a compliment in one go, a joke as the
+               setup, a pause, then the punchline. Pressed while it's speaking;
+               press again to stop. Hidden until script.js has checked that the
+               browser can speak. -->
+          <button type="button" class="card-icon speak-button" id="speak-button" aria-pressed="false" aria-label="Read aloud" title="Read aloud" data-i18n-attr="aria-label:speak.label" hidden>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z" />
+              <path class="speak-wave" d="M15.5 9.5a3.5 3.5 0 0 1 0 5" />
+              <path class="speak-wave speak-wave-2" d="M18 7a7 7 0 0 1 0 10" />
+            </svg>
+          </button>
+
           <div class="share-menu" id="share-menu" hidden>
             <p class="share-menu-title" id="share-menu-title" data-i18n="share.on">Share on</p>
             <ul class="share-links" id="share-links" aria-labelledby="share-menu-title"></ul>

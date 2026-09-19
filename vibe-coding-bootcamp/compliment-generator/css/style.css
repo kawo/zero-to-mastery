@@ -220,6 +220,8 @@ body {
 .card-top {
   width: 100%;
   display: flex;
+  flex-wrap: wrap;       /* only ever wraps on the narrowest phones */
+  gap: 10px;
   align-items: center;
   justify-content: space-between;
   margin-bottom: -12px;  /* sit a little closer to the eyebrow text */
@@ -250,6 +252,11 @@ body {
 .card-icon:hover {
   background-color: rgba(255, 209, 102, 0.22);
   border-color: rgba(33, 37, 41, 0.25);
+}
+
+/* A card-icon that script.js hasn't switched on (display: grid would override [hidden]) */
+.card-icon[hidden] {
+  display: none;
 }
 
 .card-icon:focus-visible {
@@ -289,6 +296,34 @@ body {
 
 .share-button[aria-expanded="true"] {
   background-color: rgba(255, 209, 102, 0.35);
+}
+
+/* ---------- Read aloud ---------- */
+.speak-button svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* While it speaks: highlighted, and the sound waves pulse */
+.speak-button[aria-pressed="true"] {
+  background-color: rgba(255, 209, 102, 0.35);
+  border-color: rgba(33, 37, 41, 0.25);
+}
+
+.speak-button[aria-pressed="true"] .speak-wave {
+  animation: speak-wave 1s ease-in-out infinite;
+}
+
+.speak-button[aria-pressed="true"] .speak-wave-2 {
+  animation-delay: 180ms;
+}
+
+@keyframes speak-wave {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
 }
 
 /* ---------- Share menu (when the device has no share sheet) ---------- */
@@ -1143,6 +1178,28 @@ body {
   }
 }
 
+/* ---------- Narrow phones: four icons and the language switch on one row ---------- */
+/* Fits down to 360px wide (most Android phones); below that the row wraps. */
+@media (max-width: 400px) {
+  .card-top {
+    gap: 8px;
+  }
+
+  .card-actions {
+    gap: 4px;
+  }
+
+  .card-icon {
+    width: 40px;   /* still well above the 24px minimum target size */
+    height: 40px;
+  }
+
+  .lang-option {
+    min-width: 36px;
+    padding: 6px;
+  }
+}
+
 /* ---------- Forced colours (e.g. Windows High Contrast) ---------- */
 /* The browser replaces the palette with the person's system colours, which
    would make a selected option look like the others: mark it with the
@@ -1160,6 +1217,11 @@ body {
   .fav-toggle[aria-pressed="true"] svg path,
   .browse-fav[aria-pressed="true"] svg path {
     fill: Highlight;
+  }
+
+  .speak-button[aria-pressed="true"] {
+    border-color: Highlight;
+    outline: 2px solid Highlight;
   }
 
   :focus-visible {
@@ -1195,7 +1257,8 @@ body {
   }
 
   .fav-toggle.is-popping svg,
-  .copy-button.is-done .icon-check {
+  .copy-button.is-done .icon-check,
+  .speak-button[aria-pressed="true"] .speak-wave {
     animation: none;
   }
 

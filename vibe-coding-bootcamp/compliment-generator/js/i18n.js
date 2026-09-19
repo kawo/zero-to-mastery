@@ -58,6 +58,10 @@ window.I18N = {
       'share.on': 'Share on',
       'share.email': 'Email',
 
+      'speak.label': 'Read aloud',
+      'speak.stop': 'Stop reading',
+      'speak.failed': 'Couldn’t read aloud on this device.',
+
       'browse.open': 'Browse & search',
       'browse.title': 'Browse',
       'browse.searchLabel': 'Search compliments and jokes',
@@ -124,6 +128,10 @@ window.I18N = {
       'share.label': 'Partager',
       'share.on': 'Partager sur',
       'share.email': 'E-mail',
+
+      'speak.label': 'Lire à voix haute',
+      'speak.stop': 'Arrêter la lecture',
+      'speak.failed': 'Impossible de lire à voix haute sur cet appareil.',
 
       'browse.open': 'Parcourir et chercher',
       'browse.title': 'Parcourir',
