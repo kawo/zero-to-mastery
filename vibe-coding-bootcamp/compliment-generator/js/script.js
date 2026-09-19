@@ -1,8 +1,9 @@
 /* ==========================================================================
    Compliment Generator: behaviour
    Shows a random compliment or joke (with its emoji) at the click of a
-   button, never the same one twice in a row, in English or French. The card
-   keeps the same size whatever the text or the language.
+   button, never the same one twice in a row, in every language of js/i18n.js
+   (English and French). The card keeps the same size whatever the text or
+   the language.
    ========================================================================== */
 
 // Wrapping everything in a function keeps these names out of the global scope.
@@ -657,118 +658,79 @@
 
   /* ---------- Tags ---------- */
   // Every compliment and joke has one to three of these tags (the `tags` field
-  // above). They're shown on the card and used to filter the search.
+  // above). They're shown on the card and used to filter the search. Their
+  // names, in each language, are in js/i18n.js ('tag.wholesome'…).
   const tagInfo = {
-    wholesome: { emoji: '💛', en: 'Wholesome', fr: 'Tendre' },
-    encouraging: { emoji: '💪', en: 'Encouraging', fr: 'Encourageant' },
-    brainy: { emoji: '🧠', en: 'Brainy', fr: 'Futé' },
-    silly: { emoji: '🤪', en: 'Silly', fr: 'Loufoque' },
-    puns: { emoji: '🥁', en: 'Puns', fr: 'Jeux de mots' },
-    animals: { emoji: '🐾', en: 'Animals', fr: 'Animaux' },
-    food: { emoji: '🍕', en: 'Food', fr: 'Miam' },
-    spooky: { emoji: '👻', en: 'Spooky', fr: 'Frissons' },
-    classics: { emoji: '🚪', en: 'Classics', fr: 'Classiques' },
+    wholesome: { emoji: '💛' },
+    encouraging: { emoji: '💪' },
+    brainy: { emoji: '🧠' },
+    silly: { emoji: '🤪' },
+    puns: { emoji: '🥁' },
+    animals: { emoji: '🐾' },
+    food: { emoji: '🍕' },
+    spooky: { emoji: '👻' },
+    classics: { emoji: '🚪' },
   };
 
-  /* ---------- Interface text in each language ---------- */
-  const uiText = {
-    en: {
-      title: 'Compliment Generator',
-      description: 'A little dose of kindness: a random compliment or joke with one click.',
-      eyebrow: { compliment: 'A little something for you', joke: 'A little laugh for you' },
-      complimentButton: 'Get a New Compliment',
-      jokeButton: 'Tell Me a Joke',
-      switchLabel: 'Language',
-      favorites: {
-        add: 'Add to favorites',
-        remove: 'Remove from favorites',
-        open: 'My favorites',
-        title: 'My favorites',
-        empty: 'No favorites yet. Tap the heart on a compliment or joke you love, and it will be kept here.',
-        type: { compliment: 'Compliment', joke: 'Joke' },
-        show: 'Show on the card',
-        removeItem: 'Remove from favorites',
-        clear: 'Clear all',
-        clearConfirm: 'Clear all? Tap again',
-        close: 'Close',
-        added: 'Added to favorites.',
-        removed: 'Removed from favorites.',
-        cleared: 'All favorites cleared.',
-        noStorage: 'Your browser is blocking storage, so favorites will be lost when you close this page.',
-      },
-      copy: 'Copy to clipboard',
-      copied: 'Copied!',
-      copyFailed: 'Couldn’t copy. Select the text and copy it by hand.',
-      share: 'Share',
-      shareOn: 'Share on',
-      email: 'Email',
-      browse: {
-        open: 'Browse & search',
-        title: 'Browse',
-        searchLabel: 'Search compliments and jokes',
-        placeholder: 'Search…',
-        type: { all: 'All', compliment: 'Compliments', joke: 'Jokes' },
-        typeLabel: 'Type',
-        tagsLabel: 'Tags',
-        results: (n) => (n === 1 ? '1 result' : `${n} results`),
-        empty: 'Nothing matches. Try another word, or remove a tag.',
-        clear: 'Clear filters',
-        random: '🎲 Random from these',
-        tagOnCard: (tag) => `Browse everything tagged ${tag}`,
-      },
-    },
-    fr: {
-      title: 'Générateur de compliments',
-      description: 'Une petite dose de gentillesse : un compliment ou une blague au hasard, en un clic.',
-      eyebrow: { compliment: 'Un petit mot pour toi', joke: 'Une petite blague pour toi' },
-      complimentButton: 'Un nouveau compliment',
-      jokeButton: 'Raconte-moi une blague',
-      switchLabel: 'Langue',
-      favorites: {
-        add: 'Ajouter aux favoris',
-        remove: 'Retirer des favoris',
-        open: 'Mes favoris',
-        title: 'Mes favoris',
-        empty: 'Aucun favori pour l’instant. Touche le cœur sur un compliment ou une blague que tu aimes, et il sera gardé ici.',
-        type: { compliment: 'Compliment', joke: 'Blague' },
-        show: 'Afficher sur la carte',
-        removeItem: 'Retirer des favoris',
-        clear: 'Tout effacer',
-        clearConfirm: 'Tout effacer ? Touche à nouveau',
-        close: 'Fermer',
-        added: 'Ajouté aux favoris.',
-        removed: 'Retiré des favoris.',
-        cleared: 'Tous les favoris ont été effacés.',
-        noStorage: 'Ton navigateur bloque le stockage : les favoris seront perdus à la fermeture de la page.',
-      },
-      copy: 'Copier dans le presse-papiers',
-      copied: 'Copié !',
-      copyFailed: 'Impossible de copier. Sélectionne le texte et copie-le à la main.',
-      share: 'Partager',
-      shareOn: 'Partager sur',
-      email: 'E-mail',
-      browse: {
-        open: 'Parcourir et chercher',
-        title: 'Parcourir',
-        searchLabel: 'Chercher dans les compliments et les blagues',
-        placeholder: 'Chercher…',
-        type: { all: 'Tout', compliment: 'Compliments', joke: 'Blagues' },
-        typeLabel: 'Type',
-        tagsLabel: 'Étiquettes',
-        results: (n) => (n <= 1 ? `${n} résultat` : `${n} résultats`),
-        empty: 'Aucun résultat. Essaie un autre mot, ou retire une étiquette.',
-        clear: 'Effacer les filtres',
-        random: '🎲 Au hasard parmi ceux-ci',
-        tagOnCard: (tag) => `Parcourir tout ce qui est étiqueté « ${tag} »`,
-      },
-    },
-  };
+  /* ---------- Languages and interface text ---------- */
+  // All the interface text is in js/i18n.js (loaded just before this file),
+  // one dictionary per language. Every language found there gets a button in
+  // the switch.
+  const dictionaries = window.I18N;
+  const DEFAULT_LANG = 'en';  // used for any string or item a language is missing
+  if (!dictionaries || !dictionaries[DEFAULT_LANG]) {
+    return; // no dictionary: nothing sensible to show
+  }
+  const languages = Object.keys(dictionaries);
+
+  // Plural rules and number formats, made once per language when first needed.
+  const pluralRules = {};
+  const numberFormats = {};
+  const localeOf = (lang) => (dictionaries[lang].meta && dictionaries[lang].meta.locale) || lang;
+
+  function formatValue(lang, value) {
+    if (typeof value !== 'number') return String(value);
+    numberFormats[lang] = numberFormats[lang] || new Intl.NumberFormat(localeOf(lang));
+    return numberFormats[lang].format(value);
+  }
+
+  /**
+   * The text for `key` in `lang`, with its {placeholders} filled from `params`.
+   * A string with plural forms ({ one, other }) is picked for `params.count`.
+   * A string missing from a language falls back to English, then to the key
+   * itself, so a gap shows up clearly instead of breaking the page.
+   */
+  function translate(lang, key, params = {}) {
+    const own = dictionaries[lang] && dictionaries[lang].strings[key];
+    let value = own !== undefined ? own : dictionaries[DEFAULT_LANG].strings[key];
+    if (value === undefined) return key;
+    if (typeof value === 'object') {
+      pluralRules[lang] = pluralRules[lang] || new Intl.PluralRules(localeOf(lang));
+      value = value[pluralRules[lang].select(params.count)] || value.other;
+    }
+    return value.replace(/\{(\w+)\}/g, (match, name) => (name in params ? formatValue(lang, params[name]) : match));
+  }
+
+  /** Same, in the language on screen: t('browse.results', { count: 3 }) → "3 results". */
+  const t = (key, params) => translate(currentLang, key, params);
+
+  /** A compliment's or joke's text in a language (English if it has no translation). */
+  const textOf = (item, lang = currentLang) => item[lang] || item[DEFAULT_LANG];
+
+  /** A tag's name in a language. */
+  const tagName = (tag, lang = currentLang) => translate(lang, `tag.${tag}`);
 
   // The two kinds of content the card can show.
   const collections = { compliment: compliments, joke: jokes };
 
   const STORAGE_KEY = 'compliment-generator.lang';
   const FAVORITES_KEY = 'compliment-generator.favorites';
+
+  // Keyboard shortcut for the search: Ctrl+K, or ⌘K on Apple devices.
+  // (Not a single key like "/": those fire by accident with speech input and
+  // some screen readers, see WCAG 2.1.4 "Character Key Shortcuts".)
+  const onApple = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+  const SHORTCUT_LABEL = onApple ? '⌘K' : 'Ctrl+K';
 
   /* ---------- Page elements ---------- */
   const complimentBox = document.getElementById('compliment-box');
@@ -778,13 +740,10 @@
   const jokeButton = document.getElementById('new-joke');
   const eyebrowEl = document.getElementById('card-title');
   const langSwitch = document.getElementById('lang-switch');
-  const descriptionMeta = document.querySelector('meta[name="description"]');
   const favToggle = document.getElementById('fav-toggle');
   const openFavoritesButton = document.getElementById('open-favorites');
-  const openFavoritesLabel = document.getElementById('open-favorites-label');
   const favoritesCount = document.getElementById('favorites-count');
   const favoritesDialog = document.getElementById('favorites-dialog');
-  const favoritesTitle = document.getElementById('favorites-title');
   const favoritesClose = document.getElementById('favorites-close');
   const favoritesEmpty = document.getElementById('favorites-empty');
   const favoritesList = document.getElementById('favorites-list');
@@ -794,16 +753,12 @@
   const copyButton = document.getElementById('copy-button');
   const shareButton = document.getElementById('share-button');
   const shareMenu = document.getElementById('share-menu');
-  const shareMenuTitle = document.getElementById('share-menu-title');
   const shareLinks = document.getElementById('share-links');
   const complimentTags = document.getElementById('compliment-tags');
   const openBrowseButton = document.getElementById('open-browse');
-  const openBrowseLabel = document.getElementById('open-browse-label');
   const browseDialog = document.getElementById('browse-dialog');
-  const browseTitle = document.getElementById('browse-title');
   const browseClose = document.getElementById('browse-close');
   const browseSearch = document.getElementById('browse-search');
-  const browseSearchLabel = document.getElementById('browse-search-label');
   const browseType = document.getElementById('browse-type');
   const browseTags = document.getElementById('browse-tags');
   const browseSummary = document.getElementById('browse-summary');
@@ -814,11 +769,10 @@
 
   // Stop quietly if the page doesn't have the expected elements.
   const required = [complimentBox, complimentEl, emojiEl, complimentButton, jokeButton, eyebrowEl, langSwitch,
-    favToggle, openFavoritesButton, openFavoritesLabel, favoritesCount, favoritesDialog, favoritesTitle,
-    favoritesClose, favoritesEmpty, favoritesList, favoritesNote, favoritesClear, statusEl,
-    copyButton, shareButton, shareMenu, shareMenuTitle, shareLinks,
-    complimentTags, openBrowseButton, openBrowseLabel, browseDialog, browseTitle, browseClose, browseSearch,
-    browseSearchLabel, browseType, browseTags, browseSummary, browseList, browseEmpty, browseClear, browseRandom];
+    favToggle, openFavoritesButton, favoritesCount, favoritesDialog, favoritesClose, favoritesEmpty,
+    favoritesList, favoritesNote, favoritesClear, statusEl, copyButton, shareButton, shareMenu, shareLinks,
+    complimentTags, openBrowseButton, browseDialog, browseClose, browseSearch, browseType, browseTags,
+    browseSummary, browseList, browseEmpty, browseClear, browseRandom];
   if (required.some((element) => !element)) {
     return;
   }
@@ -828,9 +782,9 @@
   let currentMode = 'compliment';  // 'compliment' or 'joke'
 
   // Index of the item on screen. The HTML starts with the first compliment
-  // (in English), so look it up in either language to be safe.
+  // (in English), so look it up in every language to be safe.
   const startText = complimentEl.textContent.trim();
-  let currentIndex = compliments.findIndex((c) => c.en === startText || c.fr === startText);
+  let currentIndex = compliments.findIndex((c) => languages.some((lang) => textOf(c, lang) === startText));
   if (currentIndex < 0) currentIndex = 0; // the HTML text was edited: fall back to the first one
 
   /* ---------- Favorites: state ---------- */
@@ -853,17 +807,22 @@
 
   /**
    * Chooses the language to start in: the one saved from a previous visit,
-   * otherwise French if the browser prefers French, otherwise English.
+   * otherwise the first of the browser's preferred languages that has a
+   * dictionary, otherwise English.
    */
   function pickStartingLanguage() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved && uiText[saved]) return saved;
+      if (saved && dictionaries[saved]) return saved;
     } catch (error) {
       // Storage can be blocked (private mode, strict settings): just carry on.
     }
-    const browserLang = (navigator.language || 'en').toLowerCase();
-    return browserLang.startsWith('fr') ? 'fr' : 'en';
+    const preferred = [navigator.language, ...(navigator.languages || [])];
+    for (const code of preferred) {
+      const base = String(code || '').toLowerCase().split('-')[0]; // "fr-CA" → "fr"
+      if (dictionaries[base]) return base;
+    }
+    return DEFAULT_LANG;
   }
 
   /** Remembers the chosen language for the next visit (if storage is allowed). */
@@ -921,7 +880,7 @@
 
   /**
    * Keeps the card the same size: measures every compliment and every joke,
-   * in both languages, at the current width, and fixes the text area to the
+   * in every language, at the current width, and fixes the text area to the
    * tallest. Uses an invisible copy of the text element so nothing on screen moves.
    */
   function lockComplimentHeight() {
@@ -940,8 +899,8 @@
     let tallest = 0;
     for (const list of Object.values(collections)) {
       for (const item of list) {
-        for (const lang of Object.keys(uiText)) {
-          setText(probe, item[lang]);
+        for (const lang of languages) {
+          setText(probe, textOf(item, lang));
           tallest = Math.max(tallest, probe.offsetHeight);
         }
       }
@@ -958,8 +917,8 @@
   function renderItem() {
     const item = collections[currentMode][currentIndex];
     emojiEl.textContent = item.emoji;
-    setText(complimentEl, item[currentLang]);
-    eyebrowEl.textContent = uiText[currentLang].eyebrow[currentMode];
+    setText(complimentEl, textOf(item));
+    eyebrowEl.textContent = t(`card.eyebrow.${currentMode}`);
     // Jokes get their own timing in the CSS (the punchline arrives a beat later).
     complimentBox.classList.toggle('is-joke', currentMode === 'joke');
     renderFavoriteToggle();
@@ -973,35 +932,73 @@
     complimentBox.classList.add('is-changing');
   }
 
+  /* ---------- Interface text ---------- */
+
+  /**
+   * Fills every element marked in index.html from the dictionary:
+   *   data-i18n="key"                      → the element's text
+   *   data-i18n-attr="attr:key; attr:key"  → attributes (aria-label, title…)
+   * Text that depends on the state (the heart's tooltip, "Copied!"…) is set
+   * by the functions that manage that state instead.
+   */
+  function applyStaticText() {
+    document.querySelectorAll('[data-i18n]').forEach((element) => {
+      element.textContent = t(element.dataset.i18n);
+    });
+    document.querySelectorAll('[data-i18n-attr]').forEach((element) => {
+      for (const pair of element.dataset.i18nAttr.split(';')) {
+        const [attribute, key] = pair.split(':').map((part) => part.trim());
+        if (attribute && key) element.setAttribute(attribute, t(key));
+      }
+    });
+  }
+
+  /**
+   * One option per language in the dictionary, written in that language
+   * ("Français", not "French") so it's recognisable whatever the page language.
+   * Built once: switching language only changes which option is checked.
+   */
+  function buildLanguageSwitch() {
+    langSwitch.replaceChildren(...languages.map((lang) => {
+      const meta = dictionaries[lang].meta || {};
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'lang-option';
+      option.setAttribute('role', 'radio');
+      option.dataset.lang = lang;
+      option.lang = lang; // screen readers read the name with the right voice
+      option.textContent = meta.short || lang.toUpperCase();
+      option.setAttribute('aria-label', meta.name || lang);
+      return option;
+    }));
+    langSwitch.hidden = languages.length < 2; // nothing to switch between
+  }
+
   /** Updates every piece of interface text to the current language. */
   function renderInterface() {
-    const text = uiText[currentLang];
+    const meta = dictionaries[currentLang].meta || {};
 
-    // The page language tells screen readers which voice and pronunciation to use.
+    // The page language tells screen readers which voice and pronunciation to
+    // use; the direction is ready for right-to-left languages.
     document.documentElement.lang = currentLang;
-    document.title = text.title;
-    if (descriptionMeta) descriptionMeta.setAttribute('content', text.description);
+    document.documentElement.dir = meta.dir || 'ltr';
+    applyStaticText();
 
-    eyebrowEl.textContent = text.eyebrow[currentMode];
-    complimentButton.textContent = text.complimentButton;
-    jokeButton.textContent = text.jokeButton;
-    langSwitch.setAttribute('aria-label', text.switchLabel);
+    eyebrowEl.textContent = t(`card.eyebrow.${currentMode}`);
+    openBrowseButton.title = `${t('browse.open')} (${SHORTCUT_LABEL})`;
 
-    // Mark the selected language button (styled through [aria-pressed="true"]).
-    langSwitch.querySelectorAll('[data-lang]').forEach((option) => {
-      option.setAttribute('aria-pressed', String(option.dataset.lang === currentLang));
-    });
+    // The chosen language is checked, and is the switch's only Tab stop.
+    const options = [...langSwitch.querySelectorAll('[data-lang]')];
+    options.forEach((option) => option.setAttribute('aria-checked', String(option.dataset.lang === currentLang)));
+    setTabStop(options, options.find((option) => option.dataset.lang === currentLang));
 
     renderFavorites();
-    if (favoritesDialog.open) renderFavoritesList();
+    renderFavoritesNote();
+    favoritesClear.textContent = t(favoritesClear.classList.contains('is-confirming') ? 'favorites.clearConfirm' : 'favorites.clear');
 
-    copyButton.setAttribute('aria-label', text.copy);
-    copyButton.title = copyButton.classList.contains('is-done') ? text.copied : text.copy;
-    shareButton.setAttribute('aria-label', text.share);
-    shareButton.title = text.share;
+    copyButton.title = t(copyButton.classList.contains('is-done') ? 'copy.done' : 'copy.label');
     if (!shareMenu.hidden) renderShareLinks();
 
-    openBrowseLabel.textContent = text.browse.open;
     renderCardTags();
     if (browseDialog.open) renderBrowse();
   }
@@ -1019,11 +1016,107 @@
 
   /** Switches language and translates what's already on screen. */
   function setLanguage(lang) {
-    if (!uiText[lang] || lang === currentLang) return;
+    if (!dictionaries[lang] || lang === currentLang) return;
     currentLang = lang;
     saveLanguage(lang);
     renderInterface();
     renderItem(); // same compliment or joke, now in the other language
+  }
+
+  /* ---------- Keyboard helpers ---------- */
+
+  /** Makes `active` the only item of a group reachable with Tab (a "roving" Tab stop). */
+  function setTabStop(items, active) {
+    const stop = active || items[0];
+    items.forEach((item) => { item.tabIndex = item === stop ? 0 : -1; });
+  }
+
+  /**
+   * Arrow keys inside a group (radio group or toolbar): Left/Up go to the
+   * previous item, Right/Down to the next (wrapping round), Home and End to
+   * the first and last. The group stays a single Tab stop (unless `roving` is
+   * false: every item keeps its own). Returns the item
+   * that received focus, or null if the key wasn't one of these.
+   */
+  function moveInGroup(event, group, selector, { roving = true } = {}) {
+    const steps = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+    const key = event.key;
+    if (event.altKey || event.ctrlKey || event.metaKey) return null;
+    if (!(key in steps) && key !== 'Home' && key !== 'End') return null;
+
+    const items = [...group.querySelectorAll(selector)];
+    const from = items.indexOf(document.activeElement);
+    if (from < 0) return null;
+
+    let step = steps[key];
+    // In a right-to-left language, Left means "next".
+    if (document.documentElement.dir === 'rtl' && (key === 'ArrowLeft' || key === 'ArrowRight')) step = -step;
+    const to = key === 'Home' ? 0
+      : key === 'End' ? items.length - 1
+        : (from + step + items.length) % items.length;
+
+    event.preventDefault(); // no page scrolling
+    if (roving) setTabStop(items, items[to]);
+    items[to].focus();
+    return items[to];
+  }
+
+  /**
+   * Up/Down (and Home/End) in a list of results or favorites: move to the row
+   * above or below, staying in the same column (the text, or the button on
+   * its right). Tab still goes through every button as usual.
+   */
+  function moveInList(event, { beforeFirst = null } = {}) {
+    const key = event.key;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (key !== 'ArrowDown' && key !== 'ArrowUp' && key !== 'Home' && key !== 'End') return;
+    const current = event.target.closest('button');
+    if (!current) return;
+
+    const column = current.classList.contains('favorites-show') ? '.favorites-show' : '.favorites-remove, .browse-fav';
+    const buttons = [...event.currentTarget.querySelectorAll(column)];
+    const from = buttons.indexOf(current);
+    const to = key === 'Home' ? 0
+      : key === 'End' ? buttons.length - 1
+        : from + (key === 'ArrowDown' ? 1 : -1);
+
+    event.preventDefault();
+    if (to < 0) {
+      if (beforeFirst) beforeFirst.focus(); // e.g. Up from the first result goes back to the search field
+      return;
+    }
+    if (buttons[to]) buttons[to].focus();
+  }
+
+  /* ---------- Dialogs ---------- */
+
+  // What had focus before each dialog opened, to give it back on closing.
+  const dialogOpeners = new Map();
+
+  function openDialog(dialog) {
+    const active = document.activeElement;
+    dialogOpeners.set(dialog, active && active !== document.body ? active : null);
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+  }
+
+  function closeDialog(dialog) {
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+    returnFocus(dialog);
+  }
+
+  /**
+   * Puts keyboard focus back where it was before the dialog opened. If that
+   * element is gone (a tag chip on the card is rebuilt when the item
+   * changes), the button that opens the dialog gets it instead.
+   */
+  function returnFocus(dialog) {
+    if (!dialogOpeners.has(dialog)) return; // already done
+    const opener = dialogOpeners.get(dialog);
+    dialogOpeners.delete(dialog);
+    const fallback = dialog === browseDialog ? openBrowseButton : openFavoritesButton;
+    (opener && opener.isConnected ? opener : fallback).focus();
   }
 
   /* ---------- Favorites: storage ---------- */
@@ -1074,11 +1167,16 @@
 
   /* ---------- Favorites: actions ---------- */
 
-  /** Reads a short message aloud to screen readers (e.g. "Added to favorites"). */
+  /**
+   * Reads a short message aloud to screen readers (e.g. "Added to favorites").
+   * While a dialog is open the rest of the page is hidden from them, so the
+   * message goes to the live region inside that dialog.
+   */
   function announce(message) {
-    statusEl.textContent = '';
+    const region = document.querySelector('dialog[open] [data-live]') || statusEl;
+    region.textContent = '';
     // A short delay makes screen readers announce the same message twice in a row.
-    setTimeout(() => { statusEl.textContent = message; }, 50);
+    setTimeout(() => { region.textContent = message; }, 50);
   }
 
   function currentKey() {
@@ -1089,19 +1187,17 @@
     return favorites.some((favorite) => favoriteKey(favorite.type, favorite) === key);
   }
 
-  /** Adds the item on the card to the favorites, or removes it if it's already there. */
   /** Adds an item to the favorites, or removes it if it's already there. */
   function toggleFavoriteItem(type, index) {
     const item = collections[type][index];
     const key = favoriteKey(type, item);
-    const text = uiText[currentLang].favorites;
     const adding = !isFavorite(key);
     if (adding) {
       favorites.unshift({ type, en: item.en, at: new Date().toISOString() });
-      announce(text.added);
+      announce(t('favorites.added'));
     } else {
       favorites = favorites.filter((favorite) => favoriteKey(favorite.type, favorite) !== key);
-      announce(text.removed);
+      announce(t('favorites.removed'));
     }
     saveFavorites();
     renderFavorites();
@@ -1124,7 +1220,7 @@
     favorites.splice(position, 1);
     saveFavorites();
     renderFavorites();
-    announce(uiText[currentLang].favorites.removed);
+    announce(t('favorites.removed'));
 
     // Focus the next item's remove button (or the previous one), else the close button.
     const buttons = favoritesList.querySelectorAll('.favorites-remove');
@@ -1134,10 +1230,11 @@
 
   /** "Clear all" needs a second press within 4 seconds, so it can't happen by accident. */
   function clearFavorites() {
-    const text = uiText[currentLang].favorites;
     if (!favoritesClear.classList.contains('is-confirming')) {
       favoritesClear.classList.add('is-confirming');
-      favoritesClear.textContent = text.clearConfirm;
+      favoritesClear.textContent = t('favorites.clearConfirm');
+      // The focused button's new text isn't always read out: announce it.
+      announce(t('favorites.clearConfirm'));
       clearTimer = setTimeout(resetClearButton, 4000);
       return;
     }
@@ -1145,59 +1242,101 @@
     saveFavorites();
     resetClearButton();
     renderFavorites();
-    announce(text.cleared);
+    announce(t('favorites.cleared'));
     favoritesClose.focus();
   }
 
   function resetClearButton() {
     clearTimeout(clearTimer);
     favoritesClear.classList.remove('is-confirming');
-    favoritesClear.textContent = uiText[currentLang].favorites.clear;
+    favoritesClear.textContent = t('favorites.clear');
   }
 
   function openFavorites() {
     resetClearButton();
     renderFavoritesList();
-    if (typeof favoritesDialog.showModal === 'function') favoritesDialog.showModal();
-    else favoritesDialog.setAttribute('open', '');
+    openDialog(favoritesDialog);
   }
 
   function closeFavorites() {
-    if (typeof favoritesDialog.close === 'function') favoritesDialog.close();
-    else favoritesDialog.removeAttribute('open');
+    closeDialog(favoritesDialog);
   }
 
   /* ---------- Favorites: display ---------- */
 
-  /** Heart on the card: filled when the item on screen is a favorite. */
+  /**
+   * Heart on the card: filled when the item on screen is a favorite. Its name
+   * stays "Favorite" and aria-pressed says whether it's on (a toggle button
+   * whose name changed too would be read as the opposite of its state); the
+   * tooltip says what a click will do.
+   */
   function renderFavoriteToggle() {
     const pressed = isFavorite(currentKey());
-    const label = uiText[currentLang].favorites[pressed ? 'remove' : 'add'];
     favToggle.setAttribute('aria-pressed', String(pressed));
-    favToggle.setAttribute('aria-label', label);
-    favToggle.title = label;
+    favToggle.title = t(pressed ? 'favorites.remove' : 'favorites.add');
   }
 
-  /** The "My favorites" button and its counter. */
+  /** The counter on the "My favorites" button. */
   function renderFavoritesButton() {
-    openFavoritesLabel.textContent = uiText[currentLang].favorites.open;
-    favoritesCount.textContent = String(favorites.length);
+    favoritesCount.textContent = formatValue(currentLang, favorites.length);
   }
 
   function renderFavoritesNote() {
-    favoritesNote.textContent = uiText[currentLang].favorites.noStorage;
+    favoritesNote.textContent = t('favorites.noStorage');
     favoritesNote.hidden = storageWorks;
+  }
+
+  /** A tag's emoji (hidden from screen readers, which just read the name) and its name. */
+  function fillTag(element, tag) {
+    const emoji = document.createElement('span');
+    emoji.setAttribute('aria-hidden', 'true');
+    emoji.textContent = tagInfo[tag].emoji;
+    element.replaceChildren(emoji, ` ${tagName(tag)}`);
+  }
+
+  /**
+   * The main button of a row in the favorites or the search results: the
+   * emoji, the type ("Joke"), the text and optionally the tags. Clicking it
+   * shows the item on the card.
+   */
+  function itemButton(type, item, { terms = [], withTags = false } = {}) {
+    const show = document.createElement('button');
+    show.type = 'button';
+    show.className = 'favorites-show';
+    show.title = t('favorites.show');
+    const emoji = document.createElement('span');
+    emoji.className = 'favorites-emoji';
+    emoji.setAttribute('aria-hidden', 'true');
+    emoji.textContent = item.emoji;
+    const body = document.createElement('span');
+    body.className = 'favorites-body';
+    const label = document.createElement('span');
+    label.className = 'favorites-type';
+    label.textContent = t(`type.${type}`);
+    const content = document.createElement('span');
+    content.className = 'favorites-text';
+    setText(content, textOf(item));
+    highlight(content, terms);
+    body.append(label, content);
+    if (withTags) {
+      const itemTags = document.createElement('span');
+      itemTags.className = 'item-tags';
+      for (const tag of item.tags) {
+        const chip = document.createElement('span');
+        chip.className = 'item-tag';
+        fillTag(chip, tag);
+        itemTags.appendChild(chip);
+      }
+      body.appendChild(itemTags);
+    }
+    show.append(emoji, body);
+    return show;
   }
 
   /** The list in the dialog, in the current language, newest first. */
   function renderFavoritesList() {
-    const text = uiText[currentLang].favorites;
-    favoritesTitle.textContent = text.title;
-    favoritesClose.setAttribute('aria-label', text.close);
-    favoritesEmpty.textContent = text.empty;
     favoritesEmpty.hidden = favorites.length > 0;
     favoritesClear.disabled = favorites.length === 0;
-    if (!favoritesClear.classList.contains('is-confirming')) favoritesClear.textContent = text.clear;
     renderFavoritesNote();
 
     favoritesList.replaceChildren(...favorites.map((favorite) => {
@@ -1208,34 +1347,16 @@
       const li = document.createElement('li');
       li.className = 'favorites-item';
 
-      // The whole entry is a button that shows the item on the card.
-      const show = document.createElement('button');
-      show.type = 'button';
-      show.className = 'favorites-show';
+      const show = itemButton(type, item);
       show.dataset.key = key;
-      show.title = text.show;
-      const emoji = document.createElement('span');
-      emoji.className = 'favorites-emoji';
-      emoji.setAttribute('aria-hidden', 'true');
-      emoji.textContent = item.emoji;
-      const body = document.createElement('span');
-      body.className = 'favorites-body';
-      const label = document.createElement('span');
-      label.className = 'favorites-type';
-      label.textContent = text.type[type];
-      const content = document.createElement('span');
-      content.className = 'favorites-text';
-      setText(content, item[currentLang]);
-      body.append(label, content);
-      show.append(emoji, body);
 
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'favorites-remove';
       remove.dataset.key = key;
       remove.textContent = '×';
-      remove.setAttribute('aria-label', `${text.removeItem}: ${item[currentLang].replace('\n', ' ')}`);
-      remove.title = text.removeItem;
+      remove.setAttribute('aria-label', `${t('favorites.removeItem')}: ${textOf(item).replace('\n', ' ')}`);
+      remove.title = t('favorites.removeItem');
 
       li.append(show, remove);
       return li;
@@ -1255,7 +1376,7 @@
   /** What gets copied or shared: the emoji and the text on the card, in the current language. */
   function shareableText() {
     const item = collections[currentMode][currentIndex];
-    return `${item.emoji} ${item[currentLang]}`;
+    return `${item.emoji} ${textOf(item)}`;
   }
 
   /** The page's address, only when it's online (a file:// path means nothing to someone else). */
@@ -1300,7 +1421,6 @@
 
   let copyTimer = 0;
 
-  /** Copies the card's text, then shows a check mark for a moment and announces it. */
   /** Puts text on the clipboard. Resolves to true if it worked. */
   async function writeClipboard(text) {
     // The modern Clipboard API needs a secure context (https, localhost or a local file).
@@ -1315,18 +1435,18 @@
     return copyWithTextarea(text);
   }
 
+  /** Copies the card's text, then shows a check mark for a moment and announces it. */
   async function copyToClipboard() {
     const copied = await writeClipboard(shareableText());
 
-    const labels = uiText[currentLang];
-    announce(copied ? labels.copied : labels.copyFailed);
+    announce(t(copied ? 'copy.done' : 'copy.failed'));
     if (copied) {
       clearTimeout(copyTimer);
       copyButton.classList.add('is-done');
-      copyButton.title = labels.copied;
+      copyButton.title = t('copy.done');
       copyTimer = setTimeout(() => {
         copyButton.classList.remove('is-done');
-        copyButton.title = uiText[currentLang].copy;
+        copyButton.title = t('copy.label');
       }, 1600);
     }
   }
@@ -1342,7 +1462,7 @@
     }
     const text = shareableText();
     const url = pageUrl();
-    const data = { title: uiText[currentLang].eyebrow[currentMode], text };
+    const data = { title: t(`card.eyebrow.${currentMode}`), text };
     if (url) data.url = url;
 
     if (typeof navigator.share === 'function' && (!navigator.canShare || navigator.canShare(data))) {
@@ -1363,7 +1483,7 @@
     const url = pageUrl();
     const withUrl = url ? `${text}\n\n${url}` : text;
     const enc = encodeURIComponent;
-    const labels = uiText[currentLang];
+    const subject = t(`card.eyebrow.${currentMode}`);
 
     // Facebook doesn't accept pre-filled text: its share window only takes a
     // link, and only a public one, since its servers fetch the page to build the
@@ -1373,10 +1493,9 @@
       { name: 'WhatsApp', badge: 'W', color: '#C9F2D5', href: `https://wa.me/?text=${enc(withUrl)}` },
       { name: 'X', badge: 'X', color: '#E9ECEF', href: `https://x.com/intent/post?text=${enc(text)}${url ? `&url=${enc(url)}` : ''}` },
       isPublicUrl(url) && { name: 'Facebook', badge: 'f', color: '#D6E4FF', href: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}` },
-      { name: labels.email, badge: '@', color: '#FFE8B3', href: `mailto:?subject=${enc(labels.eyebrow[currentMode])}&body=${enc(withUrl)}` },
+      { name: t('share.email'), badge: '@', color: '#FFE8B3', href: `mailto:?subject=${enc(subject)}&body=${enc(withUrl)}` },
     ].filter(Boolean);
 
-    shareMenuTitle.textContent = labels.shareOn;
     shareLinks.replaceChildren(...services.map((service) => {
       const li = document.createElement('li');
       const link = document.createElement('a');
@@ -1409,29 +1528,26 @@
     if (first) first.focus();
   }
 
-  function closeShareMenu({ returnFocus = false } = {}) {
+  function closeShareMenu({ returnFocus: giveFocusBack = false } = {}) {
     if (shareMenu.hidden) return;
     shareMenu.hidden = true;
     shareButton.setAttribute('aria-expanded', 'false');
-    if (returnFocus) shareButton.focus();
+    if (giveFocusBack) shareButton.focus();
   }
 
   /* ---------- Tags on the card ---------- */
 
-  const tagLabel = (tag) => `${tagInfo[tag].emoji} ${tagInfo[tag][currentLang]}`;
-
   /** Chips under the text; each opens the search filtered on that tag. */
   function renderCardTags() {
     const item = collections[currentMode][currentIndex];
-    const labels = uiText[currentLang].browse;
-    complimentTags.setAttribute('aria-label', labels.tagsLabel);
     complimentTags.replaceChildren(...item.tags.map((tag) => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'tag-chip';
       chip.dataset.tag = tag;
-      chip.textContent = tagLabel(tag);
-      chip.title = labels.tagOnCard(tagInfo[tag][currentLang]);
+      chip.setAttribute('aria-haspopup', 'dialog');
+      fillTag(chip, tag);
+      chip.title = t('browse.tagOnCard', { tag: tagName(tag) });
       return chip;
     }));
   }
@@ -1440,6 +1556,9 @@
 
   // Current filters. Tags combine: every selected tag must be present.
   const browse = { query: '', type: 'all', tags: new Set() };
+  let tagFiltersLang = '';   // language the tag filter chips were built in
+  let tagFilterStop = '';    // tag chip that is the toolbar's Tab stop
+  let summaryTimer = 0;
 
   /**
    * Makes text comparable: lower case, without accents, with plain
@@ -1449,20 +1568,21 @@
   function fold(text) {
     let out = '';
     for (const unit of String(text)) {
-      let c = unit.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      let c = unit.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
       if (c === '’' || c === '‘') c = "'";
       out += c.length === unit.length ? c : unit;
     }
     return out;
   }
 
-  // Everything searchable, prepared once: both languages and the tag names,
+  // Everything searchable, prepared once: every language and the tag names,
   // so "chien" and "dog" both find the dog joke whatever the page language.
   const searchIndex = [];
   for (const [type, list] of Object.entries(collections)) {
     list.forEach((item, index) => {
-      const tagWords = item.tags.map((tag) => `${tagInfo[tag].en} ${tagInfo[tag].fr}`).join(' ');
-      searchIndex.push({ type, index, item, haystack: fold(`${item.en} ${item.fr} ${tagWords} ${item.emoji}`) });
+      const texts = languages.map((lang) => textOf(item, lang)).join(' ');
+      const tagWords = item.tags.map((tag) => languages.map((lang) => tagName(tag, lang)).join(' ')).join(' ');
+      searchIndex.push({ type, index, item, haystack: fold(`${texts} ${tagWords} ${item.emoji}`) });
     });
   }
 
@@ -1521,100 +1641,73 @@
 
   const heartSvg = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.7 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z" /></svg>';
 
-  /** Heart buttons in the results follow the favorites list. */
+  /** Heart buttons in the results follow the favorites list (same naming as the card's heart). */
   function syncBrowseHearts() {
-    const text = uiText[currentLang].favorites;
     browseList.querySelectorAll('.browse-fav').forEach((heart) => {
       const pressed = isFavorite(heart.dataset.key);
       heart.setAttribute('aria-pressed', String(pressed));
-      heart.title = text[pressed ? 'remove' : 'add'];
-      heart.setAttribute('aria-label', `${text[pressed ? 'remove' : 'add']}: ${heart.dataset.label}`);
+      heart.setAttribute('aria-label', `${t('favorites.toggle')}: ${heart.dataset.label}`);
+      heart.title = t(pressed ? 'favorites.remove' : 'favorites.add');
     });
+  }
+
+  /** The tag filter chips: built once per language, then only their state changes. */
+  function renderTagFilters() {
+    if (tagFiltersLang !== currentLang) {
+      browseTags.replaceChildren(...Object.keys(tagInfo).map((tag) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'tag-chip';
+        chip.dataset.tag = tag;
+        fillTag(chip, tag);
+        return chip;
+      }));
+      tagFiltersLang = currentLang;
+    }
+    const chips = [...browseTags.querySelectorAll('[data-tag]')];
+    chips.forEach((chip) => chip.setAttribute('aria-pressed', String(browse.tags.has(chip.dataset.tag))));
+    setTabStop(chips, chips.find((chip) => chip.dataset.tag === tagFilterStop));
   }
 
   /** Filters and results, in the current language. */
   function renderBrowse() {
-    const labels = uiText[currentLang].browse;
-    const favText = uiText[currentLang].favorites;
     const terms = searchTerms();
     const results = browseResults();
 
-    // Static labels
-    browseTitle.textContent = labels.title;
-    browseClose.setAttribute('aria-label', favText.close);
-    browseSearchLabel.textContent = labels.searchLabel;
-    browseSearch.placeholder = labels.placeholder;
-    browseType.setAttribute('aria-label', labels.typeLabel);
-    browseTags.setAttribute('aria-label', labels.tagsLabel);
-    browseClear.textContent = labels.clear;
-    browseRandom.textContent = labels.random;
+    // Type filter: a radio group, whose Tab stop is the checked option.
+    const typeOptions = [...browseType.querySelectorAll('[data-type]')];
+    typeOptions.forEach((option) => option.setAttribute('aria-checked', String(option.dataset.type === browse.type)));
+    setTabStop(typeOptions, typeOptions.find((option) => option.dataset.type === browse.type));
 
-    // Type filter
-    browseType.querySelectorAll('[data-type]').forEach((option) => {
-      option.textContent = labels.type[option.dataset.type];
-      option.setAttribute('aria-pressed', String(option.dataset.type === browse.type));
-    });
+    renderTagFilters();
 
-    // Tag filters
-    browseTags.replaceChildren(...Object.keys(tagInfo).map((tag) => {
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'tag-chip';
-      chip.dataset.tag = tag;
-      chip.textContent = tagLabel(tag);
-      chip.setAttribute('aria-pressed', String(browse.tags.has(tag)));
-      return chip;
-    }));
-
-    // Results
-    browseSummary.textContent = labels.results(results.length);
-    browseEmpty.textContent = labels.empty;
+    // Results. The count is shown at once but only announced once typing
+    // pauses, so screen readers don't read a number after every key.
+    browseSummary.textContent = t('browse.results', { count: results.length });
+    clearTimeout(summaryTimer);
+    summaryTimer = setTimeout(() => {
+      if (browseDialog.open) announce(browseSummary.textContent);
+    }, 700);
+    browseEmpty.textContent = t('browse.empty');
     browseEmpty.hidden = results.length > 0;
     browseRandom.disabled = results.length === 0;
     browseClear.disabled = !browse.query && browse.type === 'all' && browse.tags.size === 0;
 
     browseList.replaceChildren(...results.map(({ type, index, item }) => {
-      const key = favoriteKey(type, item);
       const li = document.createElement('li');
       li.className = 'favorites-item';
 
-      const show = document.createElement('button');
-      show.type = 'button';
-      show.className = 'favorites-show';
+      const show = itemButton(type, item, { terms, withTags: true });
       show.dataset.type = type;
       show.dataset.index = String(index);
-      show.title = favText.show;
-      const emoji = document.createElement('span');
-      emoji.className = 'favorites-emoji';
-      emoji.setAttribute('aria-hidden', 'true');
-      emoji.textContent = item.emoji;
-      const body = document.createElement('span');
-      body.className = 'favorites-body';
-      const label = document.createElement('span');
-      label.className = 'favorites-type';
-      label.textContent = favText.type[type];
-      const content = document.createElement('span');
-      content.className = 'favorites-text';
-      setText(content, item[currentLang]);
-      highlight(content, terms);
-      const itemTags = document.createElement('span');
-      itemTags.className = 'item-tags';
-      for (const tag of item.tags) {
-        const t = document.createElement('span');
-        t.className = 'item-tag';
-        t.textContent = tagLabel(tag);
-        itemTags.appendChild(t);
-      }
-      body.append(label, content, itemTags);
-      show.append(emoji, body);
 
       const heart = document.createElement('button');
       heart.type = 'button';
       heart.className = 'browse-fav';
-      heart.dataset.key = key;
+      heart.dataset.key = favoriteKey(type, item);
       heart.dataset.type = type;
       heart.dataset.index = String(index);
-      heart.dataset.label = item[currentLang].replace('\n', ' ');
+      heart.dataset.label = textOf(item).replace('\n', ' ');
       heart.innerHTML = heartSvg;
 
       li.append(show, heart);
@@ -1630,17 +1723,16 @@
       browse.query = '';
       browse.type = 'all';
       browse.tags = new Set([tag]);
+      tagFilterStop = tag;
       browseSearch.value = '';
     }
     renderBrowse();
-    if (typeof browseDialog.showModal === 'function') browseDialog.showModal();
-    else browseDialog.setAttribute('open', '');
+    openDialog(browseDialog);
     browseSearch.focus();
   }
 
   function closeBrowse() {
-    if (typeof browseDialog.close === 'function') browseDialog.close();
-    else browseDialog.removeAttribute('open');
+    closeDialog(browseDialog);
   }
 
   /** Shows an item on the card and closes the search. */
@@ -1671,29 +1763,52 @@
     browse.query = browseSearch.value;
     renderBrowse();
   });
-  browseType.addEventListener('click', (event) => {
-    const option = event.target.closest('[data-type]');
-    if (!option) return;
+  // Down arrow from the search field jumps to the first result.
+  browseSearch.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown') return;
+    const first = browseList.querySelector('.favorites-show');
+    if (!first) return;
+    event.preventDefault();
+    first.focus();
+  });
+
+  function chooseType(option) {
     browse.type = option.dataset.type;
     renderBrowse();
+  }
+  browseType.addEventListener('click', (event) => {
+    const option = event.target.closest('[data-type]');
+    if (option) chooseType(option);
   });
+  // Radio group: the arrow keys move and choose at the same time.
+  browseType.addEventListener('keydown', (event) => {
+    const option = moveInGroup(event, browseType, '[data-type]');
+    if (option) chooseType(option);
+  });
+
   browseTags.addEventListener('click', (event) => {
     const chip = event.target.closest('[data-tag]');
     if (!chip) return;
     const tag = chip.dataset.tag;
     if (browse.tags.has(tag)) browse.tags.delete(tag);
     else browse.tags.add(tag);
+    tagFilterStop = tag;
     renderBrowse();
-    // The chips were rebuilt: keep keyboard focus on the one just pressed.
-    const again = browseTags.querySelector(`[data-tag="${tag}"]`);
-    if (again) again.focus();
+    chip.focus(); // the chips are kept, so focus stays on the one just pressed
   });
+  // Toolbar: the arrow keys only move; Space or Enter turns a tag on or off.
+  browseTags.addEventListener('keydown', (event) => {
+    const chip = moveInGroup(event, browseTags, '[data-tag]');
+    if (chip) tagFilterStop = chip.dataset.tag;
+  });
+
   browseList.addEventListener('click', (event) => {
     const heart = event.target.closest('.browse-fav');
     const show = event.target.closest('.favorites-show');
     if (heart) toggleFavoriteItem(heart.dataset.type, Number(heart.dataset.index));
     else if (show) showFromBrowse(show.dataset.type, Number(show.dataset.index));
   });
+  browseList.addEventListener('keydown', (event) => moveInList(event, { beforeFirst: browseSearch }));
   browseClear.addEventListener('click', () => {
     browse.query = '';
     browse.type = 'all';
@@ -1712,20 +1827,28 @@
     showFromBrowse(pick.type, pick.index);
   });
 
-  // "/" opens the search from anywhere (unless you're typing in a field).
+  // Ctrl+K (⌘K on a Mac) opens the search from anywhere, or goes back to the
+  // search field if it's already open.
   document.addEventListener('keydown', (event) => {
-    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
-    const typing = event.target.closest && event.target.closest('input, textarea, select, [contenteditable="true"]');
-    if (typing || browseDialog.open || favoritesDialog.open) return;
-    event.preventDefault();
-    openBrowse();
+    if ((event.key || '').toLowerCase() !== 'k' || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+    if (favoritesDialog.open) return;
+    event.preventDefault(); // the browser's own Ctrl+K (search bar)
+    if (browseDialog.open) browseSearch.focus();
+    else openBrowse();
   });
+
   copyButton.addEventListener('click', copyToClipboard);
   shareButton.addEventListener('click', share);
 
-  // The share menu closes after picking a service, on Esc, or on a click elsewhere.
+  // The share menu closes after picking a service, on Esc, when focus leaves
+  // it (Tab), or on a click elsewhere. Up/Down/Home/End move between the links.
   shareLinks.addEventListener('click', (event) => {
     if (event.target.closest('a')) closeShareMenu();
+  });
+  shareMenu.addEventListener('keydown', (event) => moveInGroup(event, shareLinks, 'a', { roving: false }));
+  shareMenu.addEventListener('focusout', (event) => {
+    const next = event.relatedTarget;
+    if (next && !shareMenu.contains(next) && next !== shareButton) closeShareMenu();
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !shareMenu.hidden) closeShareMenu({ returnFocus: true });
@@ -1733,10 +1856,17 @@
   document.addEventListener('click', (event) => {
     if (!shareMenu.hidden && !shareMenu.contains(event.target) && !shareButton.contains(event.target)) closeShareMenu();
   });
+
   openFavoritesButton.addEventListener('click', openFavorites);
   favoritesClose.addEventListener('click', closeFavorites);
   favoritesClear.addEventListener('click', clearFavorites);
-  favoritesDialog.addEventListener('close', resetClearButton);
+
+  // Closed with Esc (or by the browser): focus goes back where it was.
+  favoritesDialog.addEventListener('close', () => {
+    resetClearButton();
+    returnFocus(favoritesDialog);
+  });
+  browseDialog.addEventListener('close', () => returnFocus(browseDialog));
 
   // A click on the dimmed backdrop (outside the dialog box) closes it.
   favoritesDialog.addEventListener('click', (event) => {
@@ -1758,6 +1888,7 @@
       closeFavorites();
     }
   });
+  favoritesList.addEventListener('keydown', (event) => moveInList(event));
 
   // Favorites changed in another tab: pick up the new list.
   window.addEventListener('storage', (event) => {
@@ -1766,9 +1897,13 @@
     renderFavorites();
   });
 
-  // One listener on the switch handles both language buttons.
+  // Language switch: a click, or the arrow keys (a radio group chooses as it moves).
   langSwitch.addEventListener('click', (event) => {
     const option = event.target.closest('[data-lang]');
+    if (option) setLanguage(option.dataset.lang);
+  });
+  langSwitch.addEventListener('keydown', (event) => {
+    const option = moveInGroup(event, langSwitch, '[data-lang]');
     if (option) setLanguage(option.dataset.lang);
   });
 
@@ -1781,9 +1916,10 @@
   });
 
   /* ---------- Start ---------- */
+  buildLanguageSwitch();
   renderInterface();
   emojiEl.textContent = compliments[currentIndex].emoji;
-  setText(complimentEl, compliments[currentIndex][currentLang]);
+  setText(complimentEl, textOf(compliments[currentIndex]));
   lockComplimentHeight();
   // Web fonts change the text's size once they arrive: measure again then.
   if (document.fonts && document.fonts.ready) {

@@ -29,7 +29,7 @@ Open `index.html` in a browser. No server or installation is needed.
   | 🐾 Animals / Animaux · 🍕 Food / Miam · 👻 Spooky / Frissons | joke topics |
   | 🚪 Classics / Classiques | knock-knock and "M. et Mme…" jokes |
 
-- **Browse & search:** opened with the button under the card, or with `/` from anywhere.
+- **Browse & search:** opened with the button under the card, or with `Ctrl+K` (`⌘K` on a Mac) from anywhere.
   - **Search:** the search field looks in both languages and in the tag names, so "chien" finds the dog jokes even in English. It ignores case and accents ("ecole" finds "école"), every word you type must match, and matches are highlighted.
   - **Filters:** All / Compliments / Jokes, plus tag chips. Selected tags combine, so Animals + Puns shows only animal puns. The result count updates as you type.
   - **Results:** click a result to show it on the card, click ♥ to favorite it, or use "🎲 Random from these" to show a random item from the current results.
@@ -49,10 +49,10 @@ Open `index.html` in a browser. No server or installation is needed.
   - **How items are identified:** by type and English text, so favorites still point to the right item if the lists are reordered. If an item's text is later edited, or the saved data is invalid, that favorite is dropped instead of breaking the page.
   - **Blocked storage:** if the browser blocks storage, favorites still work for the visit, and the list says they won't be kept.
 - **Language switch (EN / FR):**
-  - it starts in French if the browser's language is French, otherwise in English;
+  - it starts in the first of the browser's preferred languages that the app has, otherwise in English;
   - the choice is remembered for the next visit;
   - switching translates the compliment or joke on screen instead of picking a new one.
-- **A card that never changes size:** the script measures every compliment and every joke, in both languages, at the current width and locks the text area to the tallest. Nothing jumps when the text, the mode or the language changes, on desktop and on mobile.
+- **A card that never changes size:** the script measures every compliment and every joke, in every language, at the current width and locks the text area to the tallest. Nothing jumps when the text, the mode or the language changes, on desktop and on mobile.
 - **Responsive:** the card and its buttons are centred with Flexbox, up to 720 px wide. On phones, the buttons stack and span the full width.
 - **A lively background:**
   - a warm gradient with a fine dot texture;
@@ -79,25 +79,38 @@ Open `index.html` in a browser. No server or installation is needed.
 ## Accessibility
 
 - **Screen readers:**
+  - the page has a main heading (`<h1>`, visually hidden) and the card is labelled by its small heading;
   - the compliment or joke is in an `aria-live` region, so each new one is read aloud;
-  - the emoji and the background decoration are hidden from screen readers;
+  - the emoji (on the card, in tags, on the 🎲 button) and the background decoration are hidden from screen readers, which read the words instead;
   - the page's `lang` attribute follows the chosen language, so the right voice is used;
-  - each language button is labelled in its own language ("English", "Français") and shows its state with `aria-pressed`.
+  - the language switch is a radio group (`role="radiogroup"`, `aria-checked`), and each option is labelled in its own language ("English", "Français").
+- **Announcements:** short messages ("Added to favorites.", "Copied!") go to a live region. A modal dialog hides the rest of the page from screen readers, so each dialog has its own live region and messages go there while it's open.
 - **Favorites:**
-  - the heart is a toggle button (`aria-pressed`) whose label says what it will do ("Add to favorites" or "Remove from favorites");
-  - adding or removing a favorite is announced;
+  - the heart is a toggle button: its name stays "Favorite", `aria-pressed` says whether the item is one, and the tooltip says what a click will do (a toggle whose name also changed would be read as the opposite of its state);
+  - adding or removing a favorite is announced, and so is the "Clear all? Tap again" confirmation;
   - the list is a native `<dialog>`, which keeps focus inside and closes with `Esc`;
   - after an item is removed, focus moves to the next one.
 - **Copy and share:**
   - both icon buttons are labelled in the current language;
-  - the share button reports whether its menu is open (`aria-expanded`);
-  - when the menu opens, focus moves into it, and `Esc` returns focus to the button.
+  - the share menu is a disclosure: the button reports whether it's open (`aria-expanded`), focus moves into it when it opens, and `Esc` returns focus to the button.
 - **Browse & search:**
-  - the search field and the filter groups are labelled, and the filters show their state with `aria-pressed`;
-  - the result count is announced as it changes;
-  - when a filter is clicked, focus stays on that filter;
-  - `/` opens the search (`aria-keyshortcuts`).
-- **Keyboard:** everything works with the keyboard, with a visible focus ring.
+  - the search field is labelled; the type filter is a radio group and the tag filters a toolbar of toggle buttons (`aria-pressed`);
+  - the result count is announced once typing pauses, not after every key;
+  - the results list is labelled by that count, and the favorites list by its title.
+- **Keyboard:**
+
+  | Where | Keys |
+  |-------|------|
+  | Anywhere | `Ctrl+K` / `⌘K` opens the search (`aria-keyshortcuts`) |
+  | Language switch, type filter | one Tab stop; `←` `→` (or `↑` `↓`), `Home`, `End` choose |
+  | Tag filters | one Tab stop; the arrows move, `Space` / `Enter` turn a tag on or off |
+  | Search field | `↓` goes to the first result |
+  | Results and favorites | `↑` `↓` move between rows in the same column, `Home` / `End` jump to the first / last; `↑` on the first result goes back to the search field |
+  | Share menu | `↑` `↓` `Home` `End` move between the links; `Tab` out or `Esc` closes it |
+  | Dialogs | `Esc` closes; focus returns to the control that opened the dialog (or to its button, if that control is gone) |
+
+  The search shortcut uses a modifier on purpose: a single-key shortcut like `/` can fire by accident with speech input or screen-reader keys (WCAG 2.1.4).
+- **Focus ring:** every control shows a 3 px charcoal ring when reached with the keyboard (`:focus-visible`). Charcoal rather than coral, because coral on white is only 2.8:1, below the 3:1 WCAG asks of focus indicators. In Windows High Contrast (forced colours), selected options and pressed filters use the system highlight colour.
 - **Without JavaScript:** a first compliment is written in the HTML, so the page isn't empty if the script doesn't run.
 
 ## Project structure
@@ -111,7 +124,8 @@ compliment-generator/
 ├── css/
 │   └── style.css  palette, background, layout, animations, responsive rules
 └── js/
-    └── script.js  the 100 compliments, the 100 jokes, interface text, logic
+    ├── i18n.js    interface text: one dictionary per language
+    └── script.js  the 100 compliments, the 100 jokes, tags, logic
 ```
 
 ## Customise
@@ -134,9 +148,27 @@ compliment-generator/
 
 Add, remove or edit entries freely. The random draw, the search and the card's height adapt automatically.
 
-**Tags.** Each entry lists its tags in `tags` (one to three). The tags themselves, with their emoji and names in both languages, are in the `tagInfo` object just after the jokes. Add a line there to create a new tag, and it appears in the search filters automatically.
+**Tags.** Each entry lists its tags in `tags` (one to three). The tags and their emoji are in the `tagInfo` object just after the jokes, and their names are in `js/i18n.js` (`'tag.wholesome'`…). Add a line in both to create a new tag, and it appears in the search filters automatically.
 
-**Interface text.** The buttons, the heading and the page title are in the `uiText` object, just below the jokes.
+**Interface text.** Every word of the interface is in `js/i18n.js`, one dictionary per language, with keys such as `'action.joke'` or `'browse.results'`:
+
+```js
+en: {
+  meta: { name: 'English', short: 'EN', locale: 'en-GB', dir: 'ltr' },
+  strings: {
+    'action.joke': 'Tell Me a Joke',
+    'browse.tagOnCard': 'Browse everything tagged {tag}',            // {tag} is filled in
+    'browse.results': { one: '{count} result', other: '{count} results' },  // plural forms
+    …
+  },
+},
+```
+
+- **In the HTML,** `data-i18n="key"` fills an element's text and `data-i18n-attr="aria-label:key; title:key"` fills attributes. The English written in `index.html` only shows before the script runs.
+- **In the script,** `t('key', { name: value })` returns the string in the current language. Plurals are chosen with the language's own rules (`Intl.PluralRules`), and numbers are formatted for its locale.
+- **Missing strings** fall back to English, so a new language can be added bit by bit.
+
+**Adding a language.** Copy the `en` block in `js/i18n.js`, rename it (for example `es`), and translate it. It appears in the language switch by itself. Compliments and jokes can get an `es` field in `js/script.js`; any item without one shows its English text. For a right-to-left language, set `dir: 'rtl'`: the page direction follows, and the arrow keys in the switches are mirrored.
 
 **Background.** In `css/style.css`:
 

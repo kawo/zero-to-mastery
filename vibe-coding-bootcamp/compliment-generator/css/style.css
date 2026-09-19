@@ -12,6 +12,10 @@
   --color-card: #FFFFFF;
   --color-peach: #FFB38A;        /* in-between tones used by the background */
   --color-pink: #FF9EB5;
+  /* Focus ring: charcoal, not coral. Coral on white is only 2.8:1, below the
+     3:1 WCAG asks of focus indicators; charcoal is over 15:1 on every
+     background of the page (white card, grey page, coral and yellow buttons). */
+  --color-focus: #212529;
 
   --font-compliment: "Nunito", "Segoe UI", system-ui, sans-serif;
   --font-ui: "Lato", "Segoe UI", system-ui, sans-serif;
@@ -30,6 +34,13 @@
 html,
 body {
   height: 100%;
+}
+
+/* Every focusable element gets a clear ring when reached with the keyboard.
+   (Rules further down only adjust the offset where the ring would be clipped.) */
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 body {
@@ -242,7 +253,7 @@ body {
 }
 
 .card-icon:focus-visible {
-  outline: 3px solid var(--color-accent);
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 
@@ -331,7 +342,7 @@ body {
 }
 
 .share-link:focus-visible {
-  outline: 3px solid var(--color-text);
+  outline: 3px solid var(--color-focus);
   outline-offset: -3px;
 }
 
@@ -414,14 +425,14 @@ body {
   color: var(--color-text);
 }
 
-/* The selected language */
-.lang-option[aria-pressed="true"] {
+/* The selected language (role="radio", so its state is aria-checked) */
+.lang-option[aria-checked="true"] {
   background-color: var(--color-text);
   color: var(--color-background);
 }
 
 .lang-option:focus-visible {
-  outline: 3px solid var(--color-accent);
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 
@@ -633,7 +644,7 @@ body {
 
 /* A clearly visible focus ring for keyboard users */
 .button:focus-visible {
-  outline: 3px solid var(--color-text);
+  outline: 3px solid var(--color-focus);
   outline-offset: 3px;
 }
 
@@ -662,7 +673,7 @@ body {
 }
 
 .button-secondary:focus-visible {
-  outline: 3px solid var(--color-text);
+  outline: 3px solid var(--color-focus);
   outline-offset: 3px;
 }
 
@@ -752,7 +763,7 @@ body {
 }
 
 .icon-button:focus-visible {
-  outline: 3px solid var(--color-accent);
+  outline: 3px solid var(--color-focus);
   outline-offset: 1px;
 }
 
@@ -814,7 +825,7 @@ body {
 
 .favorites-show:focus-visible,
 .favorites-remove:focus-visible {
-  outline: 3px solid var(--color-text);
+  outline: 3px solid var(--color-focus);
   outline-offset: -3px;
 }
 
@@ -915,7 +926,7 @@ body {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;  /* between the emoji (hidden from screen readers) and the name */
   min-height: 30px;
   padding: 4px 11px;
   border: 1px solid rgba(33, 37, 41, 0.12);
@@ -935,7 +946,7 @@ body {
 }
 
 .tag-chip:focus-visible {
-  outline: 3px solid var(--color-accent);
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 
@@ -970,9 +981,11 @@ body {
   color: var(--color-muted);
 }
 
+/* The input itself has no outline: the whole field shows the ring instead */
 .search-field:focus-within {
   border-color: var(--color-text);
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.35);
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .search-field input {
@@ -1014,13 +1027,13 @@ body {
   color: var(--color-text);
 }
 
-.type-option[aria-pressed="true"] {
+.type-option[aria-checked="true"] {
   background-color: var(--color-text);
   color: var(--color-background);
 }
 
 .type-option:focus-visible {
-  outline: 3px solid var(--color-accent);
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 
@@ -1083,7 +1096,7 @@ body {
 }
 
 .browse-fav:focus-visible {
-  outline: 3px solid var(--color-text);
+  outline: 3px solid var(--color-focus);
   outline-offset: -3px;
 }
 
@@ -1127,6 +1140,30 @@ body {
   .button {
     flex: 1 1 100%;
     min-width: 0;
+  }
+}
+
+/* ---------- Forced colours (e.g. Windows High Contrast) ---------- */
+/* The browser replaces the palette with the person's system colours, which
+   would make a selected option look like the others: mark it with the
+   system's highlight colour instead. */
+@media (forced-colors: active) {
+  .lang-option[aria-checked="true"],
+  .type-option[aria-checked="true"],
+  .tag-chip[aria-pressed="true"] {
+    forced-color-adjust: none;
+    background-color: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+  }
+
+  .fav-toggle[aria-pressed="true"] svg path,
+  .browse-fav[aria-pressed="true"] svg path {
+    fill: Highlight;
+  }
+
+  :focus-visible {
+    outline-color: Highlight;
   }
 }
 
