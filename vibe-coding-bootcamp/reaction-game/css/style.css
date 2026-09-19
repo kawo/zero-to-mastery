@@ -455,6 +455,37 @@ kbd {
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
+/* ---------- Audio controls (top bar) ---------- */
+.audio-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.icon-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+.icon-toggle:hover { background: var(--surface-raised); }
+.icon-toggle:focus-visible { outline: 3px solid color-mix(in srgb, var(--result) 70%, transparent); outline-offset: 1px; }
+.icon-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+.icon-toggle .icon-off { display: none; }
+.icon-toggle[aria-pressed="false"] { color: var(--muted); }
+.icon-toggle[aria-pressed="false"] .icon-on { display: none; }
+.icon-toggle[aria-pressed="false"] .icon-off { display: block; }
+.volume { width: 76px; margin: 0 10px 0 4px; accent-color: var(--ready); cursor: pointer; }
+.volume:disabled { opacity: 0.4; }
+
 /* ---------- Profile button (top bar) ---------- */
 .profile-btn {
   display: inline-flex;
@@ -721,6 +752,7 @@ kbd {
   .dialog-head, .tab-panel { padding-inline: 16px; }
   .tabs { padding-inline: 10px; }
   .profile-sub { display: none; }
+  .volume { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

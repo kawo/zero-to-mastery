@@ -8,6 +8,7 @@
     ['ReflexLabConfig', 'js/config.js'],
     ['ReflexLabStorage', 'js/storage.js'],
     ['ReflexLabAchievements', 'js/achievements.js'],
+    ['ReflexLabAudio', 'js/audio.js'],
   ].filter(([globalName]) => !window[globalName]).map(([, file]) => file);
   if (missing.length) {
     console.error('[Reflex Lab] missing scripts:', missing.join(', '));
@@ -22,6 +23,7 @@
   const { CONFIG, COLORS, LEVELS, PRESETS } = window.ReflexLabConfig;
   const Storage = window.ReflexLabStorage;
   const Achievements = window.ReflexLabAchievements;
+  const Sound = window.ReflexLabAudio;
 
   /* ======================================================================
    * Utilities
@@ -471,6 +473,7 @@
     clockChip: $('clockChip'), clockRes: $('clockRes'),
     banner: $('banner'), bannerText: $('bannerText'), bannerClose: $('bannerClose'),
     live: $('live'), toasts: $('toasts'),
+    sfxToggle: $('sfxToggle'), musicToggle: $('musicToggle'), volumeSlider: $('volumeSlider'),
     profileBtn: $('profileBtn'), profileAvatar: $('profileAvatar'), profileName: $('profileName'), profileSub: $('profileSub'),
     dialog: $('profileDialog'), dialogClose: $('dialogClose'), dlgAvatar: $('dlgAvatar'), dialogTitle: $('dialogTitle'), dlgSince: $('dlgSince'),
     tabs: Array.from(document.querySelectorAll('#profileDialog [role="tab"]')),
@@ -552,6 +555,7 @@
     const level = currentLevel();
     dom.app.dataset.subtle = String(level.subtle);
     if (scene) scene.setAgitation(level.agitation);
+    Sound.setIntensity(session.level);
     renderLevel();
   }
 
@@ -581,6 +585,7 @@
       }
     }
     applyLevel();
+    if (change) Sound.play(change === 'up' ? 'levelUp' : 'levelDown', { delay: 0.35 }); // after the round's own sound
     if (change === 'up') {
       dom.levelCard.classList.remove('is-levelup');
       void dom.levelCard.offsetWidth; // restart the CSS animation
@@ -675,6 +680,10 @@
     if (showReadout) dom.readoutValue.textContent = fmt(view.readout);
 
     if (scene) scene.setMode(SCENE_MODE[next], { instant: next === STATE.GO });
+    // Duck the music while waiting; restore it once the round is over. The music
+    // is deliberately left alone on "go" so it can't act as an audio cue.
+    if (next === STATE.WAITING) Sound.setFocus(true);
+    else if (next !== STATE.GO) Sound.setFocus(false);
     renderControls();
   }
 
@@ -714,6 +723,7 @@
       game.pendingStimulus = true;
     }, delay);
     scheduleDecoy(delay);
+    Sound.play('arm'); // marks the start of the wait, never the signal itself
   }
 
   /** Called from the render loop on the frame that shows the stimulus. */
@@ -764,6 +774,7 @@
     }
     const roundLevel = session.level;
     const change = registerOutcome(false);
+    Sound.play('false');
     setState(STATE.FALSE_START, withLevelChange(copy, change));
     renderStats();
     afterRound({ type: 'false', level: roundLevel });
@@ -777,6 +788,7 @@
     session.missed += 1;
     const roundLevel = session.level;
     const change = registerOutcome(false);
+    Sound.play('missed');
     setState(STATE.MISSED, withLevelChange({ sub: VIEW.missed.sub }, change));
     renderStats();
     afterRound({ type: 'missed', level: roundLevel });
@@ -808,6 +820,9 @@
     const target = currentLevel().target;
     const roundLevel = session.level;
     const passed = ms <= target;
+    // The time is already measured, so feedback sound can't affect it.
+    const isRecord = allTimeBest !== null && ms < allTimeBest;
+    Sound.play(isRecord ? 'record' : 'hit', { quality: (450 - ms) / 250 });
     const change = registerOutcome(passed);
     let eyebrow = rate(ms);
     if (passed && !change) {
@@ -940,6 +955,7 @@
     toast.querySelector('.toast-title').textContent = achievement.title;
     toast.querySelector('.toast-desc').textContent = achievement.desc;
     dom.toasts.appendChild(toast);
+    Sound.play('achievement');
     // Keep at most three on screen.
     while (dom.toasts.children.length > 3) dom.toasts.firstElementChild.remove();
     window.setTimeout(() => {
@@ -1489,6 +1505,13 @@
         stopSession();
         return;
       }
+      // Shortcuts: M toggles music, S toggles sound effects.
+      const key = e.key.length === 1 ? e.key.toLowerCase() : '';
+      if ((key === 'm' || key === 's') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.target instanceof Element && e.target.closest('input, textarea, select')) return;
+        if (Sound.supported && !e.repeat) toggleAudio(key === 'm' ? 'music' : 'sfx');
+        return;
+      }
       const isSpace = e.code === 'Space' || e.key === ' ';
       const isEnter = e.key === 'Enter' && e.target === dom.stage;
       if (!isSpace && !isEnter) return;
@@ -1514,6 +1537,7 @@
     // can't be measured fairly. Cancel it instead of recording a bad number.
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
+        Sound.suspend(); // no music playing from a background tab
         if (game.running && (game.state === STATE.WAITING || game.state === STATE.GO)) {
           session.rounds = Math.max(0, session.rounds - 1);
           stopSession({
@@ -1524,10 +1548,67 @@
         }
       } else {
         lastFrame = performance.now();
+        Sound.resume();
       }
     });
 
     window.addEventListener('pagehide', teardown);
+  }
+
+  /* ======================================================================
+   * Audio controls
+   * ==================================================================== */
+  function renderAudioControls() {
+    if (!Sound.supported) {
+      [dom.sfxToggle, dom.musicToggle, dom.volumeSlider].forEach((el) => {
+        el.disabled = true;
+        el.title = 'Audio isn’t supported in this browser';
+      });
+      dom.sfxToggle.setAttribute('aria-pressed', 'false');
+      dom.musicToggle.setAttribute('aria-pressed', 'false');
+      return;
+    }
+    const prefs = Sound.getPrefs();
+    const paint = (btn, on, label, key) => {
+      btn.setAttribute('aria-pressed', String(on));
+      btn.title = `${label}: ${on ? 'on' : 'off'} (${key})`;
+    };
+    paint(dom.sfxToggle, prefs.sfx, 'Sound effects', 'S');
+    paint(dom.musicToggle, prefs.music, 'Music', 'M');
+    dom.volumeSlider.value = String(Math.round(prefs.volume * 100));
+    dom.volumeSlider.title = `Volume ${dom.volumeSlider.value}%`;
+  }
+
+  function toggleAudio(kind) {
+    Sound.unlock(); // the click or key press counts as the gesture browsers require
+    const on = !Sound.getPrefs()[kind];
+    Sound.setEnabled(kind, on);
+    Storage.savePrefs(Sound.getPrefs());
+    renderAudioControls();
+    Sound.play('ui');
+    announce(`${kind === 'sfx' ? 'Sound effects' : 'Music'} ${on ? 'on' : 'off'}.`);
+  }
+
+  function bindAudioEvents() {
+    if (!Sound.supported) return;
+    dom.sfxToggle.addEventListener('click', () => toggleAudio('sfx'));
+    dom.musicToggle.addEventListener('click', () => toggleAudio('music'));
+    dom.volumeSlider.addEventListener('input', () => {
+      Sound.unlock();
+      Sound.setVolume(Number(dom.volumeSlider.value) / 100);
+      dom.volumeSlider.title = `Volume ${dom.volumeSlider.value}%`;
+    });
+    dom.volumeSlider.addEventListener('change', () => {
+      Storage.savePrefs(Sound.getPrefs());
+      Sound.play('ui'); // a sample at the new level
+    });
+
+    // Browsers only allow audio after a user gesture. Start it on the first
+    // one; that is always before any timed round, because the first click or
+    // key press can only start a session.
+    const unlockOnGesture = () => { if (!Sound.isUnlocked()) Sound.unlock(); };
+    document.addEventListener('pointerdown', unlockOnGesture, true);
+    document.addEventListener('keydown', unlockOnGesture, true);
   }
 
   function teardown() {
@@ -1535,6 +1616,7 @@
     window.cancelAnimationFrame(rafId);
     if (scene) scene.dispose();
     scene = null;
+    Sound.dispose();
   }
 
   /* ======================================================================
@@ -1551,8 +1633,12 @@
       persist();
     }
 
+    Sound.setPrefs(Storage.loadPrefs());
+    renderAudioControls();
+
     bindEvents();
     bindProfileEvents();
+    bindAudioEvents();
 
     try {
       scene = new ReactionScene(dom.canvas, dom.stage, {

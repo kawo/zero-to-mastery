@@ -34,6 +34,15 @@ Each level has a target time. Beat it **3 rounds in a row** to level up. **2 fai
 
 The levels are defined in the `LEVELS` table in `js/config.js`.
 
+## Sound and music
+
+All the audio is generated with the Web Audio API, so there are no sound files. The controls are in the top bar: sound effects on/off (`S`), music on/off (`M`) and volume. These settings are saved in this browser.
+
+- **Sound effects:** a sound when a round starts, when a reaction registers (the pitch goes up the faster you are), for a new record, a false start, a miss, going up or down a level, and an unlocked achievement.
+- **Music:** an ambient loop (Am–F–C–G, 84 BPM). It gets denser as the level goes up. The music gets quieter while you wait and comes back up after the round.
+- **Fair timing:** the green signal and the decoys are **silent**, and the music doesn't change at that moment. People react to sound about 40 ms faster than to sight, so an audio cue would make this an auditory test. Every feedback sound plays after the time has been measured.
+- Browsers only allow sound after a user action, so audio starts on your first click or key press. When the tab is hidden, the audio pauses. Every note frees its audio resources when it ends.
+
 ## How timing works
 
 - **Random delay:** `crypto.getRandomValues`, uniform over 1000–5000 ms.
@@ -63,7 +72,7 @@ To open your profile, click your name in the top bar. Opening it pauses the curr
 
 ## Data
 
-Profiles are saved in `localStorage` under the key `reflexlab.v1`. That means they're saved in this browser only. Clearing site data removes them.
+Profiles are saved in `localStorage` under the key `reflexlab.v1`. Audio settings are saved separately, under `reflexlab.prefs.v1`. That means they're saved in this browser only. Clearing site data removes them.
 
 - Every value is checked when it's loaded. A missing or wrong value is replaced with a safe default.
 - If the saved data can't be read, the game copies it to `reflexlab.v1.backup` and starts a fresh profile.
@@ -82,5 +91,6 @@ css/style.css       colour tokens, per-state styles, profile window, responsive 
 js/config.js        settings: timings, difficulty levels (LEVELS), colours, 3D presets
 js/storage.js       saving and loading, data checks, leaderboard
 js/achievements.js  achievement definitions and their rules
+js/audio.js         synthesised sound effects and music (Web Audio API)
 js/app.js           stats, 3D scene (ReactionScene), game state machine, profile window, render loop
 ```

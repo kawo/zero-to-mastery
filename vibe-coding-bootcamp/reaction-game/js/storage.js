@@ -189,6 +189,35 @@
     return rows.sort((a, b) => a.ms - b.ms || a.at.localeCompare(b.at)).slice(0, limit);
   }
 
+  /* ---------- Device preferences (audio), kept apart from player data ---------- */
+  const PREFS_KEY = 'reflexlab.prefs.v1';
+  const DEFAULT_PREFS = Object.freeze({ sfx: true, music: true, volume: 0.7 });
+
+  function loadPrefs() {
+    if (!store) return { ...DEFAULT_PREFS };
+    try {
+      const raw = JSON.parse(store.getItem(PREFS_KEY) || 'null');
+      if (!raw || typeof raw !== 'object') return { ...DEFAULT_PREFS };
+      return {
+        sfx: typeof raw.sfx === 'boolean' ? raw.sfx : DEFAULT_PREFS.sfx,
+        music: typeof raw.music === 'boolean' ? raw.music : DEFAULT_PREFS.music,
+        volume: Number.isFinite(raw.volume) ? Math.min(1, Math.max(0, raw.volume)) : DEFAULT_PREFS.volume,
+      };
+    } catch (err) {
+      return { ...DEFAULT_PREFS };
+    }
+  }
+
+  function savePrefs(prefs) {
+    if (!store) return false;
+    try {
+      store.setItem(PREFS_KEY, JSON.stringify(prefs));
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
   /** Call `callback` when another tab changes the saved data. */
   function onExternalChange(callback) {
     window.addEventListener('storage', (e) => {
@@ -199,5 +228,6 @@
   window.ReflexLabStorage = Object.freeze({
     KEY, MAX_PROFILES, MAX_NAME, PROFILE_COLORS,
     load, save, createProfile, cleanName, recordTop, leaderboard, onExternalChange,
+    loadPrefs, savePrefs,
   });
 })();
