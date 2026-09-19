@@ -32,10 +32,52 @@ body {
 
 body {
   margin: 0;
+  /* The light grey base, with a fine dot grid for a little texture */
   background-color: var(--color-background);
+  background-image: radial-gradient(circle at 1px 1px, rgba(33, 37, 41, 0.07) 1px, transparent 0);
+  background-size: 24px 24px;
   color: var(--color-text);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Background: two soft, slowly drifting glows ---------- */
+/* A coral glow top-left and a yellow one bottom-right, taken from the accent
+   colours. They sit behind the content (z-index: -1), ignore the mouse, and
+   are pure gradients, so they cost almost nothing to draw. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: drift 26s ease-in-out infinite alternate;
+}
+
+body::before {
+  top: -30vmax;
+  left: -25vmax;
+  background: radial-gradient(circle, rgba(255, 107, 107, 0.28) 0%, rgba(255, 107, 107, 0) 65%);
+}
+
+body::after {
+  bottom: -26vmax;
+  right: -20vmax;
+  background: radial-gradient(circle, rgba(255, 209, 102, 0.55) 0%, rgba(255, 209, 102, 0) 65%);
+  animation-duration: 32s;
+  animation-direction: alternate-reverse;  /* the two glows move out of step */
+}
+
+@keyframes drift {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(8vmax, 6vmax) scale(1.12);
+  }
 }
 
 /* ---------- Layout: centre the card vertically and horizontally with Flexbox ---------- */
@@ -49,13 +91,15 @@ body {
 
 /* ---------- The card ---------- */
 .card {
+  /* width: 100% + max-width: the card is as wide as the screen allows, up to
+     720px, and its width never depends on the text inside it. */
   width: 100%;
-  max-width: 560px;
+  max-width: 720px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 28px;
-  padding: clamp(28px, 6vw, 48px);
+  gap: 32px;
+  padding: clamp(28px, 6vw, 60px);
   background-color: var(--color-card);
   border-radius: var(--radius);
   box-shadow: var(--shadow);  /* the subtle depth asked for in the brief */
@@ -116,28 +160,59 @@ body {
 
 /* ---------- The compliment ---------- */
 .compliment {
+  position: relative;  /* anchors the invisible measuring copy made by script.js */
   margin: 0;
   width: 100%;
-  /* Reserve space for about three lines, so the button doesn't jump
-     when a longer or shorter compliment appears. */
-  min-height: 7.5em;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 20px;
+}
+
+.compliment-emoji {
+  display: block;
+  font-size: clamp(2.8rem, 8vw, 3.8rem);
+  line-height: 1;
+  /* Colour emoji fonts, so the emoji renders the same way across systems */
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
 .compliment-text {
   margin: 0;
+  width: 100%;
+  /* script.js sets a fixed height here: the height of the longest compliment
+     (in both languages) at the current width, so the card never resizes.
+     This min-height only matters if the script can't run. */
+  min-height: 6.8em;
+  display: flex;             /* centres shorter compliments in that fixed space */
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-compliment);
   font-weight: 800;
-  font-size: clamp(1.4rem, 4.5vw, 1.9rem); /* scales smoothly from phone to desktop */
+  font-size: clamp(1.45rem, 4.2vw, 2.15rem); /* scales smoothly from phone to desktop */
   line-height: 1.35;
   text-wrap: balance;  /* evens out line lengths where supported */
 }
 
-/* Fade-and-rise animation, replayed by script.js each time the text changes */
-.compliment-text.is-changing {
+/* Fade-and-rise animation, replayed by script.js each time the compliment changes */
+.compliment.is-changing .compliment-text {
   animation: compliment-in 450ms ease-out;
+}
+
+/* The emoji pops in */
+.compliment.is-changing .compliment-emoji {
+  animation: emoji-pop 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes emoji-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-12deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
 }
 
 @keyframes compliment-in {
@@ -158,6 +233,8 @@ body {
   border-radius: 999px;
   padding: 14px 28px;
   min-height: 48px;  /* comfortable tap target on touch screens */
+  min-width: 17rem;  /* same width in English and French, so nothing shifts */
+  max-width: 100%;
   background-color: var(--color-accent);
   /* Charcoal text on coral and on yellow keeps contrast above the WCAG AA
      4.5:1 minimum; white text on this coral would fall below it. */
@@ -197,7 +274,14 @@ body {
 
 /* ---------- Respect people who prefer less motion ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .compliment-text.is-changing {
+  /* The glows stay, but don't move */
+  body::before,
+  body::after {
+    animation: none;
+  }
+
+  .compliment.is-changing .compliment-text,
+  .compliment.is-changing .compliment-emoji {
     animation: none;
   }
 

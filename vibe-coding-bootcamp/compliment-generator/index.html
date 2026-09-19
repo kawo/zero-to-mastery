@@ -30,8 +30,10 @@
 
       <p class="eyebrow" id="card-title">A little something for you</p>
 
-      <!-- The compliment. aria-live makes screen readers read each new one aloud. -->
-      <figure class="compliment">
+      <!-- The compliment. The emoji is decorative (hidden from screen readers);
+           aria-live makes screen readers read each new compliment aloud. -->
+      <figure class="compliment" id="compliment-box">
+        <span class="compliment-emoji" id="compliment-emoji" aria-hidden="true">🌟</span>
         <blockquote class="compliment-text" id="compliment" aria-live="polite">
           You make the world a little brighter just by being in it.
         </blockquote>
