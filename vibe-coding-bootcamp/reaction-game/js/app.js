@@ -9,6 +9,7 @@
     ['ReflexLabStorage', 'js/storage.js'],
     ['ReflexLabAchievements', 'js/achievements.js'],
     ['ReflexLabAudio', 'js/audio.js'],
+    ['ReflexLabLeaderboard', 'js/leaderboard.js'],
   ].filter(([globalName]) => !window[globalName]).map(([, file]) => file);
   if (missing.length) {
     console.error('[Reflex Lab] missing scripts:', missing.join(', '));
@@ -25,6 +26,11 @@
   const Storage = window.ReflexLabStorage;
   const Achievements = window.ReflexLabAchievements;
   const Sound = window.ReflexLabAudio;
+  const Board = window.ReflexLabLeaderboard;
+  Board.configure({
+    minDelayMs: CONFIG.minDelayMs, maxDelayMs: CONFIG.maxDelayMs,
+    anticipationMs: CONFIG.anticipationMs, timeoutMs: CONFIG.timeoutMs,
+  });
 
   /* ======================================================================
    * Utilities
@@ -582,6 +588,8 @@
     lifetimeGrid: $('lifetimeGrid'), profileSelect: $('profileSelect'),
     newProfileBtn: $('newProfileBtn'), deleteProfileBtn: $('deleteProfileBtn'), storageNote: $('storageNote'),
     recordsGrid: $('recordsGrid'), boardEmpty: $('boardEmpty'), boardWrap: $('boardWrap'), boardBody: $('boardBody'),
+    sealNote: $('sealNote'), excludedBox: $('excludedBox'), excludedCount: $('excludedCount'), excludedList: $('excludedList'),
+    leaderboardBtn: $('leaderboardBtn'),
     achList: $('achList'),
     tourneyBtn: $('tourneyBtn'), tourneyCard: $('tourneyCard'), tourneyMeta: $('tourneyMeta'), tourneyList: $('tourneyList'),
     penaltyNote: $('penaltyNote'),
@@ -615,6 +623,7 @@
     cleanRun: 0,     // rounds in a row without a false start or miss
     falseStreak: 0,  // false starts in a row
     powerUps: freshPowerUps(),
+    runWindow: [],   // evidence of the valid reactions in a row, for the leaderboard
   };
 
   function freshPowerUps() {
@@ -658,11 +667,17 @@
     commitAt: 0,            // when the stimulus frame was drawn
     stimulusAt: 0,          // best estimate of when it reached the screen
     awaitingPresent: false,
+    // Evidence for the leaderboard's anti-cheat checks.
+    roundStartAt: 0,        // performance.now() when the wait began
+    roundWallStart: 0,      // Date.now() at the same moment (clock-integrity check)
+    scheduledDelay: 0,      // the random delay the game chose
+    frameMsAtStimulus: 0,   // frame duration around the stimulus
   };
 
   let scene = null;
   let rafId = 0;
   let lastFrame = performance.now();
+  let avgFrameMs = 1000 / 60; // smoothed frame duration
   let fpsFrames = 0;
   let fpsSince = performance.now();
   let sceneErrors = 0;
@@ -881,8 +896,11 @@
     clearTimers();
     session.rounds += 1;
     game.lastDecoyAt = 0;
+    game.roundStartAt = performance.now();
+    game.roundWallStart = Date.now();
     setState(STATE.WAITING);
     const delay = randomDelay();
+    game.scheduledDelay = delay;
     game.delayTimer = window.setTimeout(() => {
       game.delayTimer = null;
       // Don't touch the DOM or scene here: the render loop shows the stimulus on
@@ -903,6 +921,7 @@
   }
 
   function onStimulusDrawn() {
+    game.frameMsAtStimulus = avgFrameMs;
     game.commitAt = performance.now();
     game.stimulusAt = game.commitAt;
     game.awaitingPresent = true;
@@ -1076,6 +1095,7 @@
     renderStats();
     afterRound({ type: 'false', level: roundLevel });
     tournamentAfterRound({ type: 'false' });
+    session.runWindow = []; // "in a row" is broken
     announce(`${copy.headline}. False start.${change === 'down' ? ` Back to level ${session.level}.` : ''}`);
   }
 
@@ -1092,10 +1112,33 @@
     renderStats();
     afterRound({ type: 'missed', level: roundLevel });
     tournamentAfterRound({ type: 'missed' });
+    session.runWindow = [];
     announce(`Too slow. Round not counted.${change === 'down' ? ` Back to level ${session.level}.` : ''}`);
   }
 
-  function recordResult(ms) {
+  /**
+   * Everything the leaderboard needs to re-check a round later. Collected after
+   * the time is measured, so it costs nothing on the timed path.
+   */
+  function roundEvidence(timestamp, ms, meta) {
+    const r3 = (v) => Math.round(v * 1000) / 1000;
+    return {
+      ms: r3(ms),
+      delay: r3(game.scheduledDelay),
+      actualDelay: r3(game.stimulusAt - game.roundStartAt),
+      trusted: meta.trusted === true,
+      input: meta.input,
+      visible: !document.hidden,
+      focused: document.hasFocus(),
+      frameMs: r3(game.frameMsAtStimulus),
+      perfSpan: r3(timestamp - game.roundStartAt),
+      wallSpan: Date.now() - game.roundWallStart,
+      nativeClock: Board.isNative(performance.now) && Board.isNative(Date.now),
+      clockRes: clockResMs === null ? null : r3(clockResMs),
+    };
+  }
+
+  function recordResult(ms, evidence) {
     clearTimers();
     const prev = summarize(session.times);
     session.times.push(ms);
@@ -1141,6 +1184,11 @@
     renderStats(now);
     afterRound({ type: 'result', ms, level: roundLevel, passed });
     tournamentAfterRound({ type: 'result', ms });
+    if (evidence) {
+      session.runWindow.push(evidence);
+      if (session.runWindow.length > Board.RUN_LENGTH) session.runWindow.shift();
+      maybeSubmitRun();
+    }
     const levelNote = change === 'up' ? ` Level up, now level ${session.level}.`
       : change === 'down' ? ` Back to level ${session.level}.` : '';
     announce(`${fmt(ms)} milliseconds. ${eyebrow}.${levelNote}`);
@@ -1161,6 +1209,7 @@
     session.cleanRun = 0;
     session.falseStreak = 0;
     session.powerUps = freshPowerUps();
+    session.runWindow = [];
     powerNotes = [];
     applyLevel();
     setState(STATE.IDLE, copy || { eyebrow: 'Session cleared', headline: 'Test your reflexes' });
@@ -1217,6 +1266,110 @@
     persist();
     renderProfileChip();
     if (dom.dialog.open) renderDialog();
+  }
+
+  /* ---------- Verified leaderboard ---------- */
+
+  /**
+   * After each valid reaction: if the last 5 in a row beat the player's
+   * leaderboard entry, submit them for checking. Runs after the result is on
+   * screen, never during a timed round.
+   */
+  function maybeSubmitRun() {
+    if (session.runWindow.length < Board.RUN_LENGTH) return;
+    const rounds = session.runWindow.slice(-Board.RUN_LENGTH);
+    const profile = activeProfile();
+    const avg = Math.round((rounds.reduce((a, r) => a + r.ms, 0) / rounds.length) * 10) / 10;
+    const current = Board.currentBest(profile.id);
+    if (current !== null && !(avg < current)) return;
+
+    const roundNo = session.rounds;
+    Board.submitRun({ profileId: profile.id, name: profile.name, level: session.level, rounds })
+      .then((res) => {
+        // Only annotate the result screen if it's still the same round.
+        const stillShowing = game.state === STATE.RESULT && session.rounds === roundNo;
+        let note = null;
+        if (res.status === 'verified') {
+          const p = saved.state.profiles[profile.id];
+          if (p) p.stats.verifiedRuns += 1;
+          note = `New leaderboard entry: ${fmt(res.avg)} ms average over 5, rank #${res.rank} on this device.`;
+          if (p && saved.state.activeId === p.id) unlockAchievements(null);
+          persist();
+          renderProfileChip();
+          Sound.play('record', { delay: 0.2 });
+        } else if (res.status === 'rejected') {
+          note = `This run wasn’t added to the leaderboard. ${res.reasons.map((c) => Board.REASONS[c]).join(' ')}`;
+        }
+        if (!note) return;
+        if (stillShowing) {
+          const span = document.createElement('span');
+          span.className = 'power-note';
+          span.textContent = note;
+          dom.subline.append(' ', span);
+          dom.subline.hidden = false;
+        }
+        announce(note);
+        if (dom.dialog.open) renderDialog();
+      })
+      .catch((err) => console.warn('[Reflex Lab] leaderboard submit failed', err));
+  }
+
+  let boardRenderToken = 0;
+
+  async function renderLeaderboard() {
+    const token = ++boardRenderToken;
+    let result;
+    try {
+      result = await Board.list();
+    } catch (err) {
+      console.warn('[Reflex Lab] leaderboard unavailable', err);
+      return;
+    }
+    if (token !== boardRenderToken) return; // a newer render has started
+    const { verified, excluded, sealing } = result;
+    const me = saved.state.activeId;
+    // Show the player's current name and colour when the profile still exists.
+    const who = (row) => {
+      const p = saved.state.profiles[row.profileId];
+      return p ? { name: p.name, color: p.color } : { name: String(row.name || 'Deleted player'), color: Storage.PROFILE_COLORS[4] };
+    };
+
+    const top = verified.slice(0, 10);
+    dom.boardEmpty.hidden = top.length > 0;
+    dom.boardWrap.hidden = top.length === 0;
+    dom.boardBody.replaceChildren(...top.map((row, i) => {
+      const tr = document.createElement('tr');
+      if (row.profileId === me) tr.className = 'is-me';
+      tr.innerHTML = `<td class="rank">${i + 1}</td><td><span class="who"><span class="avatar" aria-hidden="true"></span><span class="who-name"></span></span></td>` +
+        `<td class="num time">${fmt(row.avg)} ms</td><td class="num">${fmt(row.best)} ms</td><td class="num">${Number(row.level) || 1}</td>` +
+        `<td>${formatDate(row.at)}</td><td class="status"><span class="verified-badge" title="Replayed and checked${row.sealed ? ', seal intact' : ''}">✓<span class="sr-only"> verified</span></span></td>`;
+      paintAvatar(tr.querySelector('.avatar'), who(row));
+      tr.querySelector('.who-name').textContent = who(row).name;
+      return tr;
+    }));
+
+    dom.sealNote.textContent = sealing
+      ? 'Runs are sealed with a key this page can use but not read, so edited data is caught.'
+      : 'This browser can’t seal runs (no Web Crypto or IndexedDB), so only the replay checks apply.';
+
+    dom.excludedBox.hidden = excluded.length === 0;
+    dom.excludedCount.textContent = String(excluded.length);
+    dom.excludedList.replaceChildren(...excluded.slice(0, 10).map((row) => {
+      const li = document.createElement('li');
+      const head = document.createElement('p');
+      head.className = 'excluded-head';
+      const avg = Number.isFinite(row.avg) ? `${fmt(row.avg)} ms` : '—';
+      head.textContent = `${who(row).name} · ${avg} · ${formatDate(row.at)}`;
+      const reasons = document.createElement('ul');
+      reasons.className = 'excluded-reasons';
+      for (const code of row.reasons) {
+        const r = document.createElement('li');
+        r.textContent = Board.REASONS[code] || code;
+        reasons.appendChild(r);
+      }
+      li.append(head, reasons);
+      return li;
+    }));
   }
 
   function achievementContext(last = null) {
@@ -1386,18 +1539,7 @@
       statTile('Best 5 in a row', s.bestAvg5 !== null ? msMarkup(s.bestAvg5) : null, 'average'),
       statTile('Longest clean run', String(s.longestClean), 'rounds'),
     );
-    const rows = Storage.leaderboard(saved.state);
-    dom.boardEmpty.hidden = rows.length > 0;
-    dom.boardWrap.hidden = rows.length === 0;
-    dom.boardBody.replaceChildren(...rows.map((row, i) => {
-      const tr = document.createElement('tr');
-      if (row.profileId === p.id) tr.className = 'is-me';
-      tr.innerHTML = `<td class="rank">${i + 1}</td><td><span class="who"><span class="avatar" aria-hidden="true"></span><span class="who-name"></span></span></td>` +
-        `<td class="num time">${fmt(row.ms)} ms</td><td class="num">${row.level}</td><td>${formatDate(row.at)}</td>`;
-      paintAvatar(tr.querySelector('.avatar'), row);
-      tr.querySelector('.who-name').textContent = row.name;
-      return tr;
-    }));
+    renderLeaderboard(); // async: re-checks every run before showing it
 
     // Achievements
     const ctx = achievementContext();
@@ -1512,6 +1654,7 @@
       return;
     }
     const gone = activeProfile().name;
+    Board.removeProfile(saved.state.activeId);
     delete saved.state.profiles[saved.state.activeId];
     let next = Object.values(saved.state.profiles)[0];
     if (!next) {
@@ -1532,6 +1675,7 @@
 
   function bindProfileEvents() {
     dom.profileBtn.addEventListener('click', () => openProfile());
+    dom.leaderboardBtn.addEventListener('click', () => openProfile('tab-records'));
     dom.dialogClose.addEventListener('click', closeProfile);
     dom.dialog.addEventListener('click', (e) => { if (e.target === dom.dialog) closeProfile(); }); // backdrop
     dom.dialog.addEventListener('close', () => { resetDeleteButton(); dom.profileBtn.focus(); });
@@ -1653,6 +1797,7 @@
     Object.assign(session, {
       falseStarts: 0, missed: 0, rounds: 0, streak: 0, fails: 0, cleanRun: 0, falseStreak: 0,
       powerUps: freshPowerUps(), // power-ups are off in tournaments
+      runWindow: [],
       level: tournament.level,
       peakLevel: 1, // levels are chosen, not reached, in a tournament
     });
@@ -1959,7 +2104,7 @@
   }
 
   /** Single entry point for a reaction from mouse, touch, pen or keyboard. */
-  function handleReaction(timestamp) {
+  function handleReaction(timestamp, meta = { trusted: false, input: 'unknown' }) {
     switch (game.state) {
       case STATE.IDLE:
         startPlay();
@@ -1970,7 +2115,7 @@
       case STATE.GO: {
         const ms = timestamp - game.stimulusAt;
         if (ms < CONFIG.anticipationMs) falseStart(ms);
-        else recordResult(ms);
+        else recordResult(ms, roundEvidence(timestamp, ms, meta));
         break;
       }
       case STATE.RESULT:
@@ -2176,6 +2321,7 @@
     const stimulusThisFrame = game.pendingStimulus && game.state === STATE.WAITING;
     if (stimulusThisFrame) commitStimulus();
 
+    if (now - lastFrame > 0 && now - lastFrame < 100) avgFrameMs = avgFrameMs * 0.9 + (now - lastFrame) * 0.1;
     const dt = clamp((now - lastFrame) / 1000, 0, 0.1);
     lastFrame = now;
 
@@ -2211,7 +2357,7 @@
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       e.preventDefault();
       dom.stage.focus({ preventScroll: true });
-      handleReaction(inputTime(e));
+      handleReaction(inputTime(e), { trusted: e.isTrusted, input: 'pointer' });
     });
 
     dom.stage.addEventListener('pointermove', (e) => {
@@ -2251,7 +2397,7 @@
       if (t !== dom.stage && t instanceof Element && t.closest('button, a, input, select, textarea')) return;
       e.preventDefault();
       if (e.repeat) return; // holding the key must not fire repeated reactions
-      handleReaction(inputTime(e));
+      handleReaction(inputTime(e), { trusted: e.isTrusted, input: 'key' });
     });
 
     dom.startBtn.addEventListener('click', () => {
@@ -2491,8 +2637,11 @@
     rafId = window.requestAnimationFrame(tick);
   }
 
+  let clockResMs = null; // measured timer precision, part of leaderboard evidence
+
   function renderClockResolution() {
     const res = measureClockResolution();
+    clockResMs = res;
     if (res === null) {
       dom.clockRes.textContent = 'unavailable';
       dom.clockChip.title = 'This browser has no high-resolution clock; timings may be off by several ms.';

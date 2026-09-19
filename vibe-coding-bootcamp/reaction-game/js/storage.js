@@ -62,6 +62,7 @@
       powerUpsCollected: 0,
       powerUpsUsed: 0,
       shieldSaves: 0,
+      verifiedRuns: 0,    // runs accepted on the verified leaderboard
     };
   }
 
@@ -120,6 +121,7 @@
         powerUpsCollected: count(s.powerUpsCollected),
         powerUpsUsed: count(s.powerUpsUsed),
         shieldSaves: count(s.shieldSaves),
+        verifiedRuns: count(s.verifiedRuns),
       },
       achievements,
       top,
@@ -190,15 +192,6 @@
     if (profile.top.length > TOP_N) profile.top.length = TOP_N;
   }
 
-  /** Fastest reactions across every profile on this device. */
-  function leaderboard(state, limit = TOP_N) {
-    const rows = [];
-    for (const p of Object.values(state.profiles)) {
-      for (const e of p.top) rows.push({ ...e, profileId: p.id, name: p.name, color: p.color });
-    }
-    return rows.sort((a, b) => a.ms - b.ms || a.at.localeCompare(b.at)).slice(0, limit);
-  }
-
   /* ---------- Device preferences (audio, display), kept apart from player data ---------- */
   const PREFS_KEY = 'reflexlab.prefs.v1';
   const DEFAULT_PREFS = Object.freeze({
@@ -248,7 +241,7 @@
 
   window.ReflexLabStorage = Object.freeze({
     KEY, MAX_PROFILES, MAX_NAME, PROFILE_COLORS,
-    load, save, createProfile, cleanName, recordTop, leaderboard, onExternalChange,
+    load, save, createProfile, cleanName, recordTop, onExternalChange,
     loadPrefs, savePrefs,
   });
 })();

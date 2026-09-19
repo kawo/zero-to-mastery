@@ -312,7 +312,11 @@ kbd {
 /* ---------- Side panel ---------- */
 .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 
-.controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+/* Row 1: Start (wide) + Reset. Row 2: Tournament + Leaderboard, side by side. */
+.controls { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.controls #startBtn { grid-column: span 4; }
+.controls #resetBtn { grid-column: span 2; }
+.controls #tourneyBtn, .controls #leaderboardBtn { grid-column: span 3; padding-inline: 10px; }
 .btn {
   appearance: none;
   border: 1px solid transparent;
@@ -788,6 +792,36 @@ kbd {
 
 /* ---------- Tournament ---------- */
 .btn-wide { grid-column: 1 / -1; }
+
+/* ---------- Verified leaderboard ---------- */
+.board .status { width: 2em; text-align: center; }
+.verified-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ready) 22%, transparent);
+  color: var(--success-text);
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+.disclosure { border: 1px solid var(--line); border-radius: 10px; }
+.disclosure summary {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: 10px;
+}
+.disclosure summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--result) 70%, transparent); outline-offset: 2px; }
+.disclosure[open] summary { border-bottom: 1px solid var(--line); border-radius: 10px 10px 0 0; }
+.excluded-list, .check-list { margin: 0; padding: 10px 12px 12px; display: grid; gap: 10px; }
+.excluded-list { list-style: none; }
+.excluded-head { margin: 0; font-weight: 600; font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+.excluded-reasons { margin: 4px 0 0; padding-left: 18px; color: var(--error-text); font-size: 0.8125rem; }
+.check-list { padding-left: 30px; color: var(--muted); font-size: 0.8125rem; }
+.check-list b { color: var(--text); }
 .btn-ghost.is-confirming { background: var(--error); color: var(--bg); border-color: var(--error); }
 
 .tourney-card h2 small { font-variant-numeric: tabular-nums; }
