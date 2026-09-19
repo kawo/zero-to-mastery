@@ -62,6 +62,16 @@
         <button type="button" class="btn btn-ghost" id="resetBtn" disabled>Reset</button>
       </div>
 
+      <section class="card level-card" id="levelCard" aria-labelledby="levelTitle">
+        <h2 id="levelTitle"><span>Level <span id="levelNum">1</span> · <span id="levelName">Warm-up</span></span> <small id="levelOf">1 of 6</small></h2>
+        <div class="level-track" id="levelTrack" aria-hidden="true"></div>
+        <p class="level-brief" id="levelBrief">Beat 500 ms three times in a row to move up.</p>
+        <p class="level-meta">
+          <span>Target <strong id="levelTarget">≤ 500 ms</strong></span>
+          <span>Streak <span class="pips" id="levelPips" role="img" aria-label="Streak 0 of 3"></span></span>
+        </p>
+      </section>
+
       <section class="card" aria-labelledby="statsTitle">
         <h2 id="statsTitle">Session stats <small id="statsScope">No attempts yet</small></h2>
         <dl class="stat-grid">
@@ -73,6 +83,7 @@
         <p class="stat-foot">
           <span>False starts <strong id="statFalse">0</strong></span>
           <span>Missed <strong id="statMissed">0</strong></span>
+          <span>Peak level <strong id="statPeak">1</strong></span>
         </p>
       </section>
 
@@ -91,6 +102,7 @@
           <li><span>The shape turns <span class="swatch swatch-wait"></span><b>amber</b>. A random 1–5 s delay is running, so don’t guess.</span></li>
           <li><span>When it turns <span class="swatch swatch-ready"></span><b>green</b>, click, tap or press <kbd>Space</kbd>.</span></li>
           <li><span>Reacting early, or in under 100 ms, counts as a <span class="swatch swatch-error"></span><b>false start</b> and isn’t averaged.</span></li>
+          <li><span>Beat the level’s target <b>3 times in a row</b> to level up. Higher levels add <span class="swatch swatch-decoy"></span><b>blue decoys</b> and drop the text cue. Two misses in a row drops you a level.</span></li>
         </ol>
       </section>
     </aside>

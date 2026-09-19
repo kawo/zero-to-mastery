@@ -13,7 +13,26 @@ Open `index.html` in a browser.
 3. When the shape turns green, click, tap or press `Space`.
 4. If you react before green, or in under 100 ms, it counts as a false start. False starts aren't included in the average.
 
-`Esc` stops the session. **Reset** clears the stats.
+`Esc` stops the session. **Reset** clears the stats and goes back to level 1.
+
+## Difficulty
+
+Each level has a target time. Beat it **3 rounds in a row** to level up. **2 failed rounds in a row** drop you one level. A failed round is one that's too slow for the target, a false start, or a miss. All valid times go into the stats, even the ones over the target.
+
+| Level | Name    | Target   | Decoy chance | Text cue on "go" |
+|-------|---------|----------|--------------|------------------|
+| 1     | Warm-up | ≤ 500 ms | —            | yes              |
+| 2     | Steady  | ≤ 400 ms | —            | yes              |
+| 3     | Decoys  | ≤ 380 ms | 35 %         | yes              |
+| 4     | Sharp   | ≤ 340 ms | 45 %         | yes              |
+| 5     | Subtle  | ≤ 320 ms | 50 %         | no               |
+| 6     | Elite   | ≤ 290 ms | 60 %         | no               |
+
+- **Decoys:** a blue cube flashes for 450 ms during the wait. Reacting to it counts as a false start. A decoy always ends at least 250 ms before the real signal.
+- **Subtle levels:** the "React!" text and the green border flash are gone. Only the shape and the glow turn green.
+- **Visual noise:** the waiting animation spins faster at each level. The speed stays constant within a round, so it can't hint at when "go" will fire.
+
+The levels are defined in the `LEVELS` table at the top of `js/app.js`.
 
 ## How timing works
 

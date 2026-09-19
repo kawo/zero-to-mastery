@@ -32,6 +32,7 @@
 .app[data-state="result"]  { --state: var(--result); }
 .app[data-state="false"],
 .app[data-state="missed"]  { --state: var(--error); }
+.app[data-decoy="true"]    { --state: var(--result); transition: none; } /* decoy flash: blue, instant */
 
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -243,6 +244,14 @@ body {
 }
 .app[data-state="go"] .headline { color: var(--ready); }
 
+/* Subtle levels: on "go" the text and border stay as they were while waiting. */
+.app[data-subtle="true"][data-state="go"] .stage {
+  border-color: var(--line);
+  box-shadow: none;
+}
+.app[data-subtle="true"][data-state="go"] .headline { color: var(--text); }
+.app[data-subtle="true"][data-state="go"] .eyebrow { color: var(--wait); }
+
 .readout {
   display: flex;
   align-items: baseline;
@@ -344,8 +353,9 @@ kbd {
 
 .stat-foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
   margin: 12px 0 0;
   color: var(--muted);
   font-size: 13px;
@@ -391,6 +401,54 @@ kbd {
 .swatch-wait { background: var(--wait); }
 .swatch-ready { background: var(--ready); }
 .swatch-error { background: var(--error); }
+.swatch-decoy { background: var(--result); }
+
+/* ---------- Level card ---------- */
+.level-track {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.level-track span {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-raised);
+  transition: background-color 300ms ease;
+}
+.level-track span.is-done { background: color-mix(in srgb, var(--ready) 45%, var(--surface-raised)); }
+.level-track span.is-current { background: var(--ready); }
+
+.level-brief { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; text-wrap: pretty; }
+
+.level-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.level-meta strong { color: var(--text); font-weight: 600; }
+
+.pips { display: inline-flex; gap: 5px; margin-left: 6px; vertical-align: -1px; }
+.pips i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  transition: background-color 200ms ease, border-color 200ms ease;
+}
+.pips i.is-on { background: var(--ready); border-color: var(--ready); }
+
+.level-card.is-levelup { animation: level-up 900ms ease-out; }
+@keyframes level-up {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ready) 60%, transparent); border-color: var(--ready); }
+  100% { box-shadow: 0 0 0 14px transparent; }
+}
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -413,4 +471,5 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .app, .stage, .btn { transition: none; }
   .app[data-state="waiting"] .state-pill .dot { animation: none; }
+  .level-card.is-levelup { animation: none; }
 }

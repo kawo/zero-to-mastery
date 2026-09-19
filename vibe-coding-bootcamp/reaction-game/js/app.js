@@ -12,6 +12,10 @@
     historySize: 15,         // bars shown in the chart
     maxPixelRatio: 2,
     slowFrameMs: 25,         // average frame time that triggers a resolution drop
+    levelUpStreak: 3,        // rounds in a row under the target to level up
+    levelDownStreak: 2,      // failed rounds in a row to drop a level
+    decoyDurationMs: 450,    // how long a decoy flash stays on screen
+    decoyBlameMs: 1000,      // a false start this soon after a decoy is blamed on it
   });
 
   const COLORS = Object.freeze({
@@ -19,8 +23,32 @@
     waiting: 0xf59e0b,
     go: 0x10b981,
     result: 0x3b82f6,
+    decoy: 0x3b82f6,
     error: 0xef4444,
   });
+
+  /**
+   * Progressive difficulty.
+   * - target:    time to beat for a round to count towards the next level
+   * - decoy:     chance per round of a fake-out flash (blue cube) before the real signal
+   * - subtle:    no text or border cue on "go"; only the shape itself turns green
+   * - agitation: speed multiplier for the waiting animation (visual noise). It is
+   *              constant within a round, so it never hints at when "go" will fire.
+   */
+  const LEVELS = Object.freeze([
+    { name: 'Warm-up', target: 500, decoy: 0,    subtle: false, agitation: 1,
+      brief: 'Beat 500 ms three times in a row to move up.' },
+    { name: 'Steady',  target: 400, decoy: 0,    subtle: false, agitation: 1.25,
+      brief: 'A tighter target, and the waiting animation gets busier.' },
+    { name: 'Decoys',  target: 380, decoy: 0.35, subtle: false, agitation: 1.45,
+      brief: 'Blue cubes may flash while you wait. They’re decoys: only green counts.' },
+    { name: 'Sharp',   target: 340, decoy: 0.45, subtle: false, agitation: 1.65,
+      brief: 'Faster target, more decoys.' },
+    { name: 'Subtle',  target: 320, decoy: 0.5,  subtle: true,  agitation: 1.85,
+      brief: 'No “React!” text or border flash. Watch the shape itself.' },
+    { name: 'Elite',   target: 290, decoy: 0.6,  subtle: true,  agitation: 2.1,
+      brief: 'Top level: 290 ms target, decoys in most rounds, no text cue.' },
+  ]);
 
   // Visual preset for each scene mode. The game maps its states onto these.
   const PRESETS = Object.freeze({
@@ -28,6 +56,7 @@
     waiting: { shape: 'waiting', color: COLORS.waiting, spin: 0.7,  radius: 2.1, orbit: 0.45, glow: 0.3,  light: 1.3 },
     go:      { shape: 'go',      color: COLORS.go,      spin: 1.6,  radius: 3.0, orbit: 1.1,  glow: 0.75, light: 2.8 },
     result:  { shape: 'result',  color: COLORS.result,  spin: 0.35, radius: 2.6, orbit: 0.2,  glow: 0.25, light: 1.1 },
+    decoy:   { shape: 'decoy',   color: COLORS.decoy,   spin: 1.3,  radius: 2.5, orbit: 0.9,  glow: 0.6,  light: 2.2 },
     error:   { shape: 'error',   color: COLORS.error,   spin: 0.9,  radius: 3.2, orbit: -0.6, glow: 0.4,  light: 1.7 },
   });
 
@@ -37,15 +66,17 @@
 
   /** Uniform random delay in [min, max). Uses the CSPRNG where available. */
   function randomDelay() {
-    let r;
+    return CONFIG.minDelayMs + random01() * (CONFIG.maxDelayMs - CONFIG.minDelayMs);
+  }
+
+  /** Uniform random number in [0, 1). */
+  function random01() {
     if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
       const buf = new Uint32Array(1);
       window.crypto.getRandomValues(buf);
-      r = buf[0] / 4294967296;
-    } else {
-      r = Math.random();
+      return buf[0] / 4294967296;
     }
-    return CONFIG.minDelayMs + r * (CONFIG.maxDelayMs - CONFIG.minDelayMs);
+    return Math.random();
   }
 
   /**
@@ -144,6 +175,7 @@
       this.orbitAngle = 0;
       this.pointer = { x: 0, y: 0 };
       this.cameraBaseZ = 7;
+      this.agitation = 1;       // level-driven speed-up of the waiting animation
 
       this.pixelRatio = Math.min(window.devicePixelRatio || 1, CONFIG.maxPixelRatio);
       this.frameSamples = 0;
@@ -196,6 +228,7 @@
         go: new THREE.IcosahedronGeometry(1.05, 1),
         result: new THREE.DodecahedronGeometry(1, 0),
         error: new THREE.TetrahedronGeometry(1.3, 0),
+        decoy: new THREE.BoxGeometry(1.35, 1.35, 1.35),
       };
       this.shapes = {};
       for (const [name, geo] of Object.entries(shapes)) {
@@ -320,6 +353,10 @@
       if (mode === 'error' && !this.reducedMotion) this.shake = 1;
     }
 
+    setAgitation(value) {
+      this.agitation = clamp(Number(value) || 1, 0.5, 3);
+    }
+
     _setShape(name) {
       const s = this.shapes[name];
       this.core.geometry = s.geo;
@@ -386,15 +423,18 @@
       this.coreMat.emissiveIntensity = this.params.glow + 0.12 * Math.max(0, pulse);
       this.stateLight.intensity = this.params.light;
 
-      this.group.rotation.y += this.params.spin * dt * motion;
-      this.group.rotation.x += this.params.spin * 0.45 * dt * motion;
-      this.wire.rotation.y -= this.params.spin * 0.3 * dt * motion;
+      // Higher levels spin and orbit faster while waiting, adding visual noise.
+      const busy = this.mode === 'waiting' || this.mode === 'decoy' ? this.agitation : 1;
+      const spin = this.params.spin * dt * motion * busy;
+      this.group.rotation.y += spin;
+      this.group.rotation.x += spin * 0.45;
+      this.wire.rotation.y -= spin * 0.3;
 
       this.halo.rotation.z += dt * 0.2 * motion;
       this.halo.scale.setScalar(this.params.radius / 2.5);
 
       // Orbiting cubes.
-      this.orbitAngle += this.params.orbit * dt * motion;
+      this.orbitAngle += this.params.orbit * dt * motion * busy;
       const n = this.orbitCount;
       const jitter = this.mode === 'error' ? 0.35 : 0;
       for (let i = 0; i < n; i++) {
@@ -460,8 +500,10 @@
     startBtn: $('startBtn'), resetBtn: $('resetBtn'),
     statsScope: $('statsScope'), statLast: $('statLast'), statBest: $('statBest'), statAvg: $('statAvg'),
     statSd: $('statSd'), statCount: $('statCount'), statMedian: $('statMedian'),
-    statFalse: $('statFalse'), statMissed: $('statMissed'),
+    statFalse: $('statFalse'), statMissed: $('statMissed'), statPeak: $('statPeak'),
     chart: $('chart'), chartEmpty: $('chartEmpty'),
+    levelCard: $('levelCard'), levelNum: $('levelNum'), levelName: $('levelName'), levelOf: $('levelOf'),
+    levelTrack: $('levelTrack'), levelBrief: $('levelBrief'), levelTarget: $('levelTarget'), levelPips: $('levelPips'),
     renderChip: $('renderChip'), renderStatus: $('renderStatus'),
     clockChip: $('clockChip'), clockRes: $('clockRes'),
     banner: $('banner'), bannerText: $('bannerText'), bannerClose: $('bannerClose'),
@@ -480,13 +522,22 @@
   };
 
   // Everything lives in memory for this page view only.
-  const session = { times: [], falseStarts: 0, missed: 0, rounds: 0 };
+  const session = {
+    times: [], falseStarts: 0, missed: 0, rounds: 0,
+    level: 1, peakLevel: 1,
+    streak: 0,   // rounds in a row under the level's target
+    fails: 0,    // failed rounds in a row (too slow, false start, missed)
+  };
 
   const game = {
     state: STATE.IDLE,
     running: false,
     delayTimer: null,
     timeoutTimer: null,
+    decoyTimer: null,
+    decoyEndTimer: null,
+    decoyActive: false,
+    lastDecoyAt: 0,
     pendingStimulus: false, // delay elapsed; show stimulus on the next frame
     commitAt: 0,            // when the stimulus frame was drawn
     stimulusAt: 0,          // best estimate of when it reached the screen
@@ -503,10 +554,105 @@
   function clearTimers() {
     clearTimeout(game.delayTimer);
     clearTimeout(game.timeoutTimer);
+    clearTimeout(game.decoyTimer);
+    clearTimeout(game.decoyEndTimer);
     game.delayTimer = null;
     game.timeoutTimer = null;
+    game.decoyTimer = null;
+    game.decoyEndTimer = null;
+    game.decoyActive = false;
     game.pendingStimulus = false;
     game.awaitingPresent = false;
+  }
+
+  const currentLevel = () => LEVELS[session.level - 1];
+
+  /* ---------- Difficulty ---------- */
+
+  /** Push the current level's settings to the page and the scene. */
+  function applyLevel() {
+    const level = currentLevel();
+    dom.app.dataset.subtle = String(level.subtle);
+    if (scene) scene.setAgitation(level.agitation);
+    renderLevel();
+  }
+
+  /**
+   * Update streaks after a round and move between levels.
+   * Returns 'up', 'down' or null.
+   */
+  function registerOutcome(passed) {
+    let change = null;
+    if (passed) {
+      session.fails = 0;
+      session.streak += 1;
+      if (session.streak >= CONFIG.levelUpStreak && session.level < LEVELS.length) {
+        session.level += 1;
+        session.streak = 0;
+        session.peakLevel = Math.max(session.peakLevel, session.level);
+        change = 'up';
+      }
+      session.streak = Math.min(session.streak, CONFIG.levelUpStreak); // at max level the pips stay full
+    } else {
+      session.streak = 0;
+      session.fails += 1;
+      if (session.fails >= CONFIG.levelDownStreak && session.level > 1) {
+        session.level -= 1;
+        session.fails = 0;
+        change = 'down';
+      }
+    }
+    applyLevel();
+    if (change === 'up') {
+      dom.levelCard.classList.remove('is-levelup');
+      void dom.levelCard.offsetWidth; // restart the CSS animation
+      dom.levelCard.classList.add('is-levelup');
+    }
+    return change;
+  }
+
+  function levelChangeCopy(change) {
+    const level = currentLevel();
+    if (change === 'up') {
+      return {
+        eyebrow: `Level up · ${session.level}: ${level.name}`,
+        note: level.brief,
+      };
+    }
+    if (change === 'down') {
+      return {
+        eyebrow: `Back to level ${session.level}: ${level.name}`,
+        note: `${CONFIG.levelDownStreak} misses in a row. Settle in and build a new streak.`,
+      };
+    }
+    return null;
+  }
+
+  /* ---------- Decoys: a blue cube that flashes during the wait ---------- */
+  function scheduleDecoy(stimulusDelay) {
+    const level = currentLevel();
+    // Leave room for the decoy to finish at least 250 ms before the real signal.
+    const earliest = 600;
+    const latest = stimulusDelay - CONFIG.decoyDurationMs - 250;
+    if (level.decoy <= 0 || latest <= earliest || random01() >= level.decoy) return;
+    game.decoyTimer = window.setTimeout(showDecoy, earliest + random01() * (latest - earliest));
+  }
+
+  function showDecoy() {
+    game.decoyTimer = null;
+    if (game.state !== STATE.WAITING) return;
+    game.decoyActive = true;
+    game.lastDecoyAt = performance.now();
+    dom.app.dataset.decoy = 'true';
+    if (scene) scene.setMode('decoy', { instant: true });
+    game.decoyEndTimer = window.setTimeout(hideDecoy, CONFIG.decoyDurationMs);
+  }
+
+  function hideDecoy() {
+    game.decoyEndTimer = null;
+    game.decoyActive = false;
+    delete dom.app.dataset.decoy;
+    if (game.state === STATE.WAITING && scene) scene.setMode('waiting');
   }
 
   function announce(text) {
@@ -532,9 +678,12 @@
 
   function setState(next, copy = {}) {
     game.state = next;
-    const view = { ...VIEW[next], ...copy };
+    // On subtle levels the text keeps saying "wait": only the shape signals go.
+    const base = next === STATE.GO && currentLevel().subtle ? VIEW.waiting : VIEW[next];
+    const view = { ...base, ...copy };
 
     dom.app.dataset.state = next;
+    delete dom.app.dataset.decoy;
     dom.stateLabel.textContent = view.pill;
     dom.eyebrow.textContent = view.eyebrow || '';
     dom.headline.textContent = view.headline || '';
@@ -575,13 +724,16 @@
   function beginRound() {
     clearTimers();
     session.rounds += 1;
+    game.lastDecoyAt = 0;
     setState(STATE.WAITING);
+    const delay = randomDelay();
     game.delayTimer = window.setTimeout(() => {
       game.delayTimer = null;
       // Don't touch the DOM or scene here: the render loop shows the stimulus on
       // its next frame so the canvas and the page change together.
       game.pendingStimulus = true;
-    }, randomDelay());
+    }, delay);
+    scheduleDecoy(delay);
   }
 
   /** Called from the render loop on the frame that shows the stimulus. */
@@ -597,20 +749,42 @@
     game.timeoutTimer = window.setTimeout(onMissed, CONFIG.timeoutMs);
   }
 
+  /** Append a level-change message to a state's copy, if the level moved. */
+  function withLevelChange(copy, change) {
+    const lc = levelChangeCopy(change);
+    if (!lc) return copy;
+    return { ...copy, eyebrow: lc.eyebrow, sub: `${copy.sub || ''} <strong>${lc.note}</strong>`.trim() };
+  }
+
   function falseStart(reactionMs) {
+    const byDecoy = game.decoyActive ||
+      (game.lastDecoyAt > 0 && performance.now() - game.lastDecoyAt < CONFIG.decoyBlameMs);
     clearTimers();
     session.falseStarts += 1;
     const anticipated = typeof reactionMs === 'number';
-    setState(STATE.FALSE_START, anticipated ? {
-      eyebrow: 'Anticipated',
-      headline: `${fmt(Math.max(0, reactionMs))} ms is a guess`,
-      sub: `Visual reactions under ${CONFIG.anticipationMs} ms aren’t physiologically possible, so this one counts as a false start.`,
-    } : {
-      headline: 'Too soon!',
-      sub: 'You reacted before the shape turned green. False starts aren’t averaged, but they are counted.',
-    });
+    let copy;
+    if (anticipated) {
+      copy = {
+        eyebrow: 'Anticipated',
+        headline: `${fmt(Math.max(0, reactionMs))} ms is a guess`,
+        sub: `Visual reactions under ${CONFIG.anticipationMs} ms aren’t physiologically possible, so this one counts as a false start.`,
+      };
+    } else if (byDecoy) {
+      copy = {
+        eyebrow: 'Decoy',
+        headline: 'That was a decoy',
+        sub: 'The blue cube is a fake-out. Only react when the shape turns green.',
+      };
+    } else {
+      copy = {
+        headline: 'Too soon!',
+        sub: 'You reacted before the shape turned green. False starts aren’t averaged, but they are counted.',
+      };
+    }
+    const change = registerOutcome(false);
+    setState(STATE.FALSE_START, withLevelChange(copy, change));
     renderStats();
-    announce(anticipated ? 'Anticipated. Counted as a false start.' : 'Too soon. False start.');
+    announce(`${copy.headline}. False start.${change === 'down' ? ` Back to level ${session.level}.` : ''}`);
   }
 
   function onMissed() {
@@ -618,9 +792,10 @@
     if (game.state !== STATE.GO) return;
     clearTimers();
     session.missed += 1;
-    setState(STATE.MISSED);
+    const change = registerOutcome(false);
+    setState(STATE.MISSED, withLevelChange({ sub: VIEW.missed.sub }, change));
     renderStats();
-    announce('Too slow. Round not counted.');
+    announce(`Too slow. Round not counted.${change === 'down' ? ` Back to level ${session.level}.` : ''}`);
   }
 
   function recordResult(ms) {
@@ -631,7 +806,7 @@
 
     let sub;
     if (prev.n === 0) {
-      sub = 'First valid attempt of the session. Keep going to build an average.';
+      sub = 'First valid attempt of the session.';
     } else if (ms < prev.best) {
       sub = `<strong>New session best</strong>, ${fmt(prev.best - ms)} ms faster than your previous record.`;
     } else {
@@ -639,9 +814,25 @@
       sub = `<strong>${fmt(Math.abs(delta))} ms ${delta <= 0 ? 'faster' : 'slower'}</strong> than your average of ${fmt(prev.mean)} ms.`;
     }
 
-    setState(STATE.RESULT, { eyebrow: rate(ms), headline: '', readout: ms, sub });
+    // Every valid time goes into the stats; the level target only decides the streak.
+    const target = currentLevel().target;
+    const passed = ms <= target;
+    const change = registerOutcome(passed);
+    let eyebrow = rate(ms);
+    if (passed && !change) {
+      sub += session.level === LEVELS.length
+        ? ' Top level, holding strong.'
+        : ` Streak ${session.streak}/${CONFIG.levelUpStreak}.`;
+    } else if (!passed) {
+      eyebrow = `Over the ${target} ms target`;
+      sub += ' The streak resets.';
+    }
+
+    setState(STATE.RESULT, withLevelChange({ eyebrow, headline: '', readout: ms, sub }, change));
     renderStats(now);
-    announce(`${fmt(ms)} milliseconds. ${rate(ms)}.`);
+    const levelNote = change === 'up' ? ` Level up, now level ${session.level}.`
+      : change === 'down' ? ` Back to level ${session.level}.` : '';
+    announce(`${fmt(ms)} milliseconds. ${eyebrow}.${levelNote}`);
   }
 
   function resetSession() {
@@ -651,6 +842,11 @@
     session.falseStarts = 0;
     session.missed = 0;
     session.rounds = 0;
+    session.level = 1;
+    session.peakLevel = 1;
+    session.streak = 0;
+    session.fails = 0;
+    applyLevel();
     setState(STATE.IDLE, { eyebrow: 'Session cleared', headline: 'Test your reflexes' });
     renderStats();
     announce('Session cleared.');
@@ -690,7 +886,34 @@
     dom.startBtn.classList.toggle('is-running', game.running);
     const hasData = session.rounds > 0 || session.times.length > 0;
     dom.resetBtn.disabled = !hasData;
-    dom.roundCount.textContent = session.rounds ? `Round ${session.rounds}` : '';
+    dom.roundCount.textContent = `Level ${session.level}${session.rounds ? ` · Round ${session.rounds}` : ''}`;
+  }
+
+  function renderLevel() {
+    const level = currentLevel();
+    dom.levelNum.textContent = String(session.level);
+    dom.levelName.textContent = level.name;
+    dom.levelOf.textContent = `${session.level} of ${LEVELS.length}`;
+    dom.levelBrief.textContent = level.brief;
+    dom.levelTarget.textContent = `≤ ${level.target} ms`;
+
+    if (dom.levelTrack.children.length !== LEVELS.length) {
+      dom.levelTrack.replaceChildren(...LEVELS.map(() => document.createElement('span')));
+    }
+    Array.from(dom.levelTrack.children).forEach((seg, i) => {
+      seg.classList.toggle('is-done', i + 1 < session.level);
+      seg.classList.toggle('is-current', i + 1 === session.level);
+    });
+
+    if (dom.levelPips.children.length !== CONFIG.levelUpStreak) {
+      dom.levelPips.replaceChildren(
+        ...Array.from({ length: CONFIG.levelUpStreak }, () => document.createElement('i')));
+    }
+    Array.from(dom.levelPips.children).forEach((pip, i) => {
+      pip.classList.toggle('is-on', i < session.streak);
+    });
+    dom.levelPips.setAttribute('aria-label', `Streak ${session.streak} of ${CONFIG.levelUpStreak}`);
+    renderControls();
   }
 
   function msMarkup(ms) {
@@ -717,6 +940,7 @@
     dom.statFalse.textContent = String(session.falseStarts);
     dom.statFalse.classList.toggle('has-errors', session.falseStarts > 0);
     dom.statMissed.textContent = String(session.missed);
+    dom.statPeak.textContent = String(session.peakLevel);
     renderChart(summary);
     renderControls();
   }
@@ -940,6 +1164,7 @@
       enterFlatMode(err && err.message ? err.message : 'WebGL could not start');
     }
 
+    applyLevel();
     setState(STATE.IDLE);
     renderStats();
     renderClockResolution();
