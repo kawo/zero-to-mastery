@@ -8,7 +8,8 @@
  * Both receive a context object:
  *   stats    the player's lifetime stats (see storage.js)
  *   session  { times, cleanRun, falseStreak } for the current page view
- *   last     the round that just ended: { type: 'result' | 'false' | 'missed', ms, level, passed }
+ *   last     what just happened: a round { type: 'result' | 'false' | 'missed', ms, level, passed }
+ *            or a finished tournament { type: 'tournament', won, players }
  *
  * Exposed as window.ReflexLabAchievements.
  */
@@ -61,6 +62,12 @@
     { id: 'dedicated', kind: 'volume', title: 'Dedicated',
       desc: '250 valid reactions in total.',
       progress: (c) => [c.stats.attempts, 250] },
+    { id: 'champion', kind: 'level', title: 'Champion',
+      desc: 'Win a tournament.',
+      test: (c) => c.stats.tournamentsWon >= 1 },
+    { id: 'party', kind: 'fun', title: 'Party Host',
+      desc: 'Finish a tournament with 4 or more players.',
+      test: (c) => !!c.last && c.last.type === 'tournament' && c.last.players >= 4 },
     { id: 'jumpy', kind: 'fun', title: 'Jumpy',
       desc: 'Three false starts in a row. It happens to everyone.',
       test: (c) => c.session.falseStreak >= 3 },

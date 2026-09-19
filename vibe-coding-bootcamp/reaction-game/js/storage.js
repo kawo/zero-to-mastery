@@ -57,6 +57,8 @@
       peakLevel: 1,
       decoysDodged: 0,
       longestClean: 0,    // most rounds in a row without a false start or miss
+      tournamentsPlayed: 0,
+      tournamentsWon: 0,
     };
   }
 
@@ -110,6 +112,8 @@
         peakLevel: Math.max(1, count(s.peakLevel)),
         decoysDodged: count(s.decoysDodged),
         longestClean: count(s.longestClean),
+        tournamentsPlayed: count(s.tournamentsPlayed),
+        tournamentsWon: count(s.tournamentsWon),
       },
       achievements,
       top,

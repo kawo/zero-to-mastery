@@ -483,6 +483,13 @@
     newProfileBtn: $('newProfileBtn'), deleteProfileBtn: $('deleteProfileBtn'), storageNote: $('storageNote'),
     recordsGrid: $('recordsGrid'), boardEmpty: $('boardEmpty'), boardWrap: $('boardWrap'), boardBody: $('boardBody'),
     achList: $('achList'),
+    tourneyBtn: $('tourneyBtn'), tourneyCard: $('tourneyCard'), tourneyMeta: $('tourneyMeta'), tourneyList: $('tourneyList'),
+    penaltyNote: $('penaltyNote'),
+    tourneyDialog: $('tourneyDialog'), tourneyForm: $('tourneyForm'), tourneyClose: $('tourneyClose'), tourneyCancel: $('tourneyCancel'),
+    playerPicks: $('playerPicks'), newPlayerName: $('newPlayerName'), addPlayerBtn: $('addPlayerBtn'),
+    tourneyError: $('tourneyError'), roundsPick: $('roundsPick'), tourneyLevel: $('tourneyLevel'), tourneyRules: $('tourneyRules'),
+    resultsDialog: $('resultsDialog'), winnerAvatar: $('winnerAvatar'), resultsTitle: $('resultsTitle'), resultsSub: $('resultsSub'),
+    resultsBody: $('resultsBody'), resultsDone: $('resultsDone'), rematchBtn: $('rematchBtn'),
   };
   const HINT_DEFAULT = dom.hint.innerHTML;
 
@@ -509,6 +516,21 @@
   // Saved profiles (see storage.js). `saved.state` is the document written to disk.
   const saved = { state: null, persistent: false, saveFailed: false };
   const activeProfile = () => saved.state.profiles[saved.state.activeId];
+
+  // Hot-seat tournament. Phases: 'handoff' (waiting for the next player to
+  // start), 'playing', 'turnDone' (last result of a turn on screen), 'finished'.
+  const tournament = {
+    active: false,
+    players: [],     // profile ids, in turn order
+    rounds: CONFIG.tournamentDefaultRounds,
+    level: 1,
+    turn: 0,
+    roundInTurn: 0,
+    phase: 'handoff',
+    results: {},     // profile id → { times: [], fouls: 0 }
+    returnTo: null,  // solo profile to restore afterwards
+    lastSetup: null, // for rematches and to pre-fill the setup form
+  };
 
   const game = {
     state: STATE.IDLE,
@@ -564,6 +586,7 @@
    * Returns 'up', 'down' or null.
    */
   function registerOutcome(passed) {
+    if (tournament.active) return null; // the level is fixed for everyone in a tournament
     let change = null;
     if (passed) {
       session.fails = 0;
@@ -778,6 +801,7 @@
     setState(STATE.FALSE_START, withLevelChange(copy, change));
     renderStats();
     afterRound({ type: 'false', level: roundLevel });
+    tournamentAfterRound({ type: 'false' });
     announce(`${copy.headline}. False start.${change === 'down' ? ` Back to level ${session.level}.` : ''}`);
   }
 
@@ -792,6 +816,7 @@
     setState(STATE.MISSED, withLevelChange({ sub: VIEW.missed.sub }, change));
     renderStats();
     afterRound({ type: 'missed', level: roundLevel });
+    tournamentAfterRound({ type: 'missed' });
     announce(`Too slow. Round not counted.${change === 'down' ? ` Back to level ${session.level}.` : ''}`);
   }
 
@@ -825,7 +850,9 @@
     Sound.play(isRecord ? 'record' : 'hit', { quality: (450 - ms) / 250 });
     const change = registerOutcome(passed);
     let eyebrow = rate(ms);
-    if (passed && !change) {
+    if (tournament.active) {
+      // No level progression in tournaments: everyone plays the same level.
+    } else if (passed && !change) {
       sub += session.level === LEVELS.length
         ? ' Top level, holding strong.'
         : ` Streak ${session.streak}/${CONFIG.levelUpStreak}.`;
@@ -837,6 +864,7 @@
     setState(STATE.RESULT, withLevelChange({ eyebrow, headline: '', readout: ms, sub }, change));
     renderStats(now);
     afterRound({ type: 'result', ms, level: roundLevel, passed });
+    tournamentAfterRound({ type: 'result', ms });
     const levelNote = change === 'up' ? ` Level up, now level ${session.level}.`
       : change === 'down' ? ` Back to level ${session.level}.` : '';
     announce(`${fmt(ms)} milliseconds. ${eyebrow}.${levelNote}`);
@@ -925,9 +953,10 @@
     const profile = activeProfile();
     const unlocked = Achievements.evaluate(profile.achievements, achievementContext(last));
     const at = new Date().toISOString();
+    const owner = tournament.active ? profile.name : null;
     unlocked.forEach((a, i) => {
       profile.achievements[a.id] = at;
-      window.setTimeout(() => showToast(a), i * 450); // stagger several unlocks
+      window.setTimeout(() => showToast(a, owner), i * 450); // stagger several unlocks
     });
     if (unlocked.length) {
       announce(`Achievement unlocked: ${unlocked.map((a) => a.title).join(', ')}.`);
@@ -947,11 +976,13 @@
     return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[kind] || ICONS.fun}</svg>`;
   }
 
-  function showToast(achievement) {
+  function showToast(achievement, owner) {
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.innerHTML = `<span class="ach-icon">${iconSvg(achievement.kind)}</span>
       <div><p class="toast-kicker">Achievement unlocked</p><p class="toast-title"></p><p class="toast-desc"></p></div>`;
+    // In a tournament several people share the screen, so say whose it is.
+    if (owner) toast.querySelector('.toast-kicker').textContent = `Achievement unlocked · ${owner}`;
     toast.querySelector('.toast-title').textContent = achievement.title;
     toast.querySelector('.toast-desc').textContent = achievement.desc;
     dom.toasts.appendChild(toast);
@@ -1042,6 +1073,7 @@
       statTile('Sessions', String(s.sessions)),
       statTile('False starts', String(s.falseStarts), s.missed ? `${s.missed} missed` : ''),
       statTile('Decoys dodged', String(s.decoysDodged)),
+      statTile('Tournaments', String(s.tournamentsPlayed), s.tournamentsPlayed ? `${s.tournamentsWon} won` : ''),
     );
 
     // Player switcher
@@ -1054,12 +1086,17 @@
       opt.selected = pr.id === p.id;
       return opt;
     }));
-    dom.newProfileBtn.disabled = profiles.length >= Storage.MAX_PROFILES;
-    dom.newProfileBtn.title = dom.newProfileBtn.disabled ? `Up to ${Storage.MAX_PROFILES} players per device` : '';
+    // Rounds are credited to the active player, so switching is locked mid-tournament.
+    const locked = tournament.active;
+    dom.profileSelect.disabled = locked;
+    dom.newProfileBtn.disabled = locked || profiles.length >= Storage.MAX_PROFILES;
+    dom.newProfileBtn.title = profiles.length >= Storage.MAX_PROFILES ? `Up to ${Storage.MAX_PROFILES} players per device` : '';
+    dom.deleteProfileBtn.disabled = locked;
     resetDeleteButton();
-    dom.storageNote.textContent = saved.persistent
+    dom.storageNote.textContent = (saved.persistent
       ? 'Profiles, records and achievements are saved in this browser only. Clearing site data removes them.'
-      : 'This browser is blocking storage, so nothing will be kept after you close the page.';
+      : 'This browser is blocking storage, so nothing will be kept after you close the page.') +
+      (locked ? ' Switching players is locked during a tournament.' : '');
 
     // Records
     dom.recordsGrid.replaceChildren(
@@ -1251,8 +1288,390 @@
 
     // Another tab saved progress: pick it up, unless a round is being timed here.
     Storage.onExternalChange(() => {
-      if (game.state === STATE.WAITING || game.state === STATE.GO) return;
+      // Not mid-round, and not mid-tournament (players could disappear under us).
+      if (game.state === STATE.WAITING || game.state === STATE.GO || tournament.active) return;
       reloadFromStorage();
+    });
+  }
+
+  /* ======================================================================
+   * Tournament (hot-seat: players take turns on this device)
+   * ==================================================================== */
+  const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (ch) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+  /** Start button / first tap: begins a solo session or the current tournament turn. */
+  function startPlay() {
+    if (tournament.active) {
+      if (tournament.phase === 'turnDone') { advanceTurn(); return; }
+      if (tournament.phase === 'finished') return;
+      tournament.phase = 'playing';
+    }
+    startSession();
+  }
+
+  /** Score: average of valid times plus a penalty per foul. Null without a valid time. */
+  function tournamentScore(r) {
+    if (!r.times.length) return null;
+    const avg = r.times.reduce((a, b) => a + b, 0) / r.times.length;
+    return avg + r.fouls * CONFIG.tournamentPenaltyMs;
+  }
+
+  function computeStandings() {
+    return tournament.players.map((id) => {
+      const r = tournament.results[id];
+      const p = saved.state.profiles[id];
+      const n = r.times.length;
+      return {
+        id,
+        name: p ? p.name : 'Deleted player',
+        color: p ? p.color : Storage.PROFILE_COLORS[4],
+        score: tournamentScore(r),
+        avg: n ? r.times.reduce((a, b) => a + b, 0) / n : null,
+        best: n ? Math.min(...r.times) : null,
+        fouls: r.fouls,
+        played: n + r.fouls,
+      };
+    }).sort((a, b) => {
+      // No valid time ranks last; ties go to the best single time, then fewer fouls.
+      if (a.score === null || b.score === null) return (a.score === null) - (b.score === null);
+      return a.score - b.score || a.best - b.best || a.fouls - b.fouls;
+    });
+  }
+
+  function startTournament(setup) {
+    clearTimers();
+    game.running = false;
+    Object.assign(tournament, {
+      active: true,
+      players: setup.players.slice(),
+      rounds: setup.rounds,
+      level: setup.level,
+      turn: 0,
+      roundInTurn: 0,
+      phase: 'handoff',
+      results: Object.fromEntries(setup.players.map((id) => [id, { times: [], fouls: 0 }])),
+      returnTo: tournament.active ? tournament.returnTo : saved.state.activeId,
+      lastSetup: { ...setup, players: setup.players.slice() },
+    });
+    dom.tourneyCard.hidden = false;
+    dom.levelCard.hidden = true;
+    prepareTurn();
+  }
+
+  /** Hand-over screen for the player whose turn it is. */
+  function prepareTurn() {
+    tournament.phase = 'handoff';
+    tournament.roundInTurn = 0;
+    saved.state.activeId = tournament.players[tournament.turn];
+    persist();
+
+    // Each turn gets a clean slate, so the panel shows only this player's rounds.
+    session.times.length = 0;
+    Object.assign(session, {
+      falseStarts: 0, missed: 0, rounds: 0, streak: 0, fails: 0, cleanRun: 0, falseStreak: 0,
+      level: tournament.level,
+      peakLevel: 1, // levels are chosen, not reached, in a tournament
+    });
+    applyLevel();
+    renderStats();
+    renderProfileChip();
+    renderTournament();
+
+    const p = activeProfile();
+    const level = LEVELS[tournament.level - 1];
+    setState(STATE.IDLE, {
+      eyebrow: `Tournament · player ${tournament.turn + 1} of ${tournament.players.length}`,
+      headline: `${p.name}, you’re up`,
+      sub: `${tournament.rounds} rounds on level ${tournament.level} (${escapeHtml(level.name)}). ` +
+        'Hand over the device, then press Space, click or tap when ready.',
+      hint: '<kbd>Space</kbd>, click or tap to start your turn',
+    });
+    announce(`${p.name}, you’re up. ${tournament.rounds} rounds.`);
+  }
+
+  /** Called after every round outcome; ends the turn once all rounds are played. */
+  function tournamentAfterRound(last) {
+    if (!tournament.active) return;
+    const r = tournament.results[saved.state.activeId];
+    if (!r) return;
+    if (last.type === 'result') r.times.push(last.ms);
+    else r.fouls += 1;
+    tournament.roundInTurn += 1;
+
+    if (tournament.roundInTurn >= tournament.rounds) {
+      tournament.phase = 'turnDone';
+      game.running = false;
+      const next = tournament.players[tournament.turn + 1];
+      const nextName = next && saved.state.profiles[next] ? saved.state.profiles[next].name : null;
+      const note = nextName
+        ? ` <strong>Turn complete.</strong> Next up: ${escapeHtml(nextName)}.`
+        : ' <strong>That was the last turn.</strong> Continue to see the results.';
+      dom.subline.innerHTML += note;
+      dom.subline.hidden = false;
+      dom.hint.innerHTML = '<kbd>Space</kbd>, click or tap to continue';
+      announce(nextName ? `Turn complete. Next up: ${nextName}.` : 'Last turn complete.');
+    }
+    renderControls();
+    renderTournament();
+  }
+
+  function advanceTurn() {
+    tournament.turn += 1;
+    if (tournament.turn >= tournament.players.length) finishTournament();
+    else prepareTurn();
+  }
+
+  function finishTournament() {
+    tournament.phase = 'finished';
+    const standings = computeStandings();
+    const winner = standings[0] && standings[0].score !== null ? standings[0] : null;
+
+    // Credit every player's profile, then check their achievements.
+    const stamp = new Date().toISOString();
+    let delay = 0;
+    for (const row of standings) {
+      const p = saved.state.profiles[row.id];
+      if (!p) continue;
+      p.stats.tournamentsPlayed += 1;
+      if (winner && row.id === winner.id) p.stats.tournamentsWon += 1;
+      const ctx = {
+        stats: p.stats,
+        session: { times: [], cleanRun: 0, falseStreak: 0 },
+        last: { type: 'tournament', won: !!winner && row.id === winner.id, players: standings.length },
+      };
+      for (const a of Achievements.evaluate(p.achievements, ctx)) {
+        p.achievements[a.id] = stamp;
+        window.setTimeout(() => showToast(a, p.name), delay);
+        delay += 450;
+      }
+    }
+    persist();
+    renderTournament();
+    renderControls();
+    openResults(standings, winner);
+  }
+
+  /** Leave tournament mode and go back to the solo player. */
+  function endTournament(message) {
+    clearTimers();
+    game.running = false;
+    const back = tournament.returnTo;
+    tournament.active = false;
+    tournament.phase = 'handoff';
+    if (back && saved.state.profiles[back]) saved.state.activeId = back;
+    persist();
+    dom.tourneyCard.hidden = true;
+    dom.levelCard.hidden = false;
+    resetTourneyButton();
+    resetSession({ eyebrow: message || 'Tournament ended', headline: 'Back to solo' });
+    renderProfileChip();
+  }
+
+  function renderTournament() {
+    if (!tournament.active) return;
+    dom.tourneyMeta.textContent = `Level ${tournament.level} · ${tournament.rounds} rounds each`;
+    dom.penaltyNote.textContent = String(CONFIG.tournamentPenaltyMs);
+    dom.tourneyList.replaceChildren(...tournament.players.map((id, i) => {
+      const p = saved.state.profiles[id];
+      const r = tournament.results[id];
+      const played = r.times.length + r.fouls;
+      const score = tournamentScore(r);
+      const li = document.createElement('li');
+      if (i === tournament.turn && tournament.phase !== 'finished') li.className = 'is-current';
+      else if (i > tournament.turn) li.className = 'is-waiting';
+      li.innerHTML = '<span class="avatar" aria-hidden="true"></span><span class="t-name"></span><span class="t-score"></span>';
+      if (p) paintAvatar(li.querySelector('.avatar'), p);
+      const nameEl = li.querySelector('.t-name');
+      nameEl.textContent = p ? p.name : 'Deleted player';
+      const progress = document.createElement('span');
+      progress.className = 't-progress';
+      progress.textContent = i < tournament.turn || (i === tournament.turn && tournament.phase !== 'handoff' && played >= tournament.rounds)
+        ? `Done · ${r.fouls} foul${r.fouls === 1 ? '' : 's'}`
+        : i === tournament.turn ? `Playing · ${played}/${tournament.rounds}` : 'Waiting';
+      nameEl.appendChild(progress);
+      li.querySelector('.t-score').innerHTML = score === null
+        ? '—'
+        : `${fmt(score)}<small>score, ms</small>`;
+      return li;
+    }));
+  }
+
+  /* ---------- Setup dialog ---------- */
+  function openTourneySetup() {
+    if (game.running) {
+      stopSession({
+        eyebrow: 'Paused', headline: 'Paused',
+        sub: 'Set up the tournament, or cancel to keep playing solo.',
+      });
+    }
+    const defaults = tournament.lastSetup || {
+      players: [saved.state.activeId], rounds: CONFIG.tournamentDefaultRounds, level: 1,
+    };
+    renderSetup(new Set(defaults.players));
+
+    dom.roundsPick.replaceChildren(...CONFIG.tournamentRoundOptions.map((n) => {
+      const label = document.createElement('label');
+      label.innerHTML = `<input type="radio" name="tourneyRounds" value="${n}" id="tourneyRounds${n}"><span>${n}</span>`;
+      label.querySelector('input').checked = n === defaults.rounds;
+      return label;
+    }));
+    dom.tourneyLevel.replaceChildren(...LEVELS.map((lvl, i) => {
+      const opt = document.createElement('option');
+      opt.value = String(i + 1);
+      opt.textContent = `${i + 1} · ${lvl.name} (target ${lvl.target} ms)`;
+      opt.selected = i + 1 === defaults.level;
+      return opt;
+    }));
+    dom.tourneyRules.textContent =
+      `Score = average of valid times + ${CONFIG.tournamentPenaltyMs} ms for each false start or miss. ` +
+      'Ties go to the best single time. Every round also counts toward each player’s profile and achievements.';
+    dom.tourneyError.hidden = true;
+    dom.newPlayerName.value = '';
+    dom.tourneyDialog.showModal();
+  }
+
+  function renderSetup(checked) {
+    const profiles = Object.values(saved.state.profiles)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    dom.playerPicks.replaceChildren(...profiles.map((p) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<label><input type="checkbox" name="tourneyPlayer" id="pick-${p.id}"><span class="avatar" aria-hidden="true"></span><span class="p-name"></span><span class="p-best"></span></label>`;
+      const input = li.querySelector('input');
+      input.value = p.id;
+      input.checked = checked.has(p.id);
+      paintAvatar(li.querySelector('.avatar'), p);
+      li.querySelector('.p-name').textContent = p.name;
+      li.querySelector('.p-best').textContent = p.stats.bestMs !== null ? `best ${fmt(p.stats.bestMs)} ms` : 'new';
+      return li;
+    }));
+    const full = profiles.length >= Storage.MAX_PROFILES;
+    dom.addPlayerBtn.disabled = full;
+    dom.newPlayerName.disabled = full;
+    dom.newPlayerName.placeholder = full ? `Device full (${Storage.MAX_PROFILES} players)` : 'Add a player';
+  }
+
+  function checkedPlayers() {
+    return Array.from(dom.playerPicks.querySelectorAll('input:checked')).map((i) => i.value)
+      .filter((id) => saved.state.profiles[id]);
+  }
+
+  function setupError(message) {
+    dom.tourneyError.textContent = message;
+    dom.tourneyError.hidden = !message;
+  }
+
+  function addPlayerFromSetup() {
+    const name = Storage.cleanName(dom.newPlayerName.value);
+    if (!name) { setupError('Type a name first (1 to 20 characters).'); dom.newPlayerName.focus(); return; }
+    const all = Object.values(saved.state.profiles);
+    if (all.length >= Storage.MAX_PROFILES) { setupError(`This device already has ${Storage.MAX_PROFILES} players.`); return; }
+    if (all.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+      setupError(`“${name}” already exists. Tick them in the list instead.`);
+      return;
+    }
+    const used = new Set(all.map((p) => p.color));
+    const color = Storage.PROFILE_COLORS.find((c) => !used.has(c)) || Storage.PROFILE_COLORS[all.length % Storage.PROFILE_COLORS.length];
+    const profile = Storage.createProfile(name, color);
+    saved.state.profiles[profile.id] = profile;
+    persist();
+    renderSetup(new Set([...checkedPlayers(), profile.id]));
+    setupError('');
+    dom.newPlayerName.value = '';
+    dom.newPlayerName.focus();
+    announce(`${name} added.`);
+  }
+
+  function submitSetup(event) {
+    event.preventDefault();
+    const players = checkedPlayers();
+    if (players.length < CONFIG.tournamentMinPlayers) {
+      setupError(`Pick at least ${CONFIG.tournamentMinPlayers} players.`);
+      return;
+    }
+    const roundsInput = dom.roundsPick.querySelector('input:checked');
+    const rounds = roundsInput ? Number(roundsInput.value) : CONFIG.tournamentDefaultRounds;
+    const level = Math.min(LEVELS.length, Math.max(1, Number(dom.tourneyLevel.value) || 1));
+    dom.tourneyDialog.close();
+    Sound.play('levelUp');
+    startTournament({ players, rounds, level });
+  }
+
+  /* ---------- Results dialog ---------- */
+  let rematchRequested = false;
+
+  function openResults(standings, winner) {
+    if (winner) {
+      paintAvatar(dom.winnerAvatar, winner);
+      dom.winnerAvatar.hidden = false;
+      dom.resultsTitle.textContent = `${winner.name} wins!`;
+    } else {
+      dom.winnerAvatar.hidden = true;
+      dom.resultsTitle.textContent = 'No winner this time';
+    }
+    dom.resultsSub.textContent =
+      `${tournament.rounds} rounds each on level ${tournament.level} (${LEVELS[tournament.level - 1].name}). ` +
+      `Score = average + ${CONFIG.tournamentPenaltyMs} ms per foul.`;
+    dom.resultsBody.replaceChildren(...standings.map((row, i) => {
+      const tr = document.createElement('tr');
+      if (winner && row.id === winner.id) tr.className = 'is-winner';
+      const cell = (v) => (v === null ? '—' : `${fmt(v)} ms`);
+      tr.innerHTML = `<td class="rank">${i + 1}</td><td><span class="who"><span class="avatar" aria-hidden="true"></span><span class="who-name"></span></span></td>` +
+        `<td class="num time">${cell(row.score)}</td><td class="num">${cell(row.avg)}</td><td class="num">${cell(row.best)}</td><td class="num">${row.fouls}</td>`;
+      paintAvatar(tr.querySelector('.avatar'), row);
+      tr.querySelector('.who-name').textContent = row.name;
+      return tr;
+    }));
+    Sound.play(winner ? 'record' : 'missed', { delay: 0.1 });
+    announce(winner ? `${winner.name} wins the tournament.` : 'Tournament over. Nobody set a valid time.');
+    rematchRequested = false;
+    dom.resultsDialog.showModal();
+    dom.rematchBtn.focus();
+  }
+
+  let tourneyConfirmTimer = null;
+  function resetTourneyButton() {
+    window.clearTimeout(tourneyConfirmTimer);
+    dom.tourneyBtn.classList.remove('is-confirming');
+    dom.tourneyBtn.textContent = tournament.active ? 'End tournament' : 'Tournament';
+  }
+
+  function bindTournamentEvents() {
+    dom.tourneyBtn.addEventListener('click', () => {
+      if (!tournament.active) { openTourneySetup(); return; }
+      // Ending early throws away the standings, so ask for a second press.
+      if (!dom.tourneyBtn.classList.contains('is-confirming')) {
+        if (game.running) stopSession({ eyebrow: 'Paused', headline: 'Paused', sub: 'Press End tournament again to stop, or Resume turn to carry on.' });
+        dom.tourneyBtn.classList.add('is-confirming');
+        dom.tourneyBtn.textContent = 'End tournament? Press again';
+        tourneyConfirmTimer = window.setTimeout(resetTourneyButton, 4000);
+        return;
+      }
+      endTournament('Tournament ended early');
+    });
+
+    dom.tourneyForm.addEventListener('submit', submitSetup);
+    dom.tourneyClose.addEventListener('click', () => dom.tourneyDialog.close());
+    dom.tourneyCancel.addEventListener('click', () => dom.tourneyDialog.close());
+    dom.tourneyDialog.addEventListener('click', (e) => { if (e.target === dom.tourneyDialog) dom.tourneyDialog.close(); });
+    dom.addPlayerBtn.addEventListener('click', addPlayerFromSetup);
+    dom.newPlayerName.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); addPlayerFromSetup(); } // add, don't submit
+    });
+    dom.playerPicks.addEventListener('change', () => setupError(''));
+
+    dom.rematchBtn.addEventListener('click', () => {
+      rematchRequested = true;
+      dom.resultsDialog.close();
+    });
+    dom.resultsDone.addEventListener('click', () => dom.resultsDialog.close());
+    dom.resultsDialog.addEventListener('close', () => {
+      if (rematchRequested && tournament.lastSetup) {
+        const setup = tournament.lastSetup;
+        startTournament({ ...setup, players: setup.players.filter((id) => saved.state.profiles[id]) });
+      } else {
+        endTournament('Tournament finished');
+      }
     });
   }
 
@@ -1260,7 +1679,7 @@
   function handleReaction(timestamp) {
     switch (game.state) {
       case STATE.IDLE:
-        startSession();
+        startPlay();
         break;
       case STATE.WAITING:
         falseStart();
@@ -1275,7 +1694,7 @@
       case STATE.FALSE_START:
       case STATE.MISSED:
         if (game.running) beginRound();
-        else startSession();
+        else startPlay();
         break;
       default:
         break;
@@ -1286,11 +1705,26 @@
    * Rendering: controls, stats, chart
    * ==================================================================== */
   function renderControls() {
-    dom.startBtn.textContent = game.running ? 'Stop session' : 'Start session';
+    const t = tournament.active;
+    let label;
+    if (game.running) label = t ? 'Pause turn' : 'Stop session';
+    else if (!t) label = 'Start session';
+    else if (tournament.phase === 'turnDone' || tournament.phase === 'finished') {
+      label = tournament.turn + 1 < tournament.players.length ? 'Next player' : 'See results';
+    } else label = tournament.phase === 'handoff' ? 'Start turn' : 'Resume turn';
+    dom.startBtn.textContent = label;
     dom.startBtn.classList.toggle('is-running', game.running);
     const hasData = session.rounds > 0 || session.times.length > 0;
-    dom.resetBtn.disabled = !hasData;
-    dom.roundCount.textContent = `Level ${session.level}${session.rounds ? ` · Round ${session.rounds}` : ''}`;
+    dom.resetBtn.disabled = t || !hasData;
+    if (!dom.tourneyBtn.classList.contains('is-confirming')) {
+      dom.tourneyBtn.textContent = t ? 'End tournament' : 'Tournament';
+    }
+    if (t && saved.state) {
+      const shown = Math.min(tournament.roundInTurn + 1, tournament.rounds);
+      dom.roundCount.textContent = `${activeProfile().name} · Round ${shown}/${tournament.rounds}`;
+    } else {
+      dom.roundCount.textContent = `Level ${session.level}${session.rounds ? ` · Round ${session.rounds}` : ''}`;
+    }
   }
 
   function renderLevel() {
@@ -1500,7 +1934,7 @@
     dom.stage.addEventListener('contextmenu', (e) => e.preventDefault());
 
     document.addEventListener('keydown', (e) => {
-      if (dom.dialog.open) return; // the dialog handles its own keys (Esc closes it)
+      if (document.querySelector('dialog[open]')) return; // dialogs handle their own keys (Esc closes them)
       if (e.key === 'Escape' && game.running) {
         stopSession();
         return;
@@ -1525,7 +1959,7 @@
 
     dom.startBtn.addEventListener('click', () => {
       if (game.running) stopSession();
-      else startSession();
+      else startPlay();
     });
     dom.resetBtn.addEventListener('click', () => {
       resetSession();
@@ -1639,6 +2073,7 @@
     bindEvents();
     bindProfileEvents();
     bindAudioEvents();
+    bindTournamentEvents();
 
     try {
       scene = new ReactionScene(dom.canvas, dom.stage, {

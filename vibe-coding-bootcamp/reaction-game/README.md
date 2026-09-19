@@ -34,6 +34,17 @@ Each level has a target time. Beat it **3 rounds in a row** to level up. **2 fai
 
 The levels are defined in the `LEVELS` table in `js/config.js`.
 
+## Tournament (local multiplayer)
+
+With **Tournament**, 2 to 8 players take turns on the same device ("hot-seat").
+
+1. **Setup:** tick the players in turn order. You can pick existing profiles or add new ones right in the window. Then choose the number of rounds each (3, 5 or 10) and the level (1–6). Everyone plays the same level, with no level-ups during the tournament.
+2. **Turns:** before each turn, a hand-over screen shows who's up ("Alex, you're up"). The device switches to that player's profile. The session stats start fresh for each turn, so they only show that player's rounds. A standings card in the side panel shows everyone's progress and live score.
+3. **Score:** the average of your valid times, plus **100 ms for each false start or miss**. The lowest score wins. A tie goes to the best single time, then to fewer fouls. A player with no valid time ranks last.
+4. **Results:** a ranking with score, average, best time and fouls, plus **Rematch** (same players and settings) or **Back to solo**.
+
+Every round also counts toward the player's own profile: records, leaderboard and achievements. There are two tournament achievements: "Champion" (win a tournament) and "Party Host" (finish a tournament with 4 or more players). Switching players is locked during a tournament. **End tournament** needs a second press to confirm, and it throws away the standings.
+
 ## Sound and music
 
 All the audio is generated with the Web Audio API, so there are no sound files. The controls are in the top bar: sound effects on/off (`S`), music on/off (`M`) and volume. These settings are saved in this browser.
@@ -66,7 +77,7 @@ To open your profile, click your name in the top bar. Opening it pauses the curr
 
 - **Profile:** your display name, avatar colour and lifetime stats: best time, average, peak level, sessions, false starts and decoys dodged. The profile also lists everyone who has played on this device. You can switch player, add a player (up to 8) or delete one (you press the button twice to confirm).
 - **High scores:** your personal best, your best average over 5 reactions in a row and your longest run without a false start or miss. There's also a top-10 leaderboard of every player on this device. A result screen tells you when you set a new personal record.
-- **Achievements:** there are 16 achievements, covering speed, consistency, dodging decoys, levels and volume. Some of them count toward a goal, and those show a progress bar. When you unlock one, a notification pops up.
+- **Achievements:** there are 18 achievements, covering speed, consistency, dodging decoys, levels, volume and tournaments. Some of them count toward a goal, and those show a progress bar. When you unlock one, a notification pops up.
 
 **Reset** clears only the current session's stats. It never touches your profile.
 

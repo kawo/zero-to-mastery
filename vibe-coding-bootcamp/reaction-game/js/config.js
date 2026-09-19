@@ -27,6 +27,10 @@
     levelDownStreak: 2,      // failed rounds in a row to drop a level
     decoyDurationMs: 450,    // how long a decoy flash stays on screen
     decoyBlameMs: 1000,      // a false start this soon after a decoy is blamed on it
+    tournamentPenaltyMs: 100,        // added to a player's score per false start or miss
+    tournamentRoundOptions: [3, 5, 10],
+    tournamentDefaultRounds: 5,
+    tournamentMinPlayers: 2,
   };
 
   const COLORS = {

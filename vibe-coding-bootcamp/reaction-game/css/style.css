@@ -707,6 +707,77 @@ kbd {
 .ach-bar { height: 4px; margin-top: 8px; border-radius: 2px; background: var(--surface-raised); overflow: hidden; }
 .ach-bar span { display: block; height: 100%; background: var(--result); border-radius: inherit; }
 
+/* ---------- Tournament ---------- */
+.btn-wide { grid-column: 1 / -1; }
+.btn-ghost.is-confirming { background: var(--error); color: var(--bg); border-color: var(--error); }
+
+.tourney-card h2 small { font-variant-numeric: tabular-nums; }
+.tourney-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.tourney-list li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.tourney-list li.is-current { border-color: color-mix(in srgb, var(--ready) 55%, transparent); background: color-mix(in srgb, var(--ready) 8%, transparent); }
+.tourney-list li.is-waiting { color: var(--muted); }
+.tourney-list .avatar { width: 26px; height: 26px; font-size: 10px; }
+.tourney-list .t-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.tourney-list .t-progress { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+.tourney-list .t-score { font-weight: 700; text-align: right; }
+.tourney-list .t-score small { display: block; color: var(--muted); font-size: 11px; font-weight: 500; }
+
+.field-set { margin: 0; padding: 0; border: 0; display: grid; gap: 8px; min-width: 0; }
+.player-picks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.player-picks label {
+  display: grid;
+  grid-template-columns: auto 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.player-picks label:hover { border-color: var(--line-strong); }
+.player-picks input { width: 18px; height: 18px; margin: 0; accent-color: var(--ready); }
+.player-picks .avatar { width: 26px; height: 26px; font-size: 10px; }
+.player-picks .p-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.player-picks .p-best { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.player-picks label:has(input:checked) { border-color: color-mix(in srgb, var(--ready) 50%, transparent); }
+
+.setup-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.segmented { display: inline-flex; padding: 3px; gap: 3px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg); }
+.segmented label { position: relative; }
+.segmented input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.segmented span {
+  display: block;
+  min-width: 44px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  text-align: center;
+  color: var(--muted);
+  font: 600 14px var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+.segmented input:checked + span { background: var(--surface-raised); color: var(--text); }
+.segmented input:focus-visible + span { outline: 2px solid color-mix(in srgb, var(--result) 70%, transparent); }
+
+.dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.eyebrow-static {
+  margin: 0 0 2px;
+  color: var(--wait);
+  font: 600 11px var(--font-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.board tr.is-winner td { background: color-mix(in srgb, var(--wait) 10%, transparent); }
+
 /* ---------- Toasts ---------- */
 .toasts {
   position: fixed;

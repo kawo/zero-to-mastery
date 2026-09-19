@@ -81,7 +81,14 @@
       <div class="controls">
         <button type="button" class="btn btn-primary" id="startBtn">Start session</button>
         <button type="button" class="btn btn-ghost" id="resetBtn" disabled>Reset</button>
+        <button type="button" class="btn btn-ghost btn-wide" id="tourneyBtn" aria-haspopup="dialog">Tournament</button>
       </div>
+
+      <section class="card tourney-card" id="tourneyCard" aria-labelledby="tourneyCardTitle" hidden>
+        <h2 id="tourneyCardTitle">Tournament <small id="tourneyMeta"></small></h2>
+        <ol class="tourney-list" id="tourneyList"></ol>
+        <p class="fine-print">Score = average + <span id="penaltyNote">100</span> ms per false start or miss. Lowest wins.</p>
+      </section>
 
       <section class="card level-card" id="levelCard" aria-labelledby="levelTitle">
         <h2 id="levelTitle"><span>Level <span id="levelNum">1</span> · <span id="levelName">Warm-up</span></span> <small id="levelOf">1 of 6</small></h2>
@@ -124,6 +131,7 @@
           <li><span>When it turns <span class="swatch swatch-ready"></span><b>green</b>, click, tap or press <kbd>Space</kbd>.</span></li>
           <li><span>Reacting early, or in under 100 ms, counts as a <span class="swatch swatch-error"></span><b>false start</b> and isn’t averaged.</span></li>
           <li><span>Beat the level’s target <b>3 times in a row</b> to level up. Higher levels add <span class="swatch swatch-decoy"></span><b>blue decoys</b> and drop the text cue. Two misses in a row drops you a level.</span></li>
+          <li><span>Playing with friends? <b>Tournament</b> lets 2–8 players take turns on this device and ranks everyone at the end.</span></li>
         </ol>
       </section>
     </aside>
@@ -193,6 +201,72 @@
   <section class="tab-panel" role="tabpanel" id="panel-achievements" aria-labelledby="tab-achievements" hidden>
     <ul class="ach-grid" id="achList"></ul>
   </section>
+</dialog>
+
+<dialog class="dialog" id="tourneyDialog" aria-labelledby="tourneyTitle">
+  <form id="tourneyForm" novalidate>
+    <div class="dialog-head">
+      <div class="dialog-id">
+        <h2 id="tourneyTitle">New tournament</h2>
+        <p>Players take turns on this device. Lowest score wins.</p>
+      </div>
+      <button type="button" class="icon-btn" id="tourneyClose" aria-label="Close tournament setup">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+      </button>
+    </div>
+    <div class="tab-panel">
+      <fieldset class="field-set">
+        <legend class="section-label">Players, in turn order</legend>
+        <ul class="player-picks" id="playerPicks"></ul>
+        <div class="field-row">
+          <label class="sr-only" for="newPlayerName">New player name</label>
+          <input class="input" id="newPlayerName" type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Add a player" />
+          <button type="button" class="btn btn-ghost btn-sm" id="addPlayerBtn">Add player</button>
+        </div>
+        <p class="field-error" id="tourneyError" role="alert" hidden></p>
+      </fieldset>
+
+      <div class="setup-row">
+        <fieldset class="field-set">
+          <legend class="section-label">Rounds each</legend>
+          <div class="segmented" id="roundsPick"></div>
+        </fieldset>
+        <div class="field-set">
+          <label class="section-label" for="tourneyLevel">Level</label>
+          <select class="input" id="tourneyLevel"></select>
+        </div>
+      </div>
+
+      <p class="fine-print" id="tourneyRules"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" id="tourneyCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Start tournament</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog" id="resultsDialog" aria-labelledby="resultsTitle">
+  <div class="dialog-head">
+    <span class="avatar avatar-lg" id="winnerAvatar" aria-hidden="true"></span>
+    <div class="dialog-id">
+      <p class="eyebrow-static">Tournament results</p>
+      <h2 id="resultsTitle">Results</h2>
+      <p id="resultsSub"></p>
+    </div>
+  </div>
+  <div class="tab-panel">
+    <div class="table-wrap">
+      <table class="board">
+        <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col" class="num">Score</th><th scope="col" class="num">Average</th><th scope="col" class="num">Best</th><th scope="col" class="num">Fouls</th></tr></thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" id="resultsDone">Back to solo</button>
+      <button type="button" class="btn btn-primary" id="rematchBtn">Rematch</button>
+    </div>
+  </div>
 </dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
