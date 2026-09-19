@@ -18,6 +18,27 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <!-- Decorative background: soft colour glows and small shapes floating up.
+       Purely visual, so it's hidden from screen readers. -->
+  <div class="backdrop" aria-hidden="true">
+    <div class="glow glow-coral"></div>
+    <div class="glow glow-yellow"></div>
+    <div class="glow glow-peach"></div>
+    <div class="glow glow-pink"></div>
+    <span class="float bubble"></span>
+    <span class="float ring"></span>
+    <span class="float sparkle"></span>
+    <span class="float bubble"></span>
+    <span class="float ring"></span>
+    <span class="float sparkle"></span>
+    <span class="float bubble"></span>
+    <span class="float ring"></span>
+    <span class="float sparkle"></span>
+    <span class="float bubble"></span>
+    <span class="float ring"></span>
+    <span class="float sparkle"></span>
+  </div>
+
   <main class="page">
     <!-- The card that holds the compliment and the button -->
     <section class="card" aria-labelledby="card-title">
@@ -38,11 +59,13 @@
           You make the world a little brighter just by being in it.
         </blockquote>
       </figure>
-
-      <button type="button" class="button" id="new-compliment">
-        Get a New Compliment
-      </button>
     </section>
+
+    <!-- The buttons, below the card -->
+    <div class="actions">
+      <button type="button" class="button" id="new-compliment">Get a New Compliment</button>
+      <button type="button" class="button button-joke" id="new-joke">Tell Me a Joke</button>
+    </div>
   </main>
 
   <!-- Script is loaded last so the elements above already exist when it runs -->

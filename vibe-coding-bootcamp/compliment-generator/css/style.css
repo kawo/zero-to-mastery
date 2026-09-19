@@ -10,12 +10,14 @@
   --color-accent-hover: #FFD166; /* Sunny Yellow: the button on hover */
   --color-muted: #6C757D;        /* softer grey for small UI text */
   --color-card: #FFFFFF;
+  --color-peach: #FFB38A;        /* in-between tones used by the background */
+  --color-pink: #FF9EB5;
 
   --font-compliment: "Nunito", "Segoe UI", system-ui, sans-serif;
   --font-ui: "Lato", "Segoe UI", system-ui, sans-serif;
 
-  --radius: 20px;
-  --shadow: 0 10px 30px rgba(33, 37, 41, 0.08), 0 2px 6px rgba(33, 37, 41, 0.05);
+  --radius: 24px;
+  --shadow: 0 18px 50px rgba(33, 37, 41, 0.10), 0 3px 10px rgba(33, 37, 41, 0.05);
 }
 
 /* ---------- Base ---------- */
@@ -32,43 +34,73 @@ body {
 
 body {
   margin: 0;
-  /* The light grey base, with a fine dot grid for a little texture */
+  /* Warm gradient around the light grey base: a hint of peach top-left and of
+     butter yellow bottom-right. */
   background-color: var(--color-background);
-  background-image: radial-gradient(circle at 1px 1px, rgba(33, 37, 41, 0.07) 1px, transparent 0);
-  background-size: 24px 24px;
+  background-image: linear-gradient(135deg, #FFF1EC 0%, var(--color-background) 45%, #FFF7E3 100%);
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- Background: two soft, slowly drifting glows ---------- */
-/* A coral glow top-left and a yellow one bottom-right, taken from the accent
-   colours. They sit behind the content (z-index: -1), ignore the mouse, and
-   are pure gradients, so they cost almost nothing to draw. */
-body::before,
-body::after {
-  content: "";
+/* ==========================================================================
+   Background decoration
+   Everything lives in .backdrop: fixed behind the page, ignores the mouse,
+   hidden from screen readers. Only transform and opacity are animated, which
+   browsers handle on the GPU, so the page stays smooth.
+   ========================================================================== */
+.backdrop {
   position: fixed;
+  inset: 0;
   z-index: -1;
-  width: 70vmax;
-  height: 70vmax;
-  border-radius: 50%;
+  overflow: hidden;
   pointer-events: none;
-  animation: drift 26s ease-in-out infinite alternate;
+  /* A fine dot grid on top of the gradient, for a little texture */
+  background-image: radial-gradient(circle at 1px 1px, rgba(33, 37, 41, 0.06) 1px, transparent 0);
+  background-size: 26px 26px;
 }
 
-body::before {
-  top: -30vmax;
-  left: -25vmax;
-  background: radial-gradient(circle, rgba(255, 107, 107, 0.28) 0%, rgba(255, 107, 107, 0) 65%);
+/* ---------- Four large, soft glows drifting slowly ---------- */
+.glow {
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  animation: drift 28s ease-in-out infinite alternate;
 }
 
-body::after {
+.glow-coral {
+  top: -24vmax;
+  left: -18vmax;
+  background: radial-gradient(circle, rgba(255, 107, 107, 0.42) 0%, rgba(255, 107, 107, 0) 65%);
+}
+
+.glow-yellow {
   bottom: -26vmax;
-  right: -20vmax;
-  background: radial-gradient(circle, rgba(255, 209, 102, 0.55) 0%, rgba(255, 209, 102, 0) 65%);
-  animation-duration: 32s;
-  animation-direction: alternate-reverse;  /* the two glows move out of step */
+  right: -18vmax;
+  background: radial-gradient(circle, rgba(255, 209, 102, 0.6) 0%, rgba(255, 209, 102, 0) 65%);
+  animation-duration: 34s;
+  animation-direction: alternate-reverse;
+}
+
+.glow-peach {
+  top: -20vmax;
+  right: -22vmax;
+  width: 48vmax;
+  height: 48vmax;
+  background: radial-gradient(circle, rgba(255, 179, 138, 0.38) 0%, rgba(255, 179, 138, 0) 65%);
+  animation-duration: 38s;
+}
+
+.glow-pink {
+  bottom: -22vmax;
+  left: -20vmax;
+  width: 50vmax;
+  height: 50vmax;
+  background: radial-gradient(circle, rgba(255, 158, 181, 0.34) 0%, rgba(255, 158, 181, 0) 65%);
+  animation-duration: 31s;
+  animation-direction: alternate-reverse;
 }
 
 @keyframes drift {
@@ -76,17 +108,84 @@ body::after {
     transform: translate(0, 0) scale(1);
   }
   to {
-    transform: translate(8vmax, 6vmax) scale(1.12);
+    transform: translate(7vmax, 5vmax) scale(1.15);
   }
 }
 
-/* ---------- Layout: centre the card vertically and horizontally with Flexbox ---------- */
+/* ---------- Small shapes floating up, like slow confetti ---------- */
+/* Each shape starts just below the screen and rises to just above it.
+   Negative delays mean they're already spread out when the page opens. */
+.float {
+  position: absolute;
+  top: 100%;
+  left: var(--x);
+  width: var(--size);
+  height: var(--size);
+  opacity: 0;
+  animation: rise var(--duration) linear var(--delay) infinite;
+}
+
+/* Filled circles */
+.bubble {
+  border-radius: 50%;
+  background: var(--color, var(--color-accent));
+}
+
+/* Outlined circles */
+.ring {
+  border-radius: 50%;
+  border: 3px solid var(--color, var(--color-accent-hover));
+}
+
+/* Four-pointed sparkles */
+.sparkle {
+  background: var(--color, var(--color-accent-hover));
+  clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
+}
+
+/* Position, size, speed and colour of each shape */
+.float:nth-of-type(1)  { --x: 6%;  --size: 14px; --duration: 26s; --delay: -3s;  --color: #FF6B6B; }
+.float:nth-of-type(2)  { --x: 14%; --size: 26px; --duration: 32s; --delay: -18s; --color: #FFD166; }
+.float:nth-of-type(3)  { --x: 22%; --size: 18px; --duration: 24s; --delay: -9s;  --color: #FF9EB5; }
+.float:nth-of-type(4)  { --x: 31%; --size: 10px; --duration: 29s; --delay: -22s; --color: #FFB38A; }
+.float:nth-of-type(5)  { --x: 40%; --size: 20px; --duration: 35s; --delay: -5s;  --color: #FF6B6B; }
+.float:nth-of-type(6)  { --x: 48%; --size: 16px; --duration: 27s; --delay: -14s; --color: #FFD166; }
+.float:nth-of-type(7)  { --x: 57%; --size: 12px; --duration: 31s; --delay: -26s; --color: #FF9EB5; }
+.float:nth-of-type(8)  { --x: 65%; --size: 24px; --duration: 36s; --delay: -11s; --color: #FFB38A; }
+.float:nth-of-type(9)  { --x: 72%; --size: 20px; --duration: 25s; --delay: -1s;  --color: #FF6B6B; }
+.float:nth-of-type(10) { --x: 80%; --size: 11px; --duration: 30s; --delay: -20s; --color: #FFD166; }
+.float:nth-of-type(11) { --x: 88%; --size: 22px; --duration: 33s; --delay: -7s;  --color: #FF9EB5; }
+.float:nth-of-type(12) { --x: 94%; --size: 15px; --duration: 28s; --delay: -16s; --color: #FFB38A; }
+
+@keyframes rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  10% {
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate(28px, -55vh) rotate(180deg);  /* a gentle sideways sway */
+  }
+  90% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, calc(-100vh - 60px)) rotate(360deg);
+  }
+}
+
+/* ---------- Layout: card centred, buttons below it (Flexbox) ---------- */
 .page {
   min-height: 100%;
   display: flex;
-  align-items: center;       /* vertical centring */
-  justify-content: center;   /* horizontal centring */
-  padding: 24px 16px;        /* keeps the card off the screen edges on phones */
+  flex-direction: column;
+  align-items: center;       /* horizontal centring */
+  justify-content: center;   /* vertical centring */
+  gap: 28px;
+  padding: 24px 16px;        /* keeps everything off the screen edges on phones */
 }
 
 /* ---------- The card ---------- */
@@ -158,7 +257,7 @@ body::after {
   text-transform: uppercase;
 }
 
-/* ---------- The compliment ---------- */
+/* ---------- The compliment (or joke) ---------- */
 .compliment {
   position: relative;  /* anchors the invisible measuring copy made by script.js */
   margin: 0;
@@ -180,21 +279,32 @@ body::after {
 .compliment-text {
   margin: 0;
   width: 100%;
-  /* script.js sets a fixed height here: the height of the longest compliment
-     (in both languages) at the current width, so the card never resizes.
-     This min-height only matters if the script can't run. */
+  /* script.js sets a fixed height here: the height of the longest text
+     (compliments and jokes, both languages) at the current width, so the card
+     never resizes. This min-height only matters if the script can't run. */
   min-height: 6.8em;
-  display: flex;             /* centres shorter compliments in that fixed space */
+  display: flex;             /* centres shorter texts in that fixed space */
+  flex-direction: column;    /* a joke's setup and punchline stack */
   align-items: center;
   justify-content: center;
   font-family: var(--font-compliment);
   font-weight: 800;
-  font-size: clamp(1.45rem, 4.2vw, 2.15rem); /* scales smoothly from phone to desktop */
+  font-size: clamp(1.4rem, 4vw, 2rem); /* scales smoothly from phone to desktop */
   line-height: 1.35;
   text-wrap: balance;  /* evens out line lengths where supported */
 }
 
-/* Fade-and-rise animation, replayed by script.js each time the compliment changes */
+/* Jokes: a lighter setup, then the punchline in bold on its own line */
+.joke-setup {
+  font-weight: 600;
+}
+
+.joke-punchline {
+  margin-top: 0.4em;
+  font-weight: 800;
+}
+
+/* Fade-and-rise animation, replayed by script.js each time the text changes */
 .compliment.is-changing .compliment-text {
   animation: compliment-in 450ms ease-out;
 }
@@ -226,13 +336,22 @@ body::after {
   }
 }
 
-/* ---------- The button ---------- */
+/* ---------- The buttons, below the card ---------- */
+.actions {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-wrap: wrap;           /* stack on narrow screens */
+  justify-content: center;
+  gap: 14px;
+}
+
 .button {
   appearance: none;
   border: 0;
   border-radius: 999px;
   padding: 14px 28px;
-  min-height: 48px;  /* comfortable tap target on touch screens */
+  min-height: 52px;  /* comfortable tap target on touch screens */
   min-width: 17rem;  /* same width in English and French, so nothing shifts */
   max-width: 100%;
   background-color: var(--color-accent);
@@ -244,15 +363,26 @@ body::after {
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(255, 107, 107, 0.35);
+  box-shadow: 0 6px 18px rgba(255, 107, 107, 0.35);
   /* Smooth colour change on hover, plus a gentle lift */
   transition: background-color 250ms ease, box-shadow 250ms ease, transform 150ms ease;
 }
 
 .button:hover {
   background-color: var(--color-accent-hover);
+  box-shadow: 0 8px 22px rgba(255, 209, 102, 0.5);
+  transform: translateY(-2px);
+}
+
+/* The joke button uses the same two colours the other way round */
+.button-joke {
+  background-color: var(--color-accent-hover);
   box-shadow: 0 6px 18px rgba(255, 209, 102, 0.45);
-  transform: translateY(-1px);
+}
+
+.button-joke:hover {
+  background-color: var(--color-accent);
+  box-shadow: 0 8px 22px rgba(255, 107, 107, 0.4);
 }
 
 .button:active {
@@ -265,19 +395,23 @@ body::after {
   outline-offset: 3px;
 }
 
-/* ---------- Small screens: the button spans the card width ---------- */
-@media (max-width: 420px) {
+/* ---------- Small screens: buttons stack and span the full width ---------- */
+@media (max-width: 620px) {
   .button {
-    width: 100%;
+    flex: 1 1 100%;
+    min-width: 0;
   }
 }
 
 /* ---------- Respect people who prefer less motion ---------- */
 @media (prefers-reduced-motion: reduce) {
-  /* The glows stay, but don't move */
-  body::before,
-  body::after {
+  /* The glows stay but don't move; the floating shapes are hidden */
+  .glow {
     animation: none;
+  }
+
+  .float {
+    display: none;
   }
 
   .compliment.is-changing .compliment-text,
@@ -285,10 +419,7 @@ body::after {
     animation: none;
   }
 
-  .button {
-    transition: background-color 250ms ease;
-  }
-
+  .button,
   .lang-option {
     transition: none;
   }

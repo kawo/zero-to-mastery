@@ -1,8 +1,8 @@
 /* ==========================================================================
    Compliment Generator: behaviour
-   Shows a random compliment (with its emoji) each time the button is clicked,
-   never the same one twice in a row, in English or French. The card keeps
-   the same size whatever the compliment or the language.
+   Shows a random compliment or joke (with its emoji) at the click of a
+   button, never the same one twice in a row, in English or French. The card
+   keeps the same size whatever the text or the language.
    ========================================================================== */
 
 // Wrapping everything in a function keeps these names out of the global scope.
@@ -332,23 +332,351 @@
       fr: 'À toi, et à tout ce que tu vas accomplir.' },
   ];
 
+  /* ---------- The jokes ---------- */
+  // 100 family-friendly jokes. "\n" separates the setup from the punchline,
+  // which is shown in bold on its own line.
+  // Puns rarely survive translation: when the English joke relies on one,
+  // the French side is a French joke on the same theme rather than a literal
+  // translation (English knock-knock jokes, for instance, are paired with
+  // French "M. et Mme…" jokes).
+  const jokes = [
+    // Animals
+    { emoji: '🐘',
+      en: 'Why don’t elephants use computers?\nThey’re scared of the mouse.',
+      fr: 'Pourquoi les éléphants n’utilisent-ils pas d’ordinateur ?\nIls ont peur de la souris.' },
+    { emoji: '🐔',
+      en: 'Why did the chicken cross the road?\nTo get to the other side.',
+      fr: 'Pourquoi la poule a-t-elle traversé la route ?\nPour aller de l’autre côté.' },
+    { emoji: '🐌',
+      en: 'What does a snail say when it rides on a turtle?\n“Wheeee!”',
+      fr: 'Que dit un escargot sur le dos d’une tortue ?\n« Youhou, trop rapide ! »' },
+    { emoji: '🐙',
+      en: 'How did the octopus win the tickle fight?\nIt had eight arms.',
+      fr: 'Comment la pieuvre a-t-elle gagné la bataille de chatouilles ?\nElle avait huit bras.' },
+    { emoji: '🦒',
+      en: 'Why do giraffes have such long necks?\nBecause their feet smell.',
+      fr: 'Pourquoi les girafes ont-elles un si long cou ?\nParce qu’elles ont les pieds qui puent.' },
+    { emoji: '🐸',
+      en: 'What’s a frog’s favorite drink?\nCroak-a-Cola.',
+      fr: 'Quelle est la boisson préférée des grenouilles ?\nLe Coâ-Coâ-Cola.' },
+    { emoji: '🐄',
+      en: 'Where do cows go on vacation?\nMoo York.',
+      fr: 'Où les vaches partent-elles en vacances ?\nÀ Meuh-York.' },
+    { emoji: '🐱',
+      en: 'What do you call a pile of cats?\nA meowtain.',
+      fr: 'Comment appelle-t-on une pile de chats ?\nUne miaou-tagne.' },
+    { emoji: '🐧',
+      en: 'Why don’t penguins like parties?\nThey find it hard to break the ice.',
+      fr: 'Pourquoi les pingouins n’aiment-ils pas les fêtes ?\nIls ont du mal à briser la glace.' },
+    { emoji: '🐝',
+      en: 'Why do bees hum?\nBecause they don’t know the words.',
+      fr: 'Pourquoi les abeilles bourdonnent-elles ?\nParce qu’elles ne connaissent pas les paroles.' },
+    { emoji: '🐟',
+      en: 'Why are fish so smart?\nBecause they live in schools.',
+      fr: 'Pourquoi les poissons sont-ils si studieux ?\nIls nagent en bancs et ne sèchent jamais les cours.' },
+    { emoji: '🐍',
+      en: 'What’s a snake’s favorite subject at school?\nHiss-tory.',
+      fr: 'Quelle est la matière préférée des serpents ?\nL’hiss-toire.' },
+    { emoji: '🦉',
+      en: 'What do you call an owl that does magic tricks?\nHoo-dini.',
+      fr: 'Comment appelle-t-on une chouette magicienne ?\nHou-dini.' },
+    { emoji: '🐻',
+      en: 'What do you call a bear with no teeth?\nA gummy bear.',
+      fr: 'Comment appelle-t-on un ours sans dents ?\nUn ours en gélatine.' },
+    { emoji: '🐶',
+      en: 'What do you call a dog that does magic?\nA labracadabrador.',
+      fr: 'Comment appelle-t-on un chien magicien ?\nUn labracadabrador.' },
+    { emoji: '🐑',
+      en: 'What do sheep do on sunny days?\nHave a baa-becue.',
+      fr: 'Que font les moutons quand il fait beau ?\nUn bêêê-rbecue.' },
+    { emoji: '🎸',
+      en: 'What do you call a cow that plays the guitar?\nA moo-sician.',
+      fr: 'Comment appelle-t-on une vache qui joue de la guitare ?\nUne meuh-sicienne.' },
+    { emoji: '🦈',
+      en: 'What did the shark say after eating a clownfish?\n“That tasted a little funny.”',
+      fr: 'Qu’a dit le requin après avoir mangé un poisson-clown ?\n« Il avait un drôle de goût. »' },
+    { emoji: '🦘',
+      en: 'What do you call a lazy kangaroo?\nA pouch potato.',
+      fr: 'Pourquoi le kangourou est-il toujours détendu ?\nIl a tout ce qu’il faut dans la poche.' },
+    { emoji: '🐆',
+      en: 'Why don’t leopards play hide-and-seek?\nThey’re always spotted.',
+      fr: 'Pourquoi les léopards ne jouent-ils jamais à cache-cache ?\nIls sont toujours repérés.' },
+    { emoji: '🐭',
+      en: 'What’s a mouse’s favorite game?\nHide-and-squeak.',
+      fr: 'Quel est le jeu préféré des souris ?\nCache-cache avec le chat… mais jamais très longtemps.' },
+    { emoji: '🦩',
+      en: 'Why do flamingos stand on one leg?\nIf they lifted both, they’d fall over.',
+      fr: 'Pourquoi les flamants roses se tiennent-ils sur une patte ?\nS’ils levaient l’autre, ils tomberaient.' },
+    { emoji: '🐊',
+      en: 'What do you call an alligator in a vest?\nAn investigator.',
+      fr: 'Comment appelle-t-on un crocodile qui mène l’enquête ?\nSherlock Crocs.' },
+    { emoji: '🐿️',
+      en: 'Why don’t squirrels ever get lost?\nThey always stay on the right branch.',
+      fr: 'Pourquoi les écureuils ne se perdent-ils jamais ?\nIls restent toujours sur la bonne branche.' },
+    { emoji: '🕷️',
+      en: 'Why are spiders so good with computers?\nThey spend their whole life on the web.',
+      fr: 'Pourquoi les araignées sont-elles douées en informatique ?\nElles passent leur vie sur la toile.' },
+    { emoji: '🐡',
+      en: 'What do you call a fish wearing a bow tie?\nSofishticated.',
+      fr: 'Comment appelle-t-on un poisson qui porte un nœud papillon ?\nUn thon très chic.' },
+    { emoji: '🦀',
+      en: 'Why don’t crabs share their snacks?\nBecause they’re shellfish.',
+      fr: 'Pourquoi les crabes marchent-ils de travers ?\nParce qu’ils ont bu trop d’eau salée.' },
+    { emoji: '🐴',
+      en: 'Why did the pony have to gargle?\nIt was a little horse.',
+      fr: 'Pourquoi le cheval ne peut-il pas chanter ce soir ?\nIl a un chat dans la gorge.' },
+    { emoji: '🐇',
+      en: 'How do rabbits travel?\nBy hare-plane.',
+      fr: 'Que fait un lapin qui ne vient pas à son rendez-vous ?\nIl pose un lapin.' },
+    { emoji: '🐷',
+      en: 'What do you call a pig that does karate?\nA pork chop.',
+      fr: 'Pourquoi les cochons s’entendent-ils si bien ?\nIls sont copains comme cochons.' },
+    { emoji: '🐜',
+      en: 'Why don’t ants ever get sick?\nThey have little anty-bodies.',
+      fr: 'Pourquoi les fourmis ne tombent-elles jamais malades ?\nElles ont des anticorps fourmi-dables.' },
+    { emoji: '🌭',
+      en: 'Why did the dog sit in the shade?\nHe didn’t want to be a hot dog.',
+      fr: 'Pourquoi le chien s’assoit-il à l’ombre ?\nIl ne veut pas devenir un hot-dog.' },
+    { emoji: '🐈',
+      en: 'Why was the cat sitting on the computer?\nTo keep an eye on the mouse.',
+      fr: 'Pourquoi le chat est-il assis sur l’ordinateur ?\nPour surveiller la souris.' },
+    { emoji: '🦆',
+      en: 'What do you call a duck that gets straight A’s?\nA wise quacker.',
+      fr: 'Comment appelle-t-on un canard très intelligent ?\nUn génie du coin-coin.' },
+    { emoji: '🦔',
+      en: 'What do you get if you cross a hedgehog and a snake?\nBarbed wire.',
+      fr: 'Que donne le croisement d’un hérisson et d’un serpent ?\nDu fil barbelé.' },
+
+    // Dinosaurs, monsters and ghosts
+    { emoji: '🦖',
+      en: 'What do you call a sleeping dinosaur?\nA dino-snore.',
+      fr: 'Comment appelle-t-on un dinosaure qui dort ?\nUn dino-dort.' },
+    { emoji: '🦕',
+      en: 'What do you call a dinosaur that knows every word?\nA thesaurus.',
+      fr: 'Comment appelle-t-on un dinosaure qui connaît tous les mots ?\nUn dico-saure.' },
+    { emoji: '💀',
+      en: 'Why don’t skeletons fight each other?\nThey don’t have the guts.',
+      fr: 'Pourquoi les squelettes ne se battent-ils jamais ?\nIls n’ont pas de tripes.' },
+    { emoji: '🎃',
+      en: 'Why didn’t the skeleton go to the party?\nIt had no body to go with.',
+      fr: 'Pourquoi le squelette n’est-il pas allé à la fête ?\nIl n’avait pas le cœur à ça.' },
+    { emoji: '🎺',
+      en: 'What’s a skeleton’s favorite instrument?\nThe trom-bone.',
+      fr: 'Quel est l’instrument préféré des squelettes ?\nLe trombone… pardon, le trom-os.' },
+    { emoji: '👻',
+      en: 'Why are ghosts such bad liars?\nYou can see right through them.',
+      fr: 'Pourquoi les fantômes mentent-ils si mal ?\nOn voit clair dans leur jeu.' },
+    { emoji: '🧛',
+      en: 'Why don’t vampires have many friends?\nThey’re a pain in the neck.',
+      fr: 'Pourquoi les vampires sont-ils toujours de mauvaise humeur ?\nIls ont les crocs.' },
+    { emoji: '🛸',
+      en: 'What’s an alien’s favorite chocolate bar?\nA Milky Way.',
+      fr: 'Que boivent les extraterrestres au goûter ?\nDu lait de la Voie lactée.' },
+
+    // Food
+    { emoji: '🍅',
+      en: 'Why did the tomato blush?\nBecause it saw the salad dressing.',
+      fr: 'Pourquoi la tomate est-elle toute rouge ?\nElle a vu la salade se déshabiller.' },
+    { emoji: '🥚',
+      en: 'Why don’t eggs tell jokes?\nThey’d crack each other up.',
+      fr: 'Pourquoi les œufs ne racontent-ils jamais de blagues ?\nIls finiraient tous par craquer.' },
+    { emoji: '🍌',
+      en: 'Why did the banana go to the doctor?\nIt wasn’t peeling well.',
+      fr: 'Pourquoi la banane est-elle allée chez le médecin ?\nElle ne se sentait pas bien dans sa peau.' },
+    { emoji: '🍪',
+      en: 'Why did the cookie go to the nurse?\nIt felt crummy.',
+      fr: 'Pourquoi le cookie est-il allé à l’infirmerie ?\nIl était en miettes.' },
+    { emoji: '🥐',
+      en: 'Why did the croissant see a therapist?\nIt was feeling a bit flaky.',
+      fr: 'Pourquoi le croissant est-il allé chez le psy ?\nIl n’était pas dans son assiette.' },
+    { emoji: '🍩',
+      en: 'Why did the doughnut go to the dentist?\nIt needed a filling.',
+      fr: 'Pourquoi le beignet est-il allé chez le dentiste ?\nIl avait besoin d’un plombage… à la confiture.' },
+    { emoji: '🥔',
+      en: 'Why do potatoes make great detectives?\nThey keep their eyes peeled.',
+      fr: 'Pourquoi les patates sont-elles toujours en forme ?\nElles ont la frite.' },
+    { emoji: '🍋',
+      en: 'Why did the lemon stop running?\nIt ran out of juice.',
+      fr: 'Pourquoi le citron s’est-il arrêté de courir ?\nIl n’avait plus de jus.' },
+    { emoji: '☕',
+      en: 'Why did the coffee call the police?\nIt got mugged.',
+      fr: 'Pourquoi le café a-t-il porté plainte ?\nIl s’est fait moudre de coups.' },
+    { emoji: '🍓',
+      en: 'What did one strawberry say to the other?\nIf you weren’t so sweet, we wouldn’t be in this jam.',
+      fr: 'Que dit une fraise à une autre fraise ?\nSi on n’avait pas été si douces, on ne finirait pas en confiture.' },
+    { emoji: '🍦',
+      en: 'Where do ice creams go to learn?\nSundae school.',
+      fr: 'Que dit une glace à la vanille à son amoureux ?\n« Je fonds pour toi. »' },
+    { emoji: '🍐',
+      en: 'What did one pear say to the other?\nWe make a great pair.',
+      fr: 'Que dit une poire à une autre poire ?\nOn se fend la poire !' },
+    { emoji: '🍔',
+      en: 'What did the hamburger name its daughter?\nPatty.',
+      fr: 'Comment s’appelle la fille du hamburger ?\nSteak-phanie.' },
+    { emoji: '🥖',
+      en: 'What does a loaf of bread do when it’s tired?\nIt loafs around.',
+      fr: 'Pourquoi la baguette se méfie-t-elle toujours ?\nElle ne veut pas se faire rouler dans la farine.' },
+    { emoji: '🎂',
+      en: 'What did the birthday cake say to the fork?\n“Want a piece of me?”',
+      fr: 'Que dit le gâteau d’anniversaire à la fourchette ?\n« Tu veux ma part ? »' },
+    { emoji: '⛄',
+      en: 'What do snowmen eat for breakfast?\nFrosted Flakes.',
+      fr: 'Que mangent les bonshommes de neige au petit-déjeuner ?\nDes flocons, bien sûr.' },
+    { emoji: '💛',
+      en: 'What’s orange and sounds like a parrot?\nA carrot.',
+      fr: 'Qu’est-ce qui est jaune et qui attend ?\nJonathan.' },
+
+    // School, work and everyday things
+    { emoji: '📚',
+      en: 'Why was the math book sad?\nIt had too many problems.',
+      fr: 'Pourquoi le livre de maths est-il triste ?\nIl a trop de problèmes.' },
+    { emoji: '🪜',
+      en: 'Why did the student bring a ladder to school?\nTo get into high school.',
+      fr: 'Pourquoi l’élève apporte-t-il une échelle à l’école ?\nPour passer dans la classe supérieure.' },
+    { emoji: '🍎',
+      en: 'Why did the teacher wear sunglasses?\nHer students were so bright.',
+      fr: 'Pourquoi la maîtresse porte-t-elle des lunettes de soleil ?\nSes élèves sont trop brillants.' },
+    { emoji: '✏️',
+      en: 'Why did the pencil win the argument?\nIt made a good point.',
+      fr: 'Pourquoi le crayon a-t-il gagné le débat ?\nSes arguments étaient bien taillés.' },
+    { emoji: '📖',
+      en: 'Why don’t books ever feel cold?\nThey have covers.',
+      fr: 'Pourquoi les livres n’ont-ils jamais froid ?\nIls ont une couverture.' },
+    { emoji: '📕',
+      en: 'I’m reading a book about anti-gravity.\nIt’s impossible to put down.',
+      fr: 'Je lis un livre sur l’antigravité.\nImpossible de le reposer !' },
+    { emoji: '🔢',
+      en: 'What did zero say to eight?\n“Nice belt!”',
+      fr: 'Que dit le zéro au huit ?\n« Sympa, ta ceinture ! »' },
+    { emoji: '🎧',
+      en: 'Why did the music teacher need a ladder?\nTo reach the high notes.',
+      fr: 'Pourquoi le prof de musique monte-t-il sur une échelle ?\nPour atteindre les notes aiguës.' },
+    { emoji: '⚡',
+      en: 'Why is an electrician always up to date?\nThey’re always current.',
+      fr: 'Quel est le comble pour un électricien ?\nNe pas être au courant.' },
+    { emoji: '🥬',
+      en: 'What’s a gardener’s favorite game?\nHide-and-go-seed.',
+      fr: 'Quel est le comble pour un jardinier ?\nRaconter des salades.' },
+    { emoji: '🦷',
+      en: 'What does a dentist call their X-rays?\nTooth pics.',
+      fr: 'Quel est le comble pour un dentiste ?\nAvoir une dent contre quelqu’un.' },
+    { emoji: '🎩',
+      en: 'Why did the magician go back to school?\nTo work on his spelling.',
+      fr: 'Quel est le comble pour un magicien ?\nAvoir un tour de reins.' },
+    { emoji: '🏦',
+      en: 'I used to be a banker,\nbut I lost interest.',
+      fr: 'Avant, j’étais banquier,\nmais j’ai perdu tout intérêt.' },
+    { emoji: '🥕',
+      en: 'Why did the scarecrow win an award?\nHe was outstanding in his field.',
+      fr: 'Pourquoi l’épouvantail a-t-il reçu un prix ?\nIl était le meilleur dans son domaine… et il n’en bougeait jamais.' },
+    { emoji: '💻',
+      en: 'Why did the computer go to the doctor?\nIt had caught a virus.',
+      fr: 'Pourquoi l’ordinateur est-il allé chez le médecin ?\nIl avait attrapé un virus.' },
+    { emoji: '📱',
+      en: 'Why did the phone need glasses?\nIt lost all its contacts.',
+      fr: 'Pourquoi le téléphone porte-t-il des lunettes ?\nIl a perdu tous ses contacts.' },
+    { emoji: '🔋',
+      en: 'What did the battery say to the charger?\n“You complete me.”',
+      fr: 'Qu’a dit la batterie au chargeur ?\n« Sans toi, je suis à plat. »' },
+    { emoji: '⏰',
+      en: 'Why did the man throw his clock out the window?\nHe wanted to see time fly.',
+      fr: 'Pourquoi l’homme a-t-il jeté son réveil par la fenêtre ?\nPour voir le temps s’envoler.' },
+    { emoji: '🧱',
+      en: 'What did one wall say to the other?\n“Meet you at the corner!”',
+      fr: 'Que dit un mur à un autre mur ?\n« On se retrouve au coin ! »' },
+    { emoji: '🧹',
+      en: 'What did the broom say to the vacuum cleaner?\n“I’m tired of people pushing us around.”',
+      fr: 'Que dit le balai à l’aspirateur ?\n« J’en ai marre qu’on nous pousse partout. »' },
+    { emoji: '🧊',
+      en: 'What did the ice cube say to the glass of water?\n“I used to be like you.”',
+      fr: 'Qu’a dit le glaçon au verre d’eau ?\n« Avant, j’étais comme toi. »' },
+
+    // Sports, travel and the sky
+    { emoji: '⚽',
+      en: 'Why did the soccer ball quit the team?\nIt was tired of being kicked around.',
+      fr: 'Pourquoi le ballon de foot a-t-il quitté l’équipe ?\nIl en avait marre de se faire shooter.' },
+    { emoji: '🚲',
+      en: 'Why can’t a bicycle stand up on its own?\nIt’s two-tired.',
+      fr: 'Pourquoi le vélo ne tient-il pas debout tout seul ?\nIl est crevé.' },
+    { emoji: '✈️',
+      en: 'Why was the airplane sent to its room?\nIt had a bad altitude.',
+      fr: 'Pourquoi l’avion a-t-il été puni ?\nIl avait une mauvaise altitude.' },
+    { emoji: '🚀',
+      en: 'How do astronauts organize a party?\nThey planet.',
+      fr: 'Comment les astronautes organisent-ils une fête ?\nIls la planètent.' },
+    { emoji: '🌙',
+      en: 'Why did the cow jump over the moon?\nThe farmer had cold hands.',
+      fr: 'Pourquoi la vache a-t-elle sauté par-dessus la lune ?\nLe fermier avait les mains froides.' },
+    { emoji: '🌞',
+      en: 'Why doesn’t the sun go to college?\nIt already has millions of degrees.',
+      fr: 'Pourquoi le soleil ne va-t-il pas à l’université ?\nIl a déjà des millions de degrés.' },
+    { emoji: '🌻',
+      en: 'Why is the sunflower always in a good mood?\nIt always looks on the bright side.',
+      fr: 'Pourquoi le tournesol a-t-il toujours le moral ?\nIl regarde toujours du bon côté.' },
+    { emoji: '🌊',
+      en: 'What did the ocean say to the beach?\nNothing, it just waved.',
+      fr: 'Qu’a dit l’océan à la plage ?\nRien, il s’est contenté de faire des vagues.' },
+    { emoji: '🌫️',
+      en: 'I tried to catch some fog yesterday.\nI mist.',
+      fr: 'Hier, j’ai essayé d’attraper le brouillard.\nRésultat : je suis resté dans le flou.' },
+    { emoji: '❄️',
+      en: 'What do you call a snowman in July?\nA puddle.',
+      fr: 'Comment appelle-t-on un bonhomme de neige en juillet ?\nUne flaque.' },
+    { emoji: '🎈',
+      en: 'Why should you never give Elsa a balloon?\nShe’ll let it go.',
+      fr: 'Pourquoi ne faut-il jamais donner de ballon à la Reine des neiges ?\nElle va le libérer, le délivrer…' },
+
+    // Knock-knock jokes (English) and “M. et Mme…” jokes (French)
+    { emoji: '🚪',
+      en: 'Knock, knock. Who’s there? Lettuce.\nLettuce who? Lettuce in, it’s cold out here!',
+      fr: 'M. et Mme Térieur ont deux fils.\nAlain et Alex : Alain Térieur et Alex Térieur !' },
+    { emoji: '🚪',
+      en: 'Knock, knock. Who’s there? Boo.\nBoo who? Don’t cry, it’s only a joke!',
+      fr: 'M. et Mme Tatouille ont une fille.\nSarah : Sarah Tatouille !' },
+    { emoji: '🚪',
+      en: 'Knock, knock. Who’s there? Interrupting cow.\nInterrupting c— MOO!',
+      fr: 'M. et Mme Débauche ont un fils.\nJean : Jean Débauche !' },
+    { emoji: '🚪',
+      en: 'Knock, knock. Who’s there? Olive.\nOlive who? Olive you, and I missed you!',
+      fr: 'M. et Mme Assin ont un fils.\nMarc : Marc Assin !' },
+    { emoji: '🚪',
+      en: 'Knock, knock. Who’s there? Tank.\nTank who? You’re welcome!',
+      fr: 'M. et Mme Kiroul ont un fils.\nPierre : Pierre Kiroul n’amasse pas mousse !' },
+    { emoji: '🚪',
+      en: 'Knock, knock. Who’s there? Hawaii.\nHawaii you? I’m fine, thanks!',
+      fr: 'M. et Mme Bonbeur ont un fils.\nJean : Jean Bonbeur !' },
+    { emoji: '🚪',
+      en: 'Knock, knock. Who’s there? Atch.\nAtch who? Bless you!',
+      fr: 'M. et Mme Onette ont un fils.\nMario : Mario Onette !' },
+
+    // And one to finish
+    { emoji: '🙃',
+      en: 'I told my friend ten jokes to make him laugh.\nSadly, no pun in ten did.',
+      fr: 'J’ai raconté dix blagues à un ami pour le faire rire.\nAucune n’a marché… sauf celle-ci, j’espère !' },
+  ];
+
   /* ---------- Interface text in each language ---------- */
   const uiText = {
     en: {
       title: 'Compliment Generator',
-      description: 'A little dose of kindness: get a random compliment with one click.',
-      eyebrow: 'A little something for you',
-      button: 'Get a New Compliment',
+      description: 'A little dose of kindness: a random compliment or joke with one click.',
+      eyebrow: { compliment: 'A little something for you', joke: 'A little laugh for you' },
+      complimentButton: 'Get a New Compliment',
+      jokeButton: 'Tell Me a Joke',
       switchLabel: 'Language',
     },
     fr: {
       title: 'Générateur de compliments',
-      description: 'Une petite dose de gentillesse : un compliment au hasard, en un clic.',
-      eyebrow: 'Un petit mot pour toi',
-      button: 'Un nouveau compliment',
+      description: 'Une petite dose de gentillesse : un compliment ou une blague au hasard, en un clic.',
+      eyebrow: { compliment: 'Un petit mot pour toi', joke: 'Une petite blague pour toi' },
+      complimentButton: 'Un nouveau compliment',
+      jokeButton: 'Raconte-moi une blague',
       switchLabel: 'Langue',
     },
   };
+
+  // The two kinds of content the card can show.
+  const collections = { compliment: compliments, joke: jokes };
 
   const STORAGE_KEY = 'compliment-generator.lang';
 
@@ -356,20 +684,22 @@
   const complimentBox = document.getElementById('compliment-box');
   const complimentEl = document.getElementById('compliment');
   const emojiEl = document.getElementById('compliment-emoji');
-  const button = document.getElementById('new-compliment');
+  const complimentButton = document.getElementById('new-compliment');
+  const jokeButton = document.getElementById('new-joke');
   const eyebrowEl = document.getElementById('card-title');
   const langSwitch = document.getElementById('lang-switch');
   const descriptionMeta = document.querySelector('meta[name="description"]');
 
   // Stop quietly if the page doesn't have the expected elements.
-  if (!complimentBox || !complimentEl || !emojiEl || !button || !eyebrowEl || !langSwitch) {
+  if (!complimentBox || !complimentEl || !emojiEl || !complimentButton || !jokeButton || !eyebrowEl || !langSwitch) {
     return;
   }
 
   /* ---------- State ---------- */
   let currentLang = pickStartingLanguage();
+  let currentMode = 'compliment';  // 'compliment' or 'joke'
 
-  // Index of the compliment on screen. The HTML starts with the first one
+  // Index of the item on screen. The HTML starts with the first compliment
   // (in English), so look it up in either language to be safe.
   const startText = complimentEl.textContent.trim();
   let currentIndex = compliments.findIndex((c) => c.en === startText || c.fr === startText);
@@ -400,11 +730,11 @@
   }
 
   /**
-   * Picks a random index that is different from the current one,
-   * so clicking the button always shows something new.
+   * Picks a random index in `list`, different from `avoid`, so clicking a
+   * button always shows something new. Pass -1 to allow any index.
    */
-  function getRandomIndex() {
-    if (compliments.length < 2) {
+  function getRandomIndex(list, avoid) {
+    if (list.length < 2) {
       return 0; // nothing else to choose from
     }
 
@@ -412,16 +742,36 @@
     do {
       // Math.random() gives a number from 0 (inclusive) to 1 (exclusive);
       // multiplying and flooring turns it into a valid array index.
-      index = Math.floor(Math.random() * compliments.length);
-    } while (index === currentIndex);
+      index = Math.floor(Math.random() * list.length);
+    } while (index === avoid);
 
     return index;
   }
 
   /**
-   * Keeps the card the same size: measures every compliment, in both
-   * languages, at the current width, and fixes the text area to the tallest.
-   * Uses an invisible copy of the text element so nothing on screen moves.
+   * Writes a text into an element. A joke ("setup\npunchline") becomes two
+   * lines: the setup, then the punchline in bold. A compliment stays plain text.
+   * Everything goes through textContent, so no text is ever read as HTML.
+   */
+  function setText(element, text) {
+    const newline = text.indexOf('\n');
+    if (newline === -1) {
+      element.textContent = text;
+      return;
+    }
+    const setup = document.createElement('span');
+    setup.className = 'joke-setup';
+    setup.textContent = text.slice(0, newline);
+    const punchline = document.createElement('span');
+    punchline.className = 'joke-punchline';
+    punchline.textContent = text.slice(newline + 1);
+    element.replaceChildren(setup, punchline);
+  }
+
+  /**
+   * Keeps the card the same size: measures every compliment and every joke,
+   * in both languages, at the current width, and fixes the text area to the
+   * tallest. Uses an invisible copy of the text element so nothing on screen moves.
    */
   function lockComplimentHeight() {
     const width = complimentEl.clientWidth;
@@ -437,10 +787,12 @@
     complimentBox.appendChild(probe);
 
     let tallest = 0;
-    for (const compliment of compliments) {
-      for (const lang of Object.keys(uiText)) {
-        probe.textContent = compliment[lang];
-        tallest = Math.max(tallest, probe.offsetHeight);
+    for (const list of Object.values(collections)) {
+      for (const item of list) {
+        for (const lang of Object.keys(uiText)) {
+          setText(probe, item[lang]);
+          tallest = Math.max(tallest, probe.offsetHeight);
+        }
       }
     }
     probe.remove();
@@ -449,13 +801,14 @@
   }
 
   /**
-   * Writes the current compliment (emoji + text) in the current language and
-   * replays the entrance animation defined in css/style.css.
+   * Shows the current item (emoji + text) in the current language, updates the
+   * small heading above it, and replays the entrance animation from css/style.css.
    */
-  function renderCompliment() {
-    const compliment = compliments[currentIndex];
-    emojiEl.textContent = compliment.emoji;
-    complimentEl.textContent = compliment[currentLang];
+  function renderItem() {
+    const item = collections[currentMode][currentIndex];
+    emojiEl.textContent = item.emoji;
+    setText(complimentEl, item[currentLang]);
+    eyebrowEl.textContent = uiText[currentLang].eyebrow[currentMode];
 
     // Restart the CSS animation: remove the class, force the browser to apply
     // that change (reading offsetWidth does this), then add the class back.
@@ -473,8 +826,9 @@
     document.title = text.title;
     if (descriptionMeta) descriptionMeta.setAttribute('content', text.description);
 
-    eyebrowEl.textContent = text.eyebrow;
-    button.textContent = text.button;
+    eyebrowEl.textContent = text.eyebrow[currentMode];
+    complimentButton.textContent = text.complimentButton;
+    jokeButton.textContent = text.jokeButton;
     langSwitch.setAttribute('aria-label', text.switchLabel);
 
     // Mark the selected language button (styled through [aria-pressed="true"]).
@@ -483,10 +837,15 @@
     });
   }
 
-  /** Shows a new random compliment. */
-  function showNewCompliment() {
-    currentIndex = getRandomIndex();
-    renderCompliment();
+  /**
+   * Shows a new random compliment or joke. Within the same mode it's never the
+   * one already on screen; switching mode can pick any item.
+   */
+  function showNew(mode) {
+    const avoid = mode === currentMode ? currentIndex : -1;
+    currentMode = mode;
+    currentIndex = getRandomIndex(collections[mode], avoid);
+    renderItem();
   }
 
   /** Switches language and translates what's already on screen. */
@@ -495,11 +854,12 @@
     currentLang = lang;
     saveLanguage(lang);
     renderInterface();
-    renderCompliment(); // same compliment, now in the other language
+    renderItem(); // same compliment or joke, now in the other language
   }
 
   /* ---------- Wire up the controls ---------- */
-  button.addEventListener('click', showNewCompliment);
+  complimentButton.addEventListener('click', () => showNew('compliment'));
+  jokeButton.addEventListener('click', () => showNew('joke'));
 
   // One listener on the switch handles both language buttons.
   langSwitch.addEventListener('click', (event) => {
@@ -518,7 +878,7 @@
   /* ---------- Start ---------- */
   renderInterface();
   emojiEl.textContent = compliments[currentIndex].emoji;
-  complimentEl.textContent = compliments[currentIndex][currentLang];
+  setText(complimentEl, compliments[currentIndex][currentLang]);
   lockComplimentHeight();
   // Web fonts change the text's size once they arrive: measure again then.
   if (document.fonts && document.fonts.ready) {
