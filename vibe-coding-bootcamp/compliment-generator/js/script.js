@@ -16,318 +16,318 @@
   // Add, remove or edit entries here; the rest of the code adapts automatically.
   const compliments = [
     // Kindness and warmth
-    { emoji: '🌟',
+    { emoji: '🌟', tags: ['wholesome'],
       en: 'You make the world a little brighter just by being in it.',
       fr: 'Tu rends le monde un peu plus lumineux, simplement en étant là.' },
-    { emoji: '🎁',
+    { emoji: '🎁', tags: ['wholesome'],
       en: 'Your kindness is a gift to everyone who knows you.',
       fr: 'Ta gentillesse est un cadeau pour tous ceux qui te connaissent.' },
-    { emoji: '👂',
+    { emoji: '👂', tags: ['wholesome'],
       en: 'You have a wonderful way of making people feel heard.',
       fr: 'Tu as un vrai don pour que les gens se sentent écoutés.' },
-    { emoji: '🍵',
+    { emoji: '🍵', tags: ['wholesome'],
       en: 'Being around you feels like a warm cup of tea on a cold day.',
       fr: 'Passer du temps avec toi, c’est comme une tasse de thé chaud un jour de froid.' },
-    { emoji: '🤝',
+    { emoji: '🤝', tags: ['wholesome'],
       en: 'People feel safe being themselves around you.',
       fr: 'Avec toi, les gens osent être eux-mêmes.' },
-    { emoji: '⚓',
+    { emoji: '⚓', tags: ['wholesome'],
       en: 'You show up for people when it counts.',
       fr: 'Tu es là pour les autres quand ça compte.' },
-    { emoji: '💞',
+    { emoji: '💞', tags: ['wholesome'],
       en: 'Your empathy makes people feel less alone.',
       fr: 'Ton empathie aide les autres à se sentir moins seuls.' },
-    { emoji: '🧸',
+    { emoji: '🧸', tags: ['wholesome', 'silly'],
       en: 'Your hugs could fix almost anything.',
       fr: 'Tes câlins pourraient réparer presque tout.' },
-    { emoji: '🤗',
+    { emoji: '🤗', tags: ['wholesome'],
       en: 'You make everyone feel welcome.',
       fr: 'Avec toi, tout le monde se sent le bienvenu.' },
-    { emoji: '🧡',
+    { emoji: '🧡', tags: ['wholesome'],
       en: 'You have a heart that makes people feel at home.',
       fr: 'Ton cœur donne aux gens l’impression d’être chez eux.' },
-    { emoji: '🌺',
+    { emoji: '🌺', tags: ['wholesome'],
       en: 'You make kindness look effortless.',
       fr: 'Avec toi, la gentillesse a l’air si naturelle.' },
-    { emoji: '🥇',
+    { emoji: '🥇', tags: ['wholesome'],
       en: 'When it comes to kindness, you deserve the gold medal.',
       fr: 'Côté gentillesse, tu mérites la médaille d’or.' },
-    { emoji: '🕯️',
+    { emoji: '🕯️', tags: ['wholesome'],
       en: 'You bring light to people going through dark times.',
       fr: 'Tu apportes de la lumière à ceux qui traversent des moments sombres.' },
-    { emoji: '🌸',
+    { emoji: '🌸', tags: ['wholesome'],
       en: 'Your gentleness is a strength.',
       fr: 'Ta douceur est une force.' },
-    { emoji: '🍫',
+    { emoji: '🍫', tags: ['wholesome'],
       en: 'You’re sweeter than chocolate, and better for the soul.',
       fr: 'Ta douceur bat celle du chocolat, et elle fait plus de bien à l’âme.' },
 
     // Strength and courage
-    { emoji: '🦁',
+    { emoji: '🦁', tags: ['encouraging'],
       en: 'You are braver than you believe and stronger than you seem.',
       fr: 'Tu as plus de courage que tu ne le crois, et plus de force qu’il n’y paraît.' },
-    { emoji: '🕊️',
+    { emoji: '🕊️', tags: ['encouraging'],
       en: 'You handle hard things with more grace than you give yourself credit for.',
       fr: 'Tu traverses les moments difficiles avec plus de grâce que tu ne le crois.' },
-    { emoji: '🧗',
+    { emoji: '🧗', tags: ['encouraging'],
       en: 'You keep going even when it’s hard, and that’s admirable.',
       fr: 'Tu continues même quand c’est difficile, et c’est admirable.' },
-    { emoji: '🌊',
+    { emoji: '🌊', tags: ['encouraging'],
       en: 'You stay calm when others are making waves.',
       fr: 'Tu gardes ton calme quand tout le monde s’agite.' },
-    { emoji: '🧘',
+    { emoji: '🧘', tags: ['encouraging'],
       en: 'Your calm is a superpower.',
       fr: 'Ton calme est un super-pouvoir.' },
-    { emoji: '🌋',
+    { emoji: '🌋', tags: ['encouraging'],
       en: 'Your determination could move mountains.',
       fr: 'Ta détermination pourrait déplacer des montagnes.' },
-    { emoji: '🏅',
+    { emoji: '🏅', tags: ['encouraging'],
       en: 'You handle challenges like a pro.',
       fr: 'Face aux défis, tu assures.' },
-    { emoji: '🌳',
+    { emoji: '🌳', tags: ['encouraging'],
       en: 'You’re someone people can lean on.',
       fr: 'Tu es un vrai pilier pour ton entourage.' },
-    { emoji: '🐢',
+    { emoji: '🐢', tags: ['encouraging'],
       en: 'Slow progress is still progress, and you’re making it.',
       fr: 'Avancer lentement, c’est avancer quand même, et tu avances.' },
-    { emoji: '🎒',
+    { emoji: '🎒', tags: ['encouraging'],
       en: 'You carry a lot, and you still make time for others.',
       fr: 'Tu portes beaucoup de choses, et tu trouves quand même du temps pour les autres.' },
 
     // Mind and creativity
-    { emoji: '🔍',
+    { emoji: '🔍', tags: ['brainy'],
       en: 'Your curiosity is contagious, in the best possible way.',
       fr: 'Ta curiosité est contagieuse, dans le meilleur sens du terme.' },
-    { emoji: '💡',
+    { emoji: '💡', tags: ['brainy'],
       en: 'Your ideas are worth sharing. Keep speaking up.',
       fr: 'Tes idées méritent d’être partagées. Continue de prendre la parole.' },
-    { emoji: '🎨',
+    { emoji: '🎨', tags: ['brainy'],
       en: 'Your creativity makes ordinary things feel special.',
       fr: 'Ta créativité rend les choses ordinaires un peu magiques.' },
-    { emoji: '🧠',
+    { emoji: '🧠', tags: ['brainy'],
       en: 'You think in ways that surprise and inspire people.',
       fr: 'Ta façon de penser surprend et inspire les autres.' },
-    { emoji: '🧩',
+    { emoji: '🧩', tags: ['brainy'],
       en: 'You make complicated things feel simple.',
       fr: 'Avec toi, les choses compliquées deviennent simples.' },
-    { emoji: '📚',
+    { emoji: '📚', tags: ['brainy'],
       en: 'You never stop learning, and it shows.',
       fr: 'Tu n’arrêtes jamais d’apprendre, et ça se voit.' },
-    { emoji: '🗝️',
+    { emoji: '🗝️', tags: ['brainy'],
       en: 'You have a knack for finding solutions nobody else sees.',
       fr: 'Tu as le don de trouver des solutions que personne d’autre ne voit.' },
-    { emoji: '🔭',
+    { emoji: '🔭', tags: ['brainy'],
       en: 'You see possibilities where others see problems.',
       fr: 'Tu vois des possibilités là où d’autres voient des problèmes.' },
-    { emoji: '📐',
+    { emoji: '📐', tags: ['brainy'],
       en: 'You pay attention to details others miss.',
       fr: 'Tu fais attention aux détails que les autres ne voient pas.' },
-    { emoji: '🎓',
+    { emoji: '🎓', tags: ['brainy'],
       en: 'You are smarter than you give yourself credit for.',
       fr: 'Tu as bien plus d’intelligence que tu ne te l’accordes.' },
-    { emoji: '🌌',
+    { emoji: '🌌', tags: ['brainy'],
       en: 'Your imagination has no limits.',
       fr: 'Ton imagination n’a pas de limites.' },
-    { emoji: '📝',
+    { emoji: '📝', tags: ['brainy'],
       en: 'Your words have a way of staying with people.',
       fr: 'Tes mots ont le don de rester dans les cœurs.' },
-    { emoji: '💬',
+    { emoji: '💬', tags: ['brainy'],
       en: 'Talking with you always makes things clearer.',
       fr: 'Parler avec toi rend toujours les choses plus claires.' },
-    { emoji: '🤓',
+    { emoji: '🤓', tags: ['brainy', 'silly'],
       en: 'Your nerdy enthusiasm is adorable.',
       fr: 'Ta passion de geek est adorable.' },
-    { emoji: '🪄',
+    { emoji: '🪄', tags: ['brainy'],
       en: 'You make hard work look like magic.',
       fr: 'Tu fais passer le travail acharné pour de la magie.' },
 
     // Joy and humour
-    { emoji: '😄',
+    { emoji: '😄', tags: ['wholesome'],
       en: 'Your laugh could turn anyone’s day around.',
       fr: 'Ton rire pourrait illuminer la journée de n’importe qui.' },
-    { emoji: '😎',
+    { emoji: '😎', tags: ['wholesome', 'silly'],
       en: 'You have great taste. In compliments, obviously.',
       fr: 'Tu as très bon goût. En compliments, évidemment.' },
-    { emoji: '☀️',
+    { emoji: '☀️', tags: ['wholesome'],
       en: 'Your smile could outshine the sun on a summer morning.',
       fr: 'Ton sourire ferait de l’ombre au soleil d’un matin d’été.' },
-    { emoji: '🌈',
+    { emoji: '🌈', tags: ['wholesome'],
       en: 'You add color to the grayest of days.',
       fr: 'Tu mets de la couleur dans les journées les plus grises.' },
-    { emoji: '🎶',
+    { emoji: '🎶', tags: ['wholesome'],
       en: 'Your energy is like a favorite song on repeat.',
       fr: 'Ton énergie, c’est comme une chanson préférée qu’on écoute en boucle.' },
-    { emoji: '🎈',
+    { emoji: '🎈', tags: ['wholesome'],
       en: 'You make ordinary moments feel like a celebration.',
       fr: 'Tu transformes les petits moments en fête.' },
-    { emoji: '🎭',
+    { emoji: '🎭', tags: ['wholesome'],
       en: 'You make people laugh without even trying.',
       fr: 'Tu fais rire les gens sans même essayer.' },
-    { emoji: '🧁',
+    { emoji: '🧁', tags: ['wholesome', 'silly'],
       en: 'You’re the human equivalent of a warm cupcake.',
       fr: 'Tu es l’équivalent humain d’un cupcake tout juste sorti du four.' },
-    { emoji: '🎉',
+    { emoji: '🎉', tags: ['wholesome'],
       en: 'Your enthusiasm is impossible to resist.',
       fr: 'Ton enthousiasme est irrésistible.' },
-    { emoji: '😂',
+    { emoji: '😂', tags: ['wholesome'],
       en: 'Your sense of humor is top-tier.',
       fr: 'Ton sens de l’humour est de première classe.' },
-    { emoji: '🎡',
+    { emoji: '🎡', tags: ['wholesome', 'silly'],
       en: 'Life is more fun with you around.',
       fr: 'La vie est plus amusante quand tu es là.' },
-    { emoji: '🪁',
+    { emoji: '🪁', tags: ['wholesome', 'silly'],
       en: 'Your playful spirit is contagious.',
       fr: 'Ton âme d’enfant est contagieuse.' },
-    { emoji: '🎬',
+    { emoji: '🎬', tags: ['wholesome', 'silly'],
       en: 'If your life were a movie, it would have a great soundtrack.',
       fr: 'Si ta vie était un film, elle aurait une bande originale géniale.' },
-    { emoji: '🍋',
+    { emoji: '🍋', tags: ['wholesome', 'silly'],
       en: 'You turn lemons into the best lemonade.',
       fr: 'Avec des citrons, tu fais la meilleure des limonades.' },
-    { emoji: '🍒',
+    { emoji: '🍒', tags: ['wholesome', 'silly'],
       en: 'You’re the cherry on top of any day.',
       fr: 'Tu es la cerise sur le gâteau de n’importe quelle journée.' },
 
     // Effort and growth
-    { emoji: '💪',
+    { emoji: '💪', tags: ['encouraging'],
       en: 'The effort you put in really shows, and it matters.',
       fr: 'Tes efforts se voient vraiment, et ils comptent.' },
-    { emoji: '🏔️',
+    { emoji: '🏔️', tags: ['encouraging'],
       en: 'You’re allowed to be proud of how far you’ve come.',
       fr: 'Tu as parcouru un sacré chemin, et ça mérite d’être célébré.' },
-    { emoji: '🌻',
+    { emoji: '🌻', tags: ['encouraging'],
       en: 'You grow a little more wonderful every single day.',
       fr: 'Chaque jour, tu deviens encore un peu plus formidable.' },
-    { emoji: '🏆',
+    { emoji: '🏆', tags: ['encouraging'],
       en: 'You’re doing better than you think you are.',
       fr: 'Tu t’en sors bien mieux que tu ne le penses.' },
-    { emoji: '🎯',
+    { emoji: '🎯', tags: ['encouraging'],
       en: 'When you set your mind to something, watch out, world.',
       fr: 'Quand tu te lances dans quelque chose, le monde n’a qu’à bien se tenir.' },
-    { emoji: '🐝',
+    { emoji: '🐝', tags: ['encouraging'],
       en: 'Your hard work doesn’t go unnoticed.',
       fr: 'Ton travail ne passe pas inaperçu.' },
-    { emoji: '🦋',
+    { emoji: '🦋', tags: ['encouraging'],
       en: 'You’ve grown so much, and it’s beautiful to see.',
       fr: 'Tu as tellement évolué, et c’est beau à voir.' },
-    { emoji: '🛤️',
+    { emoji: '🛤️', tags: ['encouraging'],
       en: 'You’re on the right path, even when it doesn’t feel like it.',
       fr: 'Tu es sur le bon chemin, même quand ça n’en a pas l’air.' },
-    { emoji: '🚀',
+    { emoji: '🚀', tags: ['encouraging'],
       en: 'Your potential is sky-high.',
       fr: 'Ton potentiel est immense.' },
-    { emoji: '🌠',
+    { emoji: '🌠', tags: ['encouraging'],
       en: 'Dream big. You have what it takes.',
       fr: 'Vois grand : tu as tout ce qu’il faut.' },
-    { emoji: '🎀',
+    { emoji: '🎀', tags: ['encouraging'],
       en: 'You put care into everything you do.',
       fr: 'Tu mets du soin dans tout ce que tu fais.' },
-    { emoji: '🛠️',
+    { emoji: '🛠️', tags: ['encouraging'],
       en: 'You fix things, and people’s days.',
       fr: 'Tu répares les choses, et les journées des gens.' },
 
     // People around you
-    { emoji: '🌱',
+    { emoji: '🌱', tags: ['wholesome'],
       en: 'You bring out the best in the people around you.',
       fr: 'Tu fais ressortir le meilleur chez les gens qui t’entourent.' },
-    { emoji: '🪴',
+    { emoji: '🪴', tags: ['wholesome'],
       en: 'You help the people around you grow.',
       fr: 'Tu aides les gens autour de toi à grandir.' },
-    { emoji: '🍀',
+    { emoji: '🍀', tags: ['wholesome'],
       en: 'Anyone who has you as a friend is lucky.',
       fr: 'Avoir ton amitié, c’est une vraie chance.' },
-    { emoji: '🧶',
+    { emoji: '🧶', tags: ['wholesome'],
       en: 'You bring people together.',
       fr: 'Tu sais rassembler les gens.' },
-    { emoji: '🌾',
+    { emoji: '🌾', tags: ['wholesome'],
       en: 'You make the people around you feel valued.',
       fr: 'Tu donnes aux gens autour de toi le sentiment de compter.' },
-    { emoji: '🔋',
+    { emoji: '🔋', tags: ['wholesome'],
       en: 'Your positivity recharges everyone around you.',
       fr: 'Ta bonne humeur recharge les batteries de tout ton entourage.' },
-    { emoji: '🌬️',
+    { emoji: '🌬️', tags: ['wholesome'],
       en: 'You lift people up without even realizing it.',
       fr: 'Tu redonnes le moral aux gens sans même t’en rendre compte.' },
-    { emoji: '🥰',
+    { emoji: '🥰', tags: ['wholesome'],
       en: 'Someone out there is smiling because of you.',
       fr: 'Quelque part, quelqu’un sourit grâce à toi.' },
-    { emoji: '🥳',
+    { emoji: '🥳', tags: ['wholesome'],
       en: 'When good things happen to you, everyone’s happy, because you deserve it.',
       fr: 'Quand il t’arrive quelque chose de bien, tout le monde se réjouit, parce que tu le mérites.' },
-    { emoji: '🏡',
+    { emoji: '🏡', tags: ['wholesome'],
       en: 'You make any place feel like home.',
       fr: 'Tu fais de n’importe quel endroit un petit chez-soi.' },
-    { emoji: '🎹',
+    { emoji: '🎹', tags: ['wholesome'],
       en: 'You bring harmony wherever you go.',
       fr: 'Tu apportes de l’harmonie partout où tu passes.' },
-    { emoji: '🕰️',
+    { emoji: '🕰️', tags: ['wholesome'],
       en: 'Every minute spent with you is worth it.',
       fr: 'Chaque minute passée avec toi vaut le coup.' },
 
     // Being you
-    { emoji: '🌍',
+    { emoji: '🌍', tags: ['wholesome'],
       en: 'The world is better with you in it, exactly as you are.',
       fr: 'Le monde est plus beau avec toi dedans, exactement comme tu es.' },
-    { emoji: '🧭',
+    { emoji: '🧭', tags: ['wholesome'],
       en: 'You have a great sense of what really matters.',
       fr: 'Tu as le sens de ce qui compte vraiment.' },
-    { emoji: '🔥',
+    { emoji: '🔥', tags: ['wholesome'],
       en: 'Your passion lights up every room you walk into.',
       fr: 'Ta passion illumine chaque pièce où tu entres.' },
-    { emoji: '✨',
+    { emoji: '✨', tags: ['wholesome'],
       en: 'There is a little magic in the way you see the world.',
       fr: 'Il y a un peu de magie dans ta façon de voir le monde.' },
-    { emoji: '🌙',
+    { emoji: '🌙', tags: ['wholesome'],
       en: 'Even your quiet moments are full of depth.',
       fr: 'Même tes silences sont pleins de profondeur.' },
-    { emoji: '🎤',
+    { emoji: '🎤', tags: ['wholesome'],
       en: 'Your voice deserves to be heard.',
       fr: 'Ta voix mérite d’être entendue.' },
-    { emoji: '💎',
+    { emoji: '💎', tags: ['wholesome'],
       en: 'You are rare, in the most precious way.',
       fr: 'Tu es une perle rare, dans le plus beau sens du terme.' },
-    { emoji: '🧣',
+    { emoji: '🧣', tags: ['wholesome'],
       en: 'Your style is uniquely and wonderfully you.',
       fr: 'Ton style n’appartient qu’à toi, et il est magnifique.' },
-    { emoji: '🌼',
+    { emoji: '🌼', tags: ['wholesome'],
       en: 'You notice the little things, and that means a lot.',
       fr: 'Tu remarques les petites choses, et ça compte énormément.' },
-    { emoji: '🗺️',
+    { emoji: '🗺️', tags: ['wholesome'],
       en: 'Your sense of adventure is truly inspiring.',
       fr: 'Ton goût de l’aventure est une vraie source d’inspiration.' },
-    { emoji: '🍃',
+    { emoji: '🍃', tags: ['wholesome'],
       en: 'You’re a breath of fresh air.',
       fr: 'Tu es une vraie bouffée d’air frais.' },
-    { emoji: '🌤️',
+    { emoji: '🌤️', tags: ['wholesome'],
       en: 'Your optimism is refreshing.',
       fr: 'Ton optimisme fait du bien.' },
-    { emoji: '🔆',
+    { emoji: '🔆', tags: ['wholesome'],
       en: 'You radiate good vibes.',
       fr: 'Tu dégages de bonnes ondes.' },
-    { emoji: '📣',
+    { emoji: '📣', tags: ['wholesome'],
       en: 'Keep being loud about the things you love.',
       fr: 'Continue de parler haut et fort de ce que tu aimes.' },
-    { emoji: '🪐',
+    { emoji: '🪐', tags: ['wholesome'],
       en: 'You’re out of this world.',
       fr: 'Tu es extraordinaire.' },
 
     // A little encouragement
-    { emoji: '⭐',
+    { emoji: '⭐', tags: ['encouraging', 'wholesome'],
       en: 'You deserve all the good things coming your way.',
       fr: 'Tu mérites toutes les belles choses qui t’arrivent.' },
-    { emoji: '🪞',
+    { emoji: '🪞', tags: ['encouraging', 'wholesome'],
       en: 'Take a moment to appreciate yourself. You’re worth it.',
       fr: 'Prends un moment pour t’apprécier : tu le vaux bien.' },
-    { emoji: '🌅',
+    { emoji: '🌅', tags: ['encouraging', 'wholesome'],
       en: 'Every day with you in it starts a little better.',
       fr: 'Chaque journée commence un peu mieux quand tu en fais partie.' },
-    { emoji: '🙌',
+    { emoji: '🙌', tags: ['encouraging', 'wholesome'],
       en: 'Thank you for being you.',
       fr: 'Merci d’être toi.' },
-    { emoji: '💌',
+    { emoji: '💌', tags: ['encouraging', 'wholesome'],
       en: 'You are loved more than you know.',
       fr: 'On t’aime plus que tu ne le crois.' },
-    { emoji: '🥂',
+    { emoji: '🥂', tags: ['encouraging', 'wholesome'],
       en: 'Here’s to you, and to everything you’re going to achieve.',
       fr: 'À toi, et à tout ce que tu vas accomplir.' },
   ];
@@ -341,319 +341,334 @@
   // French "M. et Mme…" jokes).
   const jokes = [
     // Animals
-    { emoji: '🐘',
+    { emoji: '🐘', tags: ['animals', 'silly'],
       en: 'Why don’t elephants use computers?\nThey’re scared of the mouse.',
       fr: 'Pourquoi les éléphants n’utilisent-ils pas d’ordinateur ?\nIls ont peur de la souris.' },
-    { emoji: '🐔',
+    { emoji: '🐔', tags: ['animals', 'silly'],
       en: 'Why did the chicken cross the road?\nTo get to the other side.',
       fr: 'Pourquoi la poule a-t-elle traversé la route ?\nPour aller de l’autre côté.' },
-    { emoji: '🐌',
+    { emoji: '🐌', tags: ['animals', 'silly'],
       en: 'What does a snail say when it rides on a turtle?\n“Wheeee!”',
       fr: 'Que dit un escargot sur le dos d’une tortue ?\n« Youhou, trop rapide ! »' },
-    { emoji: '🐙',
+    { emoji: '🐙', tags: ['animals', 'silly'],
       en: 'How did the octopus win the tickle fight?\nIt had eight arms.',
       fr: 'Comment la pieuvre a-t-elle gagné la bataille de chatouilles ?\nElle avait huit bras.' },
-    { emoji: '🦒',
+    { emoji: '🦒', tags: ['animals', 'silly'],
       en: 'Why do giraffes have such long necks?\nBecause their feet smell.',
       fr: 'Pourquoi les girafes ont-elles un si long cou ?\nParce qu’elles ont les pieds qui puent.' },
-    { emoji: '🐸',
+    { emoji: '🐸', tags: ['animals', 'puns'],
       en: 'What’s a frog’s favorite drink?\nCroak-a-Cola.',
       fr: 'Quelle est la boisson préférée des grenouilles ?\nLe Coâ-Coâ-Cola.' },
-    { emoji: '🐄',
+    { emoji: '🐄', tags: ['animals', 'puns'],
       en: 'Where do cows go on vacation?\nMoo York.',
       fr: 'Où les vaches partent-elles en vacances ?\nÀ Meuh-York.' },
-    { emoji: '🐱',
+    { emoji: '🐱', tags: ['animals', 'puns'],
       en: 'What do you call a pile of cats?\nA meowtain.',
       fr: 'Comment appelle-t-on une pile de chats ?\nUne miaou-tagne.' },
-    { emoji: '🐧',
+    { emoji: '🐧', tags: ['animals', 'puns'],
       en: 'Why don’t penguins like parties?\nThey find it hard to break the ice.',
       fr: 'Pourquoi les pingouins n’aiment-ils pas les fêtes ?\nIls ont du mal à briser la glace.' },
-    { emoji: '🐝',
+    { emoji: '🐝', tags: ['animals', 'silly'],
       en: 'Why do bees hum?\nBecause they don’t know the words.',
       fr: 'Pourquoi les abeilles bourdonnent-elles ?\nParce qu’elles ne connaissent pas les paroles.' },
-    { emoji: '🐟',
+    { emoji: '🐟', tags: ['animals', 'puns'],
       en: 'Why are fish so smart?\nBecause they live in schools.',
       fr: 'Pourquoi les poissons sont-ils si studieux ?\nIls nagent en bancs et ne sèchent jamais les cours.' },
-    { emoji: '🐍',
+    { emoji: '🐍', tags: ['animals', 'brainy', 'puns'],
       en: 'What’s a snake’s favorite subject at school?\nHiss-tory.',
       fr: 'Quelle est la matière préférée des serpents ?\nL’hiss-toire.' },
-    { emoji: '🦉',
+    { emoji: '🦉', tags: ['animals', 'puns'],
       en: 'What do you call an owl that does magic tricks?\nHoo-dini.',
       fr: 'Comment appelle-t-on une chouette magicienne ?\nHou-dini.' },
-    { emoji: '🐻',
+    { emoji: '🐻', tags: ['animals', 'puns'],
       en: 'What do you call a bear with no teeth?\nA gummy bear.',
       fr: 'Comment appelle-t-on un ours sans dents ?\nUn ours en gélatine.' },
-    { emoji: '🐶',
+    { emoji: '🐶', tags: ['animals', 'puns'],
       en: 'What do you call a dog that does magic?\nA labracadabrador.',
       fr: 'Comment appelle-t-on un chien magicien ?\nUn labracadabrador.' },
-    { emoji: '🐑',
+    { emoji: '🐑', tags: ['animals', 'puns'],
       en: 'What do sheep do on sunny days?\nHave a baa-becue.',
       fr: 'Que font les moutons quand il fait beau ?\nUn bêêê-rbecue.' },
-    { emoji: '🎸',
+    { emoji: '🎸', tags: ['animals', 'puns'],
       en: 'What do you call a cow that plays the guitar?\nA moo-sician.',
       fr: 'Comment appelle-t-on une vache qui joue de la guitare ?\nUne meuh-sicienne.' },
-    { emoji: '🦈',
+    { emoji: '🦈', tags: ['animals', 'puns'],
       en: 'What did the shark say after eating a clownfish?\n“That tasted a little funny.”',
       fr: 'Qu’a dit le requin après avoir mangé un poisson-clown ?\n« Il avait un drôle de goût. »' },
-    { emoji: '🦘',
+    { emoji: '🦘', tags: ['animals', 'puns'],
       en: 'What do you call a lazy kangaroo?\nA pouch potato.',
       fr: 'Pourquoi le kangourou est-il toujours détendu ?\nIl a tout ce qu’il faut dans la poche.' },
-    { emoji: '🐆',
+    { emoji: '🐆', tags: ['animals', 'puns'],
       en: 'Why don’t leopards play hide-and-seek?\nThey’re always spotted.',
       fr: 'Pourquoi les léopards ne jouent-ils jamais à cache-cache ?\nIls sont toujours repérés.' },
-    { emoji: '🐭',
+    { emoji: '🐭', tags: ['animals', 'puns'],
       en: 'What’s a mouse’s favorite game?\nHide-and-squeak.',
       fr: 'Quel est le jeu préféré des souris ?\nCache-cache avec le chat… mais jamais très longtemps.' },
-    { emoji: '🦩',
+    { emoji: '🦩', tags: ['animals', 'silly'],
       en: 'Why do flamingos stand on one leg?\nIf they lifted both, they’d fall over.',
       fr: 'Pourquoi les flamants roses se tiennent-ils sur une patte ?\nS’ils levaient l’autre, ils tomberaient.' },
-    { emoji: '🐊',
+    { emoji: '🐊', tags: ['animals', 'puns'],
       en: 'What do you call an alligator in a vest?\nAn investigator.',
       fr: 'Comment appelle-t-on un crocodile qui mène l’enquête ?\nSherlock Crocs.' },
-    { emoji: '🐿️',
+    { emoji: '🐿️', tags: ['animals', 'puns'],
       en: 'Why don’t squirrels ever get lost?\nThey always stay on the right branch.',
       fr: 'Pourquoi les écureuils ne se perdent-ils jamais ?\nIls restent toujours sur la bonne branche.' },
-    { emoji: '🕷️',
+    { emoji: '🕷️', tags: ['animals', 'puns'],
       en: 'Why are spiders so good with computers?\nThey spend their whole life on the web.',
       fr: 'Pourquoi les araignées sont-elles douées en informatique ?\nElles passent leur vie sur la toile.' },
-    { emoji: '🐡',
+    { emoji: '🐡', tags: ['animals', 'puns'],
       en: 'What do you call a fish wearing a bow tie?\nSofishticated.',
       fr: 'Comment appelle-t-on un poisson qui porte un nœud papillon ?\nUn thon très chic.' },
-    { emoji: '🦀',
+    { emoji: '🦀', tags: ['animals', 'puns'],
       en: 'Why don’t crabs share their snacks?\nBecause they’re shellfish.',
       fr: 'Pourquoi les crabes marchent-ils de travers ?\nParce qu’ils ont bu trop d’eau salée.' },
-    { emoji: '🐴',
+    { emoji: '🐴', tags: ['animals', 'puns'],
       en: 'Why did the pony have to gargle?\nIt was a little horse.',
       fr: 'Pourquoi le cheval ne peut-il pas chanter ce soir ?\nIl a un chat dans la gorge.' },
-    { emoji: '🐇',
+    { emoji: '🐇', tags: ['animals', 'puns'],
       en: 'How do rabbits travel?\nBy hare-plane.',
       fr: 'Que fait un lapin qui ne vient pas à son rendez-vous ?\nIl pose un lapin.' },
-    { emoji: '🐷',
+    { emoji: '🐷', tags: ['animals', 'puns'],
       en: 'What do you call a pig that does karate?\nA pork chop.',
       fr: 'Pourquoi les cochons s’entendent-ils si bien ?\nIls sont copains comme cochons.' },
-    { emoji: '🐜',
+    { emoji: '🐜', tags: ['animals', 'puns'],
       en: 'Why don’t ants ever get sick?\nThey have little anty-bodies.',
       fr: 'Pourquoi les fourmis ne tombent-elles jamais malades ?\nElles ont des anticorps fourmi-dables.' },
-    { emoji: '🌭',
+    { emoji: '🌭', tags: ['animals', 'puns'],
       en: 'Why did the dog sit in the shade?\nHe didn’t want to be a hot dog.',
       fr: 'Pourquoi le chien s’assoit-il à l’ombre ?\nIl ne veut pas devenir un hot-dog.' },
-    { emoji: '🐈',
+    { emoji: '🐈', tags: ['animals', 'puns'],
       en: 'Why was the cat sitting on the computer?\nTo keep an eye on the mouse.',
       fr: 'Pourquoi le chat est-il assis sur l’ordinateur ?\nPour surveiller la souris.' },
-    { emoji: '🦆',
+    { emoji: '🦆', tags: ['animals', 'puns'],
       en: 'What do you call a duck that gets straight A’s?\nA wise quacker.',
       fr: 'Comment appelle-t-on un canard très intelligent ?\nUn génie du coin-coin.' },
-    { emoji: '🦔',
+    { emoji: '🦔', tags: ['animals', 'silly'],
       en: 'What do you get if you cross a hedgehog and a snake?\nBarbed wire.',
       fr: 'Que donne le croisement d’un hérisson et d’un serpent ?\nDu fil barbelé.' },
 
     // Dinosaurs, monsters and ghosts
-    { emoji: '🦖',
+    { emoji: '🦖', tags: ['spooky', 'puns'],
       en: 'What do you call a sleeping dinosaur?\nA dino-snore.',
       fr: 'Comment appelle-t-on un dinosaure qui dort ?\nUn dino-dort.' },
-    { emoji: '🦕',
+    { emoji: '🦕', tags: ['spooky', 'brainy', 'puns'],
       en: 'What do you call a dinosaur that knows every word?\nA thesaurus.',
       fr: 'Comment appelle-t-on un dinosaure qui connaît tous les mots ?\nUn dico-saure.' },
-    { emoji: '💀',
+    { emoji: '💀', tags: ['spooky', 'puns'],
       en: 'Why don’t skeletons fight each other?\nThey don’t have the guts.',
       fr: 'Pourquoi les squelettes ne se battent-ils jamais ?\nIls n’ont pas de tripes.' },
-    { emoji: '🎃',
+    { emoji: '🎃', tags: ['spooky', 'puns'],
       en: 'Why didn’t the skeleton go to the party?\nIt had no body to go with.',
       fr: 'Pourquoi le squelette n’est-il pas allé à la fête ?\nIl n’avait pas le cœur à ça.' },
-    { emoji: '🎺',
+    { emoji: '🎺', tags: ['spooky', 'puns'],
       en: 'What’s a skeleton’s favorite instrument?\nThe trom-bone.',
       fr: 'Quel est l’instrument préféré des squelettes ?\nLe trombone… pardon, le trom-os.' },
-    { emoji: '👻',
+    { emoji: '👻', tags: ['spooky', 'puns'],
       en: 'Why are ghosts such bad liars?\nYou can see right through them.',
       fr: 'Pourquoi les fantômes mentent-ils si mal ?\nOn voit clair dans leur jeu.' },
-    { emoji: '🧛',
+    { emoji: '🧛', tags: ['spooky', 'puns'],
       en: 'Why don’t vampires have many friends?\nThey’re a pain in the neck.',
       fr: 'Pourquoi les vampires sont-ils toujours de mauvaise humeur ?\nIls ont les crocs.' },
-    { emoji: '🛸',
+    { emoji: '🛸', tags: ['spooky', 'puns'],
       en: 'What’s an alien’s favorite chocolate bar?\nA Milky Way.',
       fr: 'Que boivent les extraterrestres au goûter ?\nDu lait de la Voie lactée.' },
 
     // Food
-    { emoji: '🍅',
+    { emoji: '🍅', tags: ['food', 'puns'],
       en: 'Why did the tomato blush?\nBecause it saw the salad dressing.',
       fr: 'Pourquoi la tomate est-elle toute rouge ?\nElle a vu la salade se déshabiller.' },
-    { emoji: '🥚',
+    { emoji: '🥚', tags: ['food', 'puns'],
       en: 'Why don’t eggs tell jokes?\nThey’d crack each other up.',
       fr: 'Pourquoi les œufs ne racontent-ils jamais de blagues ?\nIls finiraient tous par craquer.' },
-    { emoji: '🍌',
+    { emoji: '🍌', tags: ['food', 'puns'],
       en: 'Why did the banana go to the doctor?\nIt wasn’t peeling well.',
       fr: 'Pourquoi la banane est-elle allée chez le médecin ?\nElle ne se sentait pas bien dans sa peau.' },
-    { emoji: '🍪',
+    { emoji: '🍪', tags: ['food', 'puns'],
       en: 'Why did the cookie go to the nurse?\nIt felt crummy.',
       fr: 'Pourquoi le cookie est-il allé à l’infirmerie ?\nIl était en miettes.' },
-    { emoji: '🥐',
+    { emoji: '🥐', tags: ['food', 'puns'],
       en: 'Why did the croissant see a therapist?\nIt was feeling a bit flaky.',
       fr: 'Pourquoi le croissant est-il allé chez le psy ?\nIl n’était pas dans son assiette.' },
-    { emoji: '🍩',
+    { emoji: '🍩', tags: ['food', 'puns'],
       en: 'Why did the doughnut go to the dentist?\nIt needed a filling.',
       fr: 'Pourquoi le beignet est-il allé chez le dentiste ?\nIl avait besoin d’un plombage… à la confiture.' },
-    { emoji: '🥔',
+    { emoji: '🥔', tags: ['food', 'puns'],
       en: 'Why do potatoes make great detectives?\nThey keep their eyes peeled.',
       fr: 'Pourquoi les patates sont-elles toujours en forme ?\nElles ont la frite.' },
-    { emoji: '🍋',
+    { emoji: '🍋', tags: ['food', 'puns'],
       en: 'Why did the lemon stop running?\nIt ran out of juice.',
       fr: 'Pourquoi le citron s’est-il arrêté de courir ?\nIl n’avait plus de jus.' },
-    { emoji: '☕',
+    { emoji: '☕', tags: ['food', 'puns'],
       en: 'Why did the coffee call the police?\nIt got mugged.',
       fr: 'Pourquoi le café a-t-il porté plainte ?\nIl s’est fait moudre de coups.' },
-    { emoji: '🍓',
+    { emoji: '🍓', tags: ['food', 'puns'],
       en: 'What did one strawberry say to the other?\nIf you weren’t so sweet, we wouldn’t be in this jam.',
       fr: 'Que dit une fraise à une autre fraise ?\nSi on n’avait pas été si douces, on ne finirait pas en confiture.' },
-    { emoji: '🍦',
+    { emoji: '🍦', tags: ['food', 'puns'],
       en: 'Where do ice creams go to learn?\nSundae school.',
       fr: 'Que dit une glace à la vanille à son amoureux ?\n« Je fonds pour toi. »' },
-    { emoji: '🍐',
+    { emoji: '🍐', tags: ['food', 'puns'],
       en: 'What did one pear say to the other?\nWe make a great pair.',
       fr: 'Que dit une poire à une autre poire ?\nOn se fend la poire !' },
-    { emoji: '🍔',
+    { emoji: '🍔', tags: ['food', 'puns'],
       en: 'What did the hamburger name its daughter?\nPatty.',
       fr: 'Comment s’appelle la fille du hamburger ?\nSteak-phanie.' },
-    { emoji: '🥖',
+    { emoji: '🥖', tags: ['food', 'puns'],
       en: 'What does a loaf of bread do when it’s tired?\nIt loafs around.',
       fr: 'Pourquoi la baguette se méfie-t-elle toujours ?\nElle ne veut pas se faire rouler dans la farine.' },
-    { emoji: '🎂',
+    { emoji: '🎂', tags: ['food', 'silly'],
       en: 'What did the birthday cake say to the fork?\n“Want a piece of me?”',
       fr: 'Que dit le gâteau d’anniversaire à la fourchette ?\n« Tu veux ma part ? »' },
-    { emoji: '⛄',
+    { emoji: '⛄', tags: ['food', 'puns'],
       en: 'What do snowmen eat for breakfast?\nFrosted Flakes.',
       fr: 'Que mangent les bonshommes de neige au petit-déjeuner ?\nDes flocons, bien sûr.' },
-    { emoji: '💛',
+    { emoji: '💛', tags: ['food', 'silly'],
       en: 'What’s orange and sounds like a parrot?\nA carrot.',
       fr: 'Qu’est-ce qui est jaune et qui attend ?\nJonathan.' },
 
     // School, work and everyday things
-    { emoji: '📚',
+    { emoji: '📚', tags: ['brainy', 'puns'],
       en: 'Why was the math book sad?\nIt had too many problems.',
       fr: 'Pourquoi le livre de maths est-il triste ?\nIl a trop de problèmes.' },
-    { emoji: '🪜',
+    { emoji: '🪜', tags: ['brainy', 'puns'],
       en: 'Why did the student bring a ladder to school?\nTo get into high school.',
       fr: 'Pourquoi l’élève apporte-t-il une échelle à l’école ?\nPour passer dans la classe supérieure.' },
-    { emoji: '🍎',
+    { emoji: '🍎', tags: ['brainy', 'puns'],
       en: 'Why did the teacher wear sunglasses?\nHer students were so bright.',
       fr: 'Pourquoi la maîtresse porte-t-elle des lunettes de soleil ?\nSes élèves sont trop brillants.' },
-    { emoji: '✏️',
+    { emoji: '✏️', tags: ['brainy', 'puns'],
       en: 'Why did the pencil win the argument?\nIt made a good point.',
       fr: 'Pourquoi le crayon a-t-il gagné le débat ?\nSes arguments étaient bien taillés.' },
-    { emoji: '📖',
+    { emoji: '📖', tags: ['brainy', 'puns'],
       en: 'Why don’t books ever feel cold?\nThey have covers.',
       fr: 'Pourquoi les livres n’ont-ils jamais froid ?\nIls ont une couverture.' },
-    { emoji: '📕',
+    { emoji: '📕', tags: ['brainy', 'puns'],
       en: 'I’m reading a book about anti-gravity.\nIt’s impossible to put down.',
       fr: 'Je lis un livre sur l’antigravité.\nImpossible de le reposer !' },
-    { emoji: '🔢',
+    { emoji: '🔢', tags: ['brainy', 'silly'],
       en: 'What did zero say to eight?\n“Nice belt!”',
       fr: 'Que dit le zéro au huit ?\n« Sympa, ta ceinture ! »' },
-    { emoji: '🎧',
+    { emoji: '🎧', tags: ['brainy', 'puns'],
       en: 'Why did the music teacher need a ladder?\nTo reach the high notes.',
       fr: 'Pourquoi le prof de musique monte-t-il sur une échelle ?\nPour atteindre les notes aiguës.' },
-    { emoji: '⚡',
+    { emoji: '⚡', tags: ['brainy', 'puns'],
       en: 'Why is an electrician always up to date?\nThey’re always current.',
       fr: 'Quel est le comble pour un électricien ?\nNe pas être au courant.' },
-    { emoji: '🥬',
+    { emoji: '🥬', tags: ['puns'],
       en: 'What’s a gardener’s favorite game?\nHide-and-go-seed.',
       fr: 'Quel est le comble pour un jardinier ?\nRaconter des salades.' },
-    { emoji: '🦷',
+    { emoji: '🦷', tags: ['puns'],
       en: 'What does a dentist call their X-rays?\nTooth pics.',
       fr: 'Quel est le comble pour un dentiste ?\nAvoir une dent contre quelqu’un.' },
-    { emoji: '🎩',
+    { emoji: '🎩', tags: ['brainy', 'puns'],
       en: 'Why did the magician go back to school?\nTo work on his spelling.',
       fr: 'Quel est le comble pour un magicien ?\nAvoir un tour de reins.' },
-    { emoji: '🏦',
+    { emoji: '🏦', tags: ['puns'],
       en: 'I used to be a banker,\nbut I lost interest.',
       fr: 'Avant, j’étais banquier,\nmais j’ai perdu tout intérêt.' },
-    { emoji: '🥕',
+    { emoji: '🥕', tags: ['puns'],
       en: 'Why did the scarecrow win an award?\nHe was outstanding in his field.',
       fr: 'Pourquoi l’épouvantail a-t-il reçu un prix ?\nIl était le meilleur dans son domaine… et il n’en bougeait jamais.' },
-    { emoji: '💻',
+    { emoji: '💻', tags: ['puns'],
       en: 'Why did the computer go to the doctor?\nIt had caught a virus.',
       fr: 'Pourquoi l’ordinateur est-il allé chez le médecin ?\nIl avait attrapé un virus.' },
-    { emoji: '📱',
+    { emoji: '📱', tags: ['puns'],
       en: 'Why did the phone need glasses?\nIt lost all its contacts.',
       fr: 'Pourquoi le téléphone porte-t-il des lunettes ?\nIl a perdu tous ses contacts.' },
-    { emoji: '🔋',
+    { emoji: '🔋', tags: ['silly'],
       en: 'What did the battery say to the charger?\n“You complete me.”',
       fr: 'Qu’a dit la batterie au chargeur ?\n« Sans toi, je suis à plat. »' },
-    { emoji: '⏰',
+    { emoji: '⏰', tags: ['puns'],
       en: 'Why did the man throw his clock out the window?\nHe wanted to see time fly.',
       fr: 'Pourquoi l’homme a-t-il jeté son réveil par la fenêtre ?\nPour voir le temps s’envoler.' },
-    { emoji: '🧱',
+    { emoji: '🧱', tags: ['puns'],
       en: 'What did one wall say to the other?\n“Meet you at the corner!”',
       fr: 'Que dit un mur à un autre mur ?\n« On se retrouve au coin ! »' },
-    { emoji: '🧹',
+    { emoji: '🧹', tags: ['puns'],
       en: 'What did the broom say to the vacuum cleaner?\n“I’m tired of people pushing us around.”',
       fr: 'Que dit le balai à l’aspirateur ?\n« J’en ai marre qu’on nous pousse partout. »' },
-    { emoji: '🧊',
+    { emoji: '🧊', tags: ['silly'],
       en: 'What did the ice cube say to the glass of water?\n“I used to be like you.”',
       fr: 'Qu’a dit le glaçon au verre d’eau ?\n« Avant, j’étais comme toi. »' },
 
     // Sports, travel and the sky
-    { emoji: '⚽',
+    { emoji: '⚽', tags: ['puns'],
       en: 'Why did the soccer ball quit the team?\nIt was tired of being kicked around.',
       fr: 'Pourquoi le ballon de foot a-t-il quitté l’équipe ?\nIl en avait marre de se faire shooter.' },
-    { emoji: '🚲',
+    { emoji: '🚲', tags: ['puns'],
       en: 'Why can’t a bicycle stand up on its own?\nIt’s two-tired.',
       fr: 'Pourquoi le vélo ne tient-il pas debout tout seul ?\nIl est crevé.' },
-    { emoji: '✈️',
+    { emoji: '✈️', tags: ['puns'],
       en: 'Why was the airplane sent to its room?\nIt had a bad altitude.',
       fr: 'Pourquoi l’avion a-t-il été puni ?\nIl avait une mauvaise altitude.' },
-    { emoji: '🚀',
+    { emoji: '🚀', tags: ['puns'],
       en: 'How do astronauts organize a party?\nThey planet.',
       fr: 'Comment les astronautes organisent-ils une fête ?\nIls la planètent.' },
-    { emoji: '🌙',
+    { emoji: '🌙', tags: ['silly'],
       en: 'Why did the cow jump over the moon?\nThe farmer had cold hands.',
       fr: 'Pourquoi la vache a-t-elle sauté par-dessus la lune ?\nLe fermier avait les mains froides.' },
-    { emoji: '🌞',
+    { emoji: '🌞', tags: ['brainy', 'puns'],
       en: 'Why doesn’t the sun go to college?\nIt already has millions of degrees.',
       fr: 'Pourquoi le soleil ne va-t-il pas à l’université ?\nIl a déjà des millions de degrés.' },
-    { emoji: '🌻',
+    { emoji: '🌻', tags: ['puns'],
       en: 'Why is the sunflower always in a good mood?\nIt always looks on the bright side.',
       fr: 'Pourquoi le tournesol a-t-il toujours le moral ?\nIl regarde toujours du bon côté.' },
-    { emoji: '🌊',
+    { emoji: '🌊', tags: ['puns'],
       en: 'What did the ocean say to the beach?\nNothing, it just waved.',
       fr: 'Qu’a dit l’océan à la plage ?\nRien, il s’est contenté de faire des vagues.' },
-    { emoji: '🌫️',
+    { emoji: '🌫️', tags: ['puns'],
       en: 'I tried to catch some fog yesterday.\nI mist.',
       fr: 'Hier, j’ai essayé d’attraper le brouillard.\nRésultat : je suis resté dans le flou.' },
-    { emoji: '❄️',
+    { emoji: '❄️', tags: ['puns'],
       en: 'What do you call a snowman in July?\nA puddle.',
       fr: 'Comment appelle-t-on un bonhomme de neige en juillet ?\nUne flaque.' },
-    { emoji: '🎈',
+    { emoji: '🎈', tags: ['puns'],
       en: 'Why should you never give Elsa a balloon?\nShe’ll let it go.',
       fr: 'Pourquoi ne faut-il jamais donner de ballon à la Reine des neiges ?\nElle va le libérer, le délivrer…' },
 
     // Knock-knock jokes (English) and “M. et Mme…” jokes (French)
-    { emoji: '🚪',
+    { emoji: '🚪', tags: ['classics', 'puns'],
       en: 'Knock, knock. Who’s there? Lettuce.\nLettuce who? Lettuce in, it’s cold out here!',
       fr: 'M. et Mme Térieur ont deux fils.\nAlain et Alex : Alain Térieur et Alex Térieur !' },
-    { emoji: '🚪',
+    { emoji: '🚪', tags: ['classics', 'puns'],
       en: 'Knock, knock. Who’s there? Boo.\nBoo who? Don’t cry, it’s only a joke!',
       fr: 'M. et Mme Tatouille ont une fille.\nSarah : Sarah Tatouille !' },
-    { emoji: '🚪',
+    { emoji: '🚪', tags: ['classics', 'silly'],
       en: 'Knock, knock. Who’s there? Interrupting cow.\nInterrupting c— MOO!',
       fr: 'M. et Mme Débauche ont un fils.\nJean : Jean Débauche !' },
-    { emoji: '🚪',
+    { emoji: '🚪', tags: ['classics', 'puns'],
       en: 'Knock, knock. Who’s there? Olive.\nOlive who? Olive you, and I missed you!',
       fr: 'M. et Mme Assin ont un fils.\nMarc : Marc Assin !' },
-    { emoji: '🚪',
+    { emoji: '🚪', tags: ['classics', 'puns'],
       en: 'Knock, knock. Who’s there? Tank.\nTank who? You’re welcome!',
       fr: 'M. et Mme Kiroul ont un fils.\nPierre : Pierre Kiroul n’amasse pas mousse !' },
-    { emoji: '🚪',
+    { emoji: '🚪', tags: ['classics', 'puns'],
       en: 'Knock, knock. Who’s there? Hawaii.\nHawaii you? I’m fine, thanks!',
       fr: 'M. et Mme Bonbeur ont un fils.\nJean : Jean Bonbeur !' },
-    { emoji: '🚪',
+    { emoji: '🚪', tags: ['classics', 'puns'],
       en: 'Knock, knock. Who’s there? Atch.\nAtch who? Bless you!',
       fr: 'M. et Mme Onette ont un fils.\nMario : Mario Onette !' },
 
     // And one to finish
-    { emoji: '🙃',
+    { emoji: '🙃', tags: ['puns'],
       en: 'I told my friend ten jokes to make him laugh.\nSadly, no pun in ten did.',
       fr: 'J’ai raconté dix blagues à un ami pour le faire rire.\nAucune n’a marché… sauf celle-ci, j’espère !' },
   ];
+
+  /* ---------- Tags ---------- */
+  // Every compliment and joke has one to three of these tags (the `tags` field
+  // above). They're shown on the card and used to filter the search.
+  const tagInfo = {
+    wholesome: { emoji: '💛', en: 'Wholesome', fr: 'Tendre' },
+    encouraging: { emoji: '💪', en: 'Encouraging', fr: 'Encourageant' },
+    brainy: { emoji: '🧠', en: 'Brainy', fr: 'Futé' },
+    silly: { emoji: '🤪', en: 'Silly', fr: 'Loufoque' },
+    puns: { emoji: '🥁', en: 'Puns', fr: 'Jeux de mots' },
+    animals: { emoji: '🐾', en: 'Animals', fr: 'Animaux' },
+    food: { emoji: '🍕', en: 'Food', fr: 'Miam' },
+    spooky: { emoji: '👻', en: 'Spooky', fr: 'Frissons' },
+    classics: { emoji: '🚪', en: 'Classics', fr: 'Classiques' },
+  };
 
   /* ---------- Interface text in each language ---------- */
   const uiText = {
@@ -687,6 +702,20 @@
       share: 'Share',
       shareOn: 'Share on',
       email: 'Email',
+      browse: {
+        open: 'Browse & search',
+        title: 'Browse',
+        searchLabel: 'Search compliments and jokes',
+        placeholder: 'Search…',
+        type: { all: 'All', compliment: 'Compliments', joke: 'Jokes' },
+        typeLabel: 'Type',
+        tagsLabel: 'Tags',
+        results: (n) => (n === 1 ? '1 result' : `${n} results`),
+        empty: 'Nothing matches. Try another word, or remove a tag.',
+        clear: 'Clear filters',
+        random: '🎲 Random from these',
+        tagOnCard: (tag) => `Browse everything tagged ${tag}`,
+      },
     },
     fr: {
       title: 'Générateur de compliments',
@@ -718,6 +747,20 @@
       share: 'Partager',
       shareOn: 'Partager sur',
       email: 'E-mail',
+      browse: {
+        open: 'Parcourir et chercher',
+        title: 'Parcourir',
+        searchLabel: 'Chercher dans les compliments et les blagues',
+        placeholder: 'Chercher…',
+        type: { all: 'Tout', compliment: 'Compliments', joke: 'Blagues' },
+        typeLabel: 'Type',
+        tagsLabel: 'Étiquettes',
+        results: (n) => (n <= 1 ? `${n} résultat` : `${n} résultats`),
+        empty: 'Aucun résultat. Essaie un autre mot, ou retire une étiquette.',
+        clear: 'Effacer les filtres',
+        random: '🎲 Au hasard parmi ceux-ci',
+        tagOnCard: (tag) => `Parcourir tout ce qui est étiqueté « ${tag} »`,
+      },
     },
   };
 
@@ -753,12 +796,29 @@
   const shareMenu = document.getElementById('share-menu');
   const shareMenuTitle = document.getElementById('share-menu-title');
   const shareLinks = document.getElementById('share-links');
+  const complimentTags = document.getElementById('compliment-tags');
+  const openBrowseButton = document.getElementById('open-browse');
+  const openBrowseLabel = document.getElementById('open-browse-label');
+  const browseDialog = document.getElementById('browse-dialog');
+  const browseTitle = document.getElementById('browse-title');
+  const browseClose = document.getElementById('browse-close');
+  const browseSearch = document.getElementById('browse-search');
+  const browseSearchLabel = document.getElementById('browse-search-label');
+  const browseType = document.getElementById('browse-type');
+  const browseTags = document.getElementById('browse-tags');
+  const browseSummary = document.getElementById('browse-summary');
+  const browseList = document.getElementById('browse-list');
+  const browseEmpty = document.getElementById('browse-empty');
+  const browseClear = document.getElementById('browse-clear');
+  const browseRandom = document.getElementById('browse-random');
 
   // Stop quietly if the page doesn't have the expected elements.
   const required = [complimentBox, complimentEl, emojiEl, complimentButton, jokeButton, eyebrowEl, langSwitch,
     favToggle, openFavoritesButton, openFavoritesLabel, favoritesCount, favoritesDialog, favoritesTitle,
     favoritesClose, favoritesEmpty, favoritesList, favoritesNote, favoritesClear, statusEl,
-    copyButton, shareButton, shareMenu, shareMenuTitle, shareLinks];
+    copyButton, shareButton, shareMenu, shareMenuTitle, shareLinks,
+    complimentTags, openBrowseButton, openBrowseLabel, browseDialog, browseTitle, browseClose, browseSearch,
+    browseSearchLabel, browseType, browseTags, browseSummary, browseList, browseEmpty, browseClear, browseRandom];
   if (required.some((element) => !element)) {
     return;
   }
@@ -903,6 +963,7 @@
     // Jokes get their own timing in the CSS (the punchline arrives a beat later).
     complimentBox.classList.toggle('is-joke', currentMode === 'joke');
     renderFavoriteToggle();
+    renderCardTags();
     closeShareMenu();
 
     // Restart the CSS animation: remove the class, force the browser to apply
@@ -939,6 +1000,10 @@
     shareButton.setAttribute('aria-label', text.share);
     shareButton.title = text.share;
     if (!shareMenu.hidden) renderShareLinks();
+
+    openBrowseLabel.textContent = text.browse.open;
+    renderCardTags();
+    if (browseDialog.open) renderBrowse();
   }
 
   /**
@@ -1025,23 +1090,31 @@
   }
 
   /** Adds the item on the card to the favorites, or removes it if it's already there. */
-  function toggleFavorite() {
-    const key = currentKey();
+  /** Adds an item to the favorites, or removes it if it's already there. */
+  function toggleFavoriteItem(type, index) {
+    const item = collections[type][index];
+    const key = favoriteKey(type, item);
     const text = uiText[currentLang].favorites;
-    if (isFavorite(key)) {
+    const adding = !isFavorite(key);
+    if (adding) {
+      favorites.unshift({ type, en: item.en, at: new Date().toISOString() });
+      announce(text.added);
+    } else {
       favorites = favorites.filter((favorite) => favoriteKey(favorite.type, favorite) !== key);
       announce(text.removed);
-    } else {
-      const item = collections[currentMode][currentIndex];
-      favorites.unshift({ type: currentMode, en: item.en, at: new Date().toISOString() });
-      announce(text.added);
-      // Replay the little heart "pop" from css/style.css.
+    }
+    saveFavorites();
+    renderFavorites();
+    return adding;
+  }
+
+  /** The heart on the card: same thing for the item on screen, with a little "pop". */
+  function toggleFavorite() {
+    if (toggleFavoriteItem(currentMode, currentIndex)) {
       favToggle.classList.remove('is-popping');
       void favToggle.offsetWidth;
       favToggle.classList.add('is-popping');
     }
-    saveFavorites();
-    renderFavorites();
   }
 
   /** Removes one favorite from the list, keeping keyboard focus in a sensible place. */
@@ -1174,6 +1247,7 @@
     renderFavoriteToggle();
     renderFavoritesButton();
     if (favoritesDialog.open) renderFavoritesList();
+    if (browseDialog.open) syncBrowseHearts();
   }
 
   /* ---------- Copy and share ---------- */
@@ -1342,11 +1416,310 @@
     if (returnFocus) shareButton.focus();
   }
 
+  /* ---------- Tags on the card ---------- */
+
+  const tagLabel = (tag) => `${tagInfo[tag].emoji} ${tagInfo[tag][currentLang]}`;
+
+  /** Chips under the text; each opens the search filtered on that tag. */
+  function renderCardTags() {
+    const item = collections[currentMode][currentIndex];
+    const labels = uiText[currentLang].browse;
+    complimentTags.setAttribute('aria-label', labels.tagsLabel);
+    complimentTags.replaceChildren(...item.tags.map((tag) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'tag-chip';
+      chip.dataset.tag = tag;
+      chip.textContent = tagLabel(tag);
+      chip.title = labels.tagOnCard(tagInfo[tag][currentLang]);
+      return chip;
+    }));
+  }
+
+  /* ---------- Browse & search ---------- */
+
+  // Current filters. Tags combine: every selected tag must be present.
+  const browse = { query: '', type: 'all', tags: new Set() };
+
+  /**
+   * Makes text comparable: lower case, without accents, with plain
+   * apostrophes. Each character stays one character long, so a match found in
+   * the folded text is at the same position in the original (for highlighting).
+   */
+  function fold(text) {
+    let out = '';
+    for (const unit of String(text)) {
+      let c = unit.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      if (c === '’' || c === '‘') c = "'";
+      out += c.length === unit.length ? c : unit;
+    }
+    return out;
+  }
+
+  // Everything searchable, prepared once: both languages and the tag names,
+  // so "chien" and "dog" both find the dog joke whatever the page language.
+  const searchIndex = [];
+  for (const [type, list] of Object.entries(collections)) {
+    list.forEach((item, index) => {
+      const tagWords = item.tags.map((tag) => `${tagInfo[tag].en} ${tagInfo[tag].fr}`).join(' ');
+      searchIndex.push({ type, index, item, haystack: fold(`${item.en} ${item.fr} ${tagWords} ${item.emoji}`) });
+    });
+  }
+
+  function searchTerms() {
+    return fold(browse.query).split(/\s+/).filter(Boolean);
+  }
+
+  /** Items matching the search words, the type and every selected tag. */
+  function browseResults() {
+    const terms = searchTerms();
+    return searchIndex.filter((entry) =>
+      (browse.type === 'all' || entry.type === browse.type) &&
+      [...browse.tags].every((tag) => entry.item.tags.includes(tag)) &&
+      terms.every((term) => entry.haystack.includes(term)));
+  }
+
+  /** Wraps the search words found in an element's text in <mark> (text nodes only, never HTML). */
+  function highlight(element, terms) {
+    if (!terms.length) return;
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const node of nodes) {
+      const original = node.textContent;
+      const folded = fold(original);
+      const ranges = [];
+      for (const term of terms) {
+        let from = folded.indexOf(term);
+        while (from !== -1) {
+          ranges.push([from, from + term.length]);
+          from = folded.indexOf(term, from + term.length);
+        }
+      }
+      if (!ranges.length) continue;
+      // Merge overlapping matches, then rebuild the text with <mark> around them.
+      ranges.sort((a, b) => a[0] - b[0]);
+      const merged = [ranges[0]];
+      for (const [start, end] of ranges.slice(1)) {
+        const last = merged[merged.length - 1];
+        if (start <= last[1]) last[1] = Math.max(last[1], end);
+        else merged.push([start, end]);
+      }
+      const fragment = document.createDocumentFragment();
+      let position = 0;
+      for (const [start, end] of merged) {
+        fragment.append(original.slice(position, start));
+        const mark = document.createElement('mark');
+        mark.textContent = original.slice(start, end);
+        fragment.append(mark);
+        position = end;
+      }
+      fragment.append(original.slice(position));
+      node.replaceWith(fragment);
+    }
+  }
+
+  const heartSvg = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.7 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z" /></svg>';
+
+  /** Heart buttons in the results follow the favorites list. */
+  function syncBrowseHearts() {
+    const text = uiText[currentLang].favorites;
+    browseList.querySelectorAll('.browse-fav').forEach((heart) => {
+      const pressed = isFavorite(heart.dataset.key);
+      heart.setAttribute('aria-pressed', String(pressed));
+      heart.title = text[pressed ? 'remove' : 'add'];
+      heart.setAttribute('aria-label', `${text[pressed ? 'remove' : 'add']}: ${heart.dataset.label}`);
+    });
+  }
+
+  /** Filters and results, in the current language. */
+  function renderBrowse() {
+    const labels = uiText[currentLang].browse;
+    const favText = uiText[currentLang].favorites;
+    const terms = searchTerms();
+    const results = browseResults();
+
+    // Static labels
+    browseTitle.textContent = labels.title;
+    browseClose.setAttribute('aria-label', favText.close);
+    browseSearchLabel.textContent = labels.searchLabel;
+    browseSearch.placeholder = labels.placeholder;
+    browseType.setAttribute('aria-label', labels.typeLabel);
+    browseTags.setAttribute('aria-label', labels.tagsLabel);
+    browseClear.textContent = labels.clear;
+    browseRandom.textContent = labels.random;
+
+    // Type filter
+    browseType.querySelectorAll('[data-type]').forEach((option) => {
+      option.textContent = labels.type[option.dataset.type];
+      option.setAttribute('aria-pressed', String(option.dataset.type === browse.type));
+    });
+
+    // Tag filters
+    browseTags.replaceChildren(...Object.keys(tagInfo).map((tag) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'tag-chip';
+      chip.dataset.tag = tag;
+      chip.textContent = tagLabel(tag);
+      chip.setAttribute('aria-pressed', String(browse.tags.has(tag)));
+      return chip;
+    }));
+
+    // Results
+    browseSummary.textContent = labels.results(results.length);
+    browseEmpty.textContent = labels.empty;
+    browseEmpty.hidden = results.length > 0;
+    browseRandom.disabled = results.length === 0;
+    browseClear.disabled = !browse.query && browse.type === 'all' && browse.tags.size === 0;
+
+    browseList.replaceChildren(...results.map(({ type, index, item }) => {
+      const key = favoriteKey(type, item);
+      const li = document.createElement('li');
+      li.className = 'favorites-item';
+
+      const show = document.createElement('button');
+      show.type = 'button';
+      show.className = 'favorites-show';
+      show.dataset.type = type;
+      show.dataset.index = String(index);
+      show.title = favText.show;
+      const emoji = document.createElement('span');
+      emoji.className = 'favorites-emoji';
+      emoji.setAttribute('aria-hidden', 'true');
+      emoji.textContent = item.emoji;
+      const body = document.createElement('span');
+      body.className = 'favorites-body';
+      const label = document.createElement('span');
+      label.className = 'favorites-type';
+      label.textContent = favText.type[type];
+      const content = document.createElement('span');
+      content.className = 'favorites-text';
+      setText(content, item[currentLang]);
+      highlight(content, terms);
+      const itemTags = document.createElement('span');
+      itemTags.className = 'item-tags';
+      for (const tag of item.tags) {
+        const t = document.createElement('span');
+        t.className = 'item-tag';
+        t.textContent = tagLabel(tag);
+        itemTags.appendChild(t);
+      }
+      body.append(label, content, itemTags);
+      show.append(emoji, body);
+
+      const heart = document.createElement('button');
+      heart.type = 'button';
+      heart.className = 'browse-fav';
+      heart.dataset.key = key;
+      heart.dataset.type = type;
+      heart.dataset.index = String(index);
+      heart.dataset.label = item[currentLang].replace('\n', ' ');
+      heart.innerHTML = heartSvg;
+
+      li.append(show, heart);
+      return li;
+    }));
+    syncBrowseHearts();
+  }
+
+  /** Opens the search, optionally already filtered on one tag. */
+  function openBrowse({ tag = null } = {}) {
+    closeShareMenu();
+    if (tag) {
+      browse.query = '';
+      browse.type = 'all';
+      browse.tags = new Set([tag]);
+      browseSearch.value = '';
+    }
+    renderBrowse();
+    if (typeof browseDialog.showModal === 'function') browseDialog.showModal();
+    else browseDialog.setAttribute('open', '');
+    browseSearch.focus();
+  }
+
+  function closeBrowse() {
+    if (typeof browseDialog.close === 'function') browseDialog.close();
+    else browseDialog.removeAttribute('open');
+  }
+
+  /** Shows an item on the card and closes the search. */
+  function showFromBrowse(type, index) {
+    currentMode = type;
+    currentIndex = index;
+    renderItem();
+    closeBrowse();
+  }
+
   /* ---------- Wire up the controls ---------- */
   complimentButton.addEventListener('click', () => showNew('compliment'));
   jokeButton.addEventListener('click', () => showNew('joke'));
 
   favToggle.addEventListener('click', toggleFavorite);
+
+  // Browse & search
+  openBrowseButton.addEventListener('click', () => openBrowse());
+  browseClose.addEventListener('click', closeBrowse);
+  browseDialog.addEventListener('click', (event) => {
+    if (event.target === browseDialog) closeBrowse(); // click on the backdrop
+  });
+  complimentTags.addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-tag]');
+    if (chip) openBrowse({ tag: chip.dataset.tag });
+  });
+  browseSearch.addEventListener('input', () => {
+    browse.query = browseSearch.value;
+    renderBrowse();
+  });
+  browseType.addEventListener('click', (event) => {
+    const option = event.target.closest('[data-type]');
+    if (!option) return;
+    browse.type = option.dataset.type;
+    renderBrowse();
+  });
+  browseTags.addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-tag]');
+    if (!chip) return;
+    const tag = chip.dataset.tag;
+    if (browse.tags.has(tag)) browse.tags.delete(tag);
+    else browse.tags.add(tag);
+    renderBrowse();
+    // The chips were rebuilt: keep keyboard focus on the one just pressed.
+    const again = browseTags.querySelector(`[data-tag="${tag}"]`);
+    if (again) again.focus();
+  });
+  browseList.addEventListener('click', (event) => {
+    const heart = event.target.closest('.browse-fav');
+    const show = event.target.closest('.favorites-show');
+    if (heart) toggleFavoriteItem(heart.dataset.type, Number(heart.dataset.index));
+    else if (show) showFromBrowse(show.dataset.type, Number(show.dataset.index));
+  });
+  browseClear.addEventListener('click', () => {
+    browse.query = '';
+    browse.type = 'all';
+    browse.tags.clear();
+    browseSearch.value = '';
+    renderBrowse();
+    browseSearch.focus();
+  });
+  browseRandom.addEventListener('click', () => {
+    const results = browseResults();
+    if (!results.length) return;
+    // Avoid picking the item already on the card when there's a choice.
+    const others = results.filter((r) => !(r.type === currentMode && r.index === currentIndex));
+    const pool = others.length ? others : results;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    showFromBrowse(pick.type, pick.index);
+  });
+
+  // "/" opens the search from anywhere (unless you're typing in a field).
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
+    const typing = event.target.closest && event.target.closest('input, textarea, select, [contenteditable="true"]');
+    if (typing || browseDialog.open || favoritesDialog.open) return;
+    event.preventDefault();
+    openBrowse();
+  });
   copyButton.addEventListener('click', copyToClipboard);
   shareButton.addEventListener('click', share);
 

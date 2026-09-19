@@ -111,6 +111,8 @@
         <blockquote class="compliment-text" id="compliment" aria-live="polite">
           You make the world a little brighter just by being in it.
         </blockquote>
+        <!-- Tags of the item on screen; each one opens the search filtered on it -->
+        <div class="compliment-tags" id="compliment-tags" role="group" aria-label="Tags"></div>
       </figure>
     </section>
 
@@ -120,14 +122,63 @@
       <button type="button" class="button button-joke" id="new-joke">Tell Me a Joke</button>
     </div>
 
-    <button type="button" class="button-secondary" id="open-favorites" aria-haspopup="dialog" aria-controls="favorites-dialog">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        <path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.7 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z" />
-      </svg>
-      <span id="open-favorites-label">My favorites</span>
-      <span class="count" id="favorites-count">0</span>
-    </button>
+    <div class="secondary-actions">
+      <button type="button" class="button-secondary search-button" id="open-browse" aria-haspopup="dialog" aria-controls="browse-dialog" aria-keyshortcuts="/">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="M16 16l4.5 4.5" />
+        </svg>
+        <span id="open-browse-label">Browse &amp; search</span>
+      </button>
+
+      <button type="button" class="button-secondary" id="open-favorites" aria-haspopup="dialog" aria-controls="favorites-dialog">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.7 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z" />
+        </svg>
+        <span id="open-favorites-label">My favorites</span>
+        <span class="count" id="favorites-count">0</span>
+      </button>
+    </div>
   </main>
+
+  <!-- Browse and search every compliment and joke, filtered by type and tags -->
+  <dialog class="favorites browse" id="browse-dialog" aria-labelledby="browse-title">
+    <div class="favorites-head">
+      <h2 id="browse-title">Browse</h2>
+      <button type="button" class="icon-button" id="browse-close" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+      </button>
+    </div>
+
+    <div class="browse-controls">
+      <label class="sr-only" for="browse-search" id="browse-search-label">Search compliments and jokes</label>
+      <div class="search-field">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="M16 16l4.5 4.5" />
+        </svg>
+        <input type="search" id="browse-search" autocomplete="off" spellcheck="false" placeholder="Search…" />
+      </div>
+
+      <div class="type-filter" role="group" aria-label="Type" id="browse-type">
+        <button type="button" class="type-option" data-type="all" aria-pressed="true">All</button>
+        <button type="button" class="type-option" data-type="compliment" aria-pressed="false">Compliments</button>
+        <button type="button" class="type-option" data-type="joke" aria-pressed="false">Jokes</button>
+      </div>
+
+      <div class="tag-filters" role="group" aria-label="Tags" id="browse-tags"></div>
+    </div>
+
+    <!-- Result count, announced as it changes -->
+    <p class="browse-summary" id="browse-summary" aria-live="polite"></p>
+    <ul class="favorites-list browse-list" id="browse-list"></ul>
+    <p class="favorites-empty" id="browse-empty" hidden></p>
+
+    <div class="favorites-foot browse-foot">
+      <button type="button" class="button-secondary" id="browse-clear">Clear filters</button>
+      <button type="button" class="button-secondary" id="browse-random">Random from these</button>
+    </div>
+  </dialog>
 
   <!-- Favorites list -->
   <dialog class="favorites" id="favorites-dialog" aria-labelledby="favorites-title">

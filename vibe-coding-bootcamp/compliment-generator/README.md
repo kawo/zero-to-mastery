@@ -17,6 +17,22 @@ Open `index.html` in a browser. No server or installation is needed.
   - Puns rarely survive translation. When the English joke relies on one, the French side is a French joke on the same theme instead of a literal translation.
   - English knock-knock jokes, for example, are paired with French "M. et Mme…" jokes.
 - **Two buttons below the card:** "Get a New Compliment" and "Tell Me a Joke". The same item is never shown twice in a row.
+- **Tags:** every compliment and joke has one to three tags, shown as chips under the text. Clicking a chip opens the search filtered on that tag.
+
+  | Tag | Used for |
+  |-----|----------|
+  | 💛 Wholesome / Tendre | warm compliments |
+  | 💪 Encouraging / Encourageant | strength, growth, encouragement |
+  | 🧠 Brainy / Futé | mind and creativity; school jokes |
+  | 🤪 Silly / Loufoque | playful compliments; absurd jokes |
+  | 🥁 Puns / Jeux de mots | wordplay jokes |
+  | 🐾 Animals / Animaux · 🍕 Food / Miam · 👻 Spooky / Frissons | joke topics |
+  | 🚪 Classics / Classiques | knock-knock and "M. et Mme…" jokes |
+
+- **Browse & search:** opened with the button under the card, or with `/` from anywhere.
+  - **Search:** the search field looks in both languages and in the tag names, so "chien" finds the dog jokes even in English. It ignores case and accents ("ecole" finds "école"), every word you type must match, and matches are highlighted.
+  - **Filters:** All / Compliments / Jokes, plus tag chips. Selected tags combine, so Animals + Puns shows only animal puns. The result count updates as you type.
+  - **Results:** click a result to show it on the card, click ♥ to favorite it, or use "🎲 Random from these" to show a random item from the current results.
 - **Copy and share:** two buttons next to the heart.
   - **Copy:** copies the emoji and the text, in the current language, with the Clipboard API. Older browsers fall back to `execCommand('copy')`. The icon turns into a ✓ for a moment, and "Copied!" is announced.
   - **Share:** uses the device's share sheet (Web Share API) when there is one, for example on phones, in Safari, and in Edge and Chrome on Windows. Otherwise, a small menu offers WhatsApp, X and Email, plus Facebook when the site is online.
@@ -76,6 +92,11 @@ Open `index.html` in a browser. No server or installation is needed.
   - both icon buttons are labelled in the current language;
   - the share button reports whether its menu is open (`aria-expanded`);
   - when the menu opens, focus moves into it, and `Esc` returns focus to the button.
+- **Browse & search:**
+  - the search field and the filter groups are labelled, and the filters show their state with `aria-pressed`;
+  - the result count is announced as it changes;
+  - when a filter is clicked, focus stays on that filter;
+  - `/` opens the search (`aria-keyshortcuts`).
 - **Keyboard:** everything works with the keyboard, with a visible focus ring.
 - **Without JavaScript:** a first compliment is written in the HTML, so the page isn't empty if the script doesn't run.
 
@@ -83,7 +104,7 @@ Open `index.html` in a browser. No server or installation is needed.
 
 ```
 compliment-generator/
-├── index.html     page structure, background decoration, language switch, buttons
+├── index.html     page structure, background decoration, language switch, buttons, dialogs
 ├── favicon.png    tab icon
 ├── images/
 │   └── og-image.png  1200×630 link-preview image (Facebook, WhatsApp, X…)
@@ -98,7 +119,7 @@ compliment-generator/
 **Compliments.** They're in the `compliments` array at the top of `js/script.js`. Each entry has an emoji and the text in both languages:
 
 ```js
-{ emoji: '🌟',
+{ emoji: '🌟', tags: ['wholesome'],
   en: 'You make the world a little brighter just by being in it.',
   fr: 'Tu rends le monde un peu plus lumineux, simplement en étant là.' },
 ```
@@ -106,12 +127,14 @@ compliment-generator/
 **Jokes.** They're in the `jokes` array, just below. `\n` separates the setup from the punchline:
 
 ```js
-{ emoji: '🐧',
+{ emoji: '🐧', tags: ['animals', 'puns'],
   en: 'Why don’t penguins like parties?\nThey find it hard to break the ice.',
   fr: 'Pourquoi les pingouins n’aiment-ils pas les fêtes ?\nIls ont du mal à briser la glace.' },
 ```
 
-Add, remove or edit entries freely. The random draw and the card's height adapt automatically.
+Add, remove or edit entries freely. The random draw, the search and the card's height adapt automatically.
+
+**Tags.** Each entry lists its tags in `tags` (one to three). The tags themselves, with their emoji and names in both languages, are in the `tagInfo` object just after the jokes. Add a line there to create a new tag, and it appears in the search filters automatically.
 
 **Interface text.** The buttons, the heading and the page title are in the `uiText` object, just below the jokes.
 

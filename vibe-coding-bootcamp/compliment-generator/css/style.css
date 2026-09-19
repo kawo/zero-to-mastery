@@ -883,6 +883,232 @@ body {
   padding: 12px 24px 20px;
 }
 
+/* ---------- Row of secondary buttons under the main ones ---------- */
+.secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.search-button svg,
+.search-field svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* ---------- Tags on the card (one row, so the card keeps its size) ---------- */
+.compliment-tags {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.tag-chip {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 11px;
+  border: 1px solid rgba(33, 37, 41, 0.12);
+  border-radius: 999px;
+  background-color: rgba(248, 249, 250, 0.9);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 200ms ease, border-color 200ms ease;
+}
+
+.tag-chip:hover {
+  background-color: rgba(255, 209, 102, 0.3);
+  border-color: rgba(33, 37, 41, 0.25);
+}
+
+.tag-chip:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* A selected filter in the search window */
+.tag-chip[aria-pressed="true"] {
+  background-color: var(--color-text);
+  border-color: var(--color-text);
+  color: var(--color-background);
+}
+
+/* ---------- Browse & search window (shares the favorites dialog styles) ---------- */
+.browse {
+  width: min(640px, calc(100% - 32px));
+  max-height: min(88vh, 820px);
+}
+
+.browse-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 24px 8px;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid rgba(33, 37, 41, 0.18);
+  border-radius: 12px;
+  background-color: var(--color-background);
+  color: var(--color-muted);
+}
+
+.search-field:focus-within {
+  border-color: var(--color-text);
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.35);
+}
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  outline: none;
+}
+
+.type-filter {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(33, 37, 41, 0.12);
+  border-radius: 999px;
+}
+
+.type-option {
+  appearance: none;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.type-option:hover {
+  color: var(--color-text);
+}
+
+.type-option[aria-pressed="true"] {
+  background-color: var(--color-text);
+  color: var(--color-background);
+}
+
+.type-option:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.tag-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.browse-summary {
+  margin: 0;
+  padding: 6px 24px 8px;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* Tags shown inside each result (not buttons: the whole result is one) */
+.item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.item-tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background-color: rgba(33, 37, 41, 0.06);
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* Search matches, highlighted like the joke punchlines */
+.browse-list mark {
+  padding: 0 1px;
+  border-radius: 3px;
+  background-color: rgba(255, 209, 102, 0.75);
+  color: inherit;
+}
+
+/* Heart toggle on each result */
+.browse-fav {
+  appearance: none;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 14px 14px 0;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.browse-fav:hover {
+  background-color: rgba(255, 107, 107, 0.12);
+}
+
+.browse-fav:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: -3px;
+}
+
+.browse-fav svg path {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.browse-fav[aria-pressed="true"] svg path {
+  fill: var(--color-accent);
+}
+
+.browse-foot {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.button-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Visually hidden, but read by screen readers */
 .sr-only {
   position: absolute;
@@ -926,7 +1152,8 @@ body {
   .button,
   .lang-option,
   .card-icon,
-  .button-secondary {
+  .button-secondary,
+  .tag-chip {
     transition: none;
   }
 
