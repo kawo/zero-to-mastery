@@ -12,7 +12,8 @@
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<a class="skip-link" href="#stage">Skip to the reaction pad</a>
+<!-- Text marked with data-i18n* is translated by js/i18n.js; the English here is the default. -->
+<a class="skip-link" href="#stage" data-i18n="skip">Skip to the reaction pad</a>
 <div class="app" id="app" data-state="idle">
   <header class="topbar">
     <div class="brand">
@@ -22,29 +23,29 @@
       </svg>
       <div>
         <h1>Reflex Lab</h1>
-        <p>Visual reaction-time benchmark</p>
+        <p data-i18n="brand.tagline">Visual reaction-time benchmark</p>
       </div>
     </div>
     <div class="meta">
-      <span class="chip" id="renderChip" title="Rendering status"><span class="dot"></span><span id="renderStatus">Starting renderer…</span></span>
-      <span class="chip" id="clockChip" title="Smallest step of the clock used to time reactions, measured in this browser">Timer precision <code id="clockRes">measuring…</code></span>
-      <div class="audio-controls" role="group" aria-label="Audio">
+      <span class="chip" id="renderChip" title="Rendering status" data-i18n-attr="title:chip.renderTitle"><span class="dot"></span><span id="renderStatus" data-i18n="render.starting">Starting renderer…</span></span>
+      <span class="chip" id="clockChip" title="Smallest step of the clock used to time reactions, measured in this browser" data-i18n-attr="title:clock.chipTitle"><span data-i18n="clock.label">Timer precision</span> <code id="clockRes" data-i18n="clock.measuring">measuring…</code></span>
+      <div class="audio-controls" role="group" aria-label="Audio" data-i18n-attr="aria-label:audio.group">
         <button type="button" class="icon-toggle" id="sfxToggle" aria-pressed="true">
           <svg class="icon-on" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9Z" /><path d="M16.5 8.5a5 5 0 0 1 0 7" /><path d="M19 6a8.5 8.5 0 0 1 0 12" /></svg>
           <svg class="icon-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9Z" /><path d="m17 9 5 6M22 9l-5 6" /></svg>
-          <span class="sr-only">Sound effects</span>
+          <span class="sr-only" data-i18n="audio.sfx">Sound effects</span>
         </button>
         <button type="button" class="icon-toggle" id="musicToggle" aria-pressed="true">
           <svg class="icon-on" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>
           <svg class="icon-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /><path d="M3 3l18 18" /></svg>
-          <span class="sr-only">Music</span>
+          <span class="sr-only" data-i18n="audio.music">Music</span>
         </button>
-        <label class="sr-only" for="volumeSlider">Volume</label>
+        <label class="sr-only" for="volumeSlider" data-i18n="audio.volume">Volume</label>
         <input type="range" class="volume" id="volumeSlider" min="0" max="100" step="5" value="70" />
       </div>
-      <button type="button" class="icon-toggle a11y-btn" id="a11yBtn" aria-haspopup="dialog" aria-controls="a11yDialog" title="Display and accessibility">
+      <button type="button" class="icon-toggle a11y-btn" id="a11yBtn" aria-haspopup="dialog" aria-controls="a11yDialog" title="Display and accessibility" data-i18n-attr="title:a11y.btnTitle">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="7" r="1.3" /><path d="M7 10l5 1 5-1M12 11v4l-2.5 4M12 15l2.5 4" /></svg>
-        <span class="sr-only">Display and accessibility settings</span>
+        <span class="sr-only" data-i18n="a11y.btnSr">Display and accessibility settings</span>
       </button>
       <button type="button" class="profile-btn" id="profileBtn" aria-haspopup="dialog" aria-controls="profileDialog">
         <span class="avatar" id="profileAvatar" aria-hidden="true">P</span>
@@ -58,12 +59,12 @@
 
   <div class="banner" id="banner" role="alert" hidden>
     <span id="bannerText"></span>
-    <button type="button" id="bannerClose" aria-label="Dismiss message">Dismiss</button>
+    <button type="button" id="bannerClose" aria-label="Dismiss message" data-i18n="banner.dismiss" data-i18n-attr="aria-label:banner.dismissAria">Dismiss</button>
   </div>
 
   <main class="layout">
     <section class="stage" id="stage" tabindex="0" role="region"
-             aria-label="Reaction pad"
+             aria-label="Reaction pad" data-i18n-attr="aria-label:stage.aria"
              aria-describedby="stageHint">
       <canvas id="scene" aria-hidden="true"></canvas>
       <div class="flat-orb" id="flatOrb" aria-hidden="true" hidden></div>
@@ -78,75 +79,75 @@
         <div class="message">
           <p class="eyebrow" id="eyebrow">Ready when you are</p>
           <h2 class="headline" id="headline">Test your reflexes</h2>
-          <div class="readout" id="readout" hidden><span id="readoutValue">0</span><span class="unit" aria-hidden="true">ms</span><span class="sr-only"> milliseconds</span></div>
+          <div class="readout" id="readout" hidden><span id="readoutValue">0</span><span class="unit" aria-hidden="true">ms</span><span class="sr-only" data-i18n="unit.msSr"> milliseconds</span></div>
           <p class="sub" id="subline">Press Start, wait for the shape to turn green, then react as fast as you can.</p>
           <p class="hint" id="stageHint"><kbd>Space</kbd> <span class="desktop-only">or click</span> / tap anywhere on this panel</p>
         </div>
       </div>
     </section>
 
-    <aside class="panel" aria-label="Session controls and statistics">
+    <aside class="panel" aria-label="Session controls and statistics" data-i18n-attr="aria-label:panel.aria">
       <div class="controls">
         <button type="button" class="btn btn-primary" id="startBtn">Start session</button>
-        <button type="button" class="btn btn-ghost" id="resetBtn" disabled>Reset</button>
+        <button type="button" class="btn btn-ghost" id="resetBtn" disabled data-i18n="btn.reset">Reset</button>
         <button type="button" class="btn btn-ghost" id="tourneyBtn" aria-haspopup="dialog">Tournament</button>
-        <button type="button" class="btn btn-ghost" id="leaderboardBtn" aria-haspopup="dialog">Leaderboard</button>
+        <button type="button" class="btn btn-ghost" id="leaderboardBtn" aria-haspopup="dialog" data-i18n="btn.leaderboard">Leaderboard</button>
       </div>
 
       <section class="card tourney-card" id="tourneyCard" aria-labelledby="tourneyCardTitle" hidden>
-        <h2 id="tourneyCardTitle">Tournament <small id="tourneyMeta"></small></h2>
+        <h2 id="tourneyCardTitle"><span data-i18n="btn.tournament">Tournament</span> <small id="tourneyMeta"></small></h2>
         <ol class="tourney-list" id="tourneyList"></ol>
-        <p class="fine-print">Score = average + <span id="penaltyNote">100</span> ms per false start or miss. Lowest wins.</p>
+        <p class="fine-print" id="tourneyFine"></p>
       </section>
 
       <section class="card level-card" id="levelCard" aria-labelledby="levelTitle">
-        <h2 id="levelTitle"><span>Level <span id="levelNum">1</span> · <span id="levelName">Warm-up</span></span> <small id="levelOf">1 of 6</small></h2>
+        <h2 id="levelTitle"><span><span data-i18n="level.label">Level</span> <span id="levelNum">1</span> · <span id="levelName">Warm-up</span></span> <small id="levelOf">1 of 6</small></h2>
         <div class="level-track" id="levelTrack" aria-hidden="true"></div>
         <p class="level-brief" id="levelBrief">Beat 500 ms three times in a row to move up.</p>
         <p class="level-meta">
-          <span>Target <strong id="levelTarget">≤ 500 ms</strong></span>
-          <span>Streak <span class="pips" id="levelPips" role="img" aria-label="Streak 0 of 3"></span></span>
+          <span><span data-i18n="level.targetLabel">Target</span> <strong id="levelTarget">≤ 500 ms</strong></span>
+          <span><span data-i18n="level.streakLabel">Streak</span> <span class="pips" id="levelPips" role="img" aria-label="Streak 0 of 3"></span></span>
         </p>
         <div class="powerups" role="group" aria-labelledby="powerTitle">
-          <p class="powerups-head"><span class="section-label" id="powerTitle">Power-ups</span> <span class="powerups-keys">keys <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></span></p>
+          <p class="powerups-head"><span class="section-label" id="powerTitle" data-i18n="pu.title">Power-ups</span> <span class="powerups-keys"><span data-i18n="pu.keys">keys</span> <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></span></p>
           <div class="slots" id="powerSlots"></div>
           <p class="power-active" id="powerActive">Beat the target to find power-ups. They never change your measured times.</p>
         </div>
       </section>
 
       <section class="card" aria-labelledby="statsTitle">
-        <h2 id="statsTitle">Session stats <small id="statsScope">No attempts yet</small></h2>
+        <h2 id="statsTitle"><span data-i18n="stats.title">Session stats</span> <small id="statsScope">No attempts yet</small></h2>
         <dl class="stat-grid">
-          <div class="stat"><dt>Last</dt><dd id="statLast">—</dd></div>
-          <div class="stat"><dt>Best</dt><dd id="statBest" class="is-best">—</dd></div>
-          <div class="stat"><dt>Average</dt><dd id="statAvg" class="is-avg">—</dd><span class="note" id="statSd">&nbsp;</span></div>
-          <div class="stat"><dt>Attempts</dt><dd id="statCount">0</dd><span class="note" id="statMedian">&nbsp;</span></div>
+          <div class="stat"><dt data-i18n="stat.last">Last</dt><dd id="statLast">—</dd></div>
+          <div class="stat"><dt data-i18n="stat.best">Best</dt><dd id="statBest" class="is-best">—</dd></div>
+          <div class="stat"><dt data-i18n="stat.average">Average</dt><dd id="statAvg" class="is-avg">—</dd><span class="note" id="statSd">&nbsp;</span></div>
+          <div class="stat"><dt data-i18n="stat.attempts">Attempts</dt><dd id="statCount">0</dd><span class="note" id="statMedian">&nbsp;</span></div>
         </dl>
         <p class="stat-foot">
-          <span>False starts <strong id="statFalse">0</strong></span>
-          <span>Missed <strong id="statMissed">0</strong></span>
-          <span>Peak level <strong id="statPeak">1</strong></span>
+          <span><span data-i18n="stat.falseStarts">False starts</span> <strong id="statFalse">0</strong></span>
+          <span><span data-i18n="stat.missed">Missed</span> <strong id="statMissed">0</strong></span>
+          <span><span data-i18n="stat.peakLevel">Peak level</span> <strong id="statPeak">1</strong></span>
         </p>
       </section>
 
       <section class="card" aria-labelledby="chartTitle">
-        <h2 id="chartTitle">Recent attempts <small>last 15</small></h2>
+        <h2 id="chartTitle"><span data-i18n="chart.title">Recent attempts</span> <small data-i18n="chart.last15">last 15</small></h2>
         <div class="chart-wrap">
-          <p class="chart-empty" id="chartEmpty">Your valid attempts will chart here, with the session average.</p>
-          <svg class="chart" id="chart" viewBox="0 0 300 130" role="img" aria-label="Bar chart of recent reaction times" hidden></svg>
+          <p class="chart-empty" id="chartEmpty" data-i18n="chart.empty">Your valid attempts will chart here, with the session average.</p>
+          <svg class="chart" id="chart" viewBox="0 0 300 130" role="img" aria-label="Bar chart of recent reaction times" data-i18n-attr="aria-label:chart.ariaEmpty" hidden></svg>
         </div>
       </section>
 
       <section class="card" aria-labelledby="howTitle">
-        <h2 id="howTitle">How it works</h2>
+        <h2 id="howTitle" data-i18n="how.title">How it works</h2>
         <ol class="steps">
-          <li><span>Press <b>Start session</b> or tap the pad.</span></li>
-          <li><span>The shape turns <span class="swatch swatch-wait"></span><b data-word="wait">amber</b>. A random 1–5 s delay is running, so don’t guess.</span></li>
-          <li><span>When it turns <span class="swatch swatch-ready"></span><b data-word="go">green</b>, click, tap or press <kbd>Space</kbd>.</span></li>
-          <li><span>Reacting early, or in under 100 ms, counts as a <span class="swatch swatch-error"></span><b>false start</b> and isn’t averaged.</span></li>
-          <li><span>Beat the level’s target <b>3 times in a row</b> to level up. Higher levels add <span class="swatch swatch-decoy"></span><b><span data-word="decoy">blue</span> decoys</b> and drop the text cue. Two misses in a row drops you a level.</span></li>
-          <li><span>Rounds under the target can drop <b>power-ups</b> (Shield, Double, Leeway, Calm). Use them between rounds with <kbd>1</kbd>–<kbd>3</kbd>. They help you level up but never change your times.</span></li>
-          <li><span>Playing with friends? <b>Tournament</b> lets 2–8 players take turns on this device and ranks everyone at the end.</span></li>
+          <li><span data-i18n-html="how.1">Press <b>Start session</b> or tap the pad.</span></li>
+          <li><span data-i18n-html="how.2">The shape turns <span class="swatch swatch-wait"></span><b data-word="wait">amber</b>. A random 1–5 s delay is running, so don’t guess.</span></li>
+          <li><span data-i18n-html="how.3">When it turns <span class="swatch swatch-ready"></span><b data-word="go">green</b>, click, tap or press <kbd>Space</kbd>.</span></li>
+          <li><span data-i18n-html="how.4">Reacting early, or in under 100 ms, counts as a <span class="swatch swatch-error"></span><b>false start</b> and isn’t averaged.</span></li>
+          <li><span data-i18n-html="how.5">Beat the level’s target <b>3 times in a row</b> to level up. Higher levels add <span class="swatch swatch-decoy"></span><b><span data-word="decoy">blue</span> decoys</b> and drop the text cue. Two misses in a row drops you a level.</span></li>
+          <li><span data-i18n-html="how.6">Rounds under the target can drop <b>power-ups</b> (Shield, Double, Leeway, Calm). Use them between rounds with <kbd>1</kbd>–<kbd>3</kbd>. They help you level up but never change your times.</span></li>
+          <li><span data-i18n-html="how.7">Playing with friends? <b>Tournament</b> lets 2–8 players take turns on this device and ranks everyone at the end.</span></li>
         </ol>
       </section>
     </aside>
@@ -163,39 +164,39 @@
       <h2 id="dialogTitle">Player</h2>
       <p id="dlgSince">Playing since today</p>
     </div>
-    <button type="button" class="icon-btn" id="dialogClose" aria-label="Close profile">
+    <button type="button" class="icon-btn" id="dialogClose" aria-label="Close profile" data-i18n-attr="aria-label:profile.close">
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
     </button>
   </div>
 
-  <div class="tabs" role="tablist" aria-label="Profile sections">
-    <button type="button" role="tab" id="tab-profile" aria-controls="panel-profile" aria-selected="true">Profile</button>
-    <button type="button" role="tab" id="tab-records" aria-controls="panel-records" aria-selected="false" tabindex="-1">Leaderboard</button>
-    <button type="button" role="tab" id="tab-achievements" aria-controls="panel-achievements" aria-selected="false" tabindex="-1">Achievements <span class="tab-count" id="achCount">0/16</span></button>
+  <div class="tabs" role="tablist" aria-label="Profile sections" data-i18n-attr="aria-label:profile.tabs">
+    <button type="button" role="tab" id="tab-profile" aria-controls="panel-profile" aria-selected="true" data-i18n="tab.profile">Profile</button>
+    <button type="button" role="tab" id="tab-records" aria-controls="panel-records" aria-selected="false" tabindex="-1" data-i18n="tab.records">Leaderboard</button>
+    <button type="button" role="tab" id="tab-achievements" aria-controls="panel-achievements" aria-selected="false" tabindex="-1"><span data-i18n="tab.achievements">Achievements</span> <span class="tab-count" id="achCount">0/21</span></button>
   </div>
 
   <section class="tab-panel" role="tabpanel" id="panel-profile" aria-labelledby="tab-profile">
     <form class="profile-form" id="profileForm" novalidate>
-      <label class="field-label" for="nameInput">Display name</label>
+      <label class="field-label" for="nameInput" data-i18n="profile.displayName">Display name</label>
       <div class="field-row">
         <input class="input" id="nameInput" name="name" type="text" maxlength="20" autocomplete="nickname" spellcheck="false" required />
-        <button type="submit" class="btn btn-ghost btn-sm">Save name</button>
+        <button type="submit" class="btn btn-ghost btn-sm" data-i18n="profile.saveName">Save name</button>
       </div>
-      <p class="field-error" id="nameError" role="alert" hidden>Enter a name between 1 and 20 characters.</p>
+      <p class="field-error" id="nameError" role="alert" hidden data-i18n="profile.nameError">Enter a name between 1 and 20 characters.</p>
       <fieldset class="color-field">
-        <legend class="field-label">Avatar colour</legend>
+        <legend class="field-label" data-i18n="profile.avatarColour">Avatar colour</legend>
         <div class="color-options" id="colorOptions"></div>
       </fieldset>
     </form>
 
-    <h3 class="section-label">Lifetime stats</h3>
+    <h3 class="section-label" data-i18n="profile.lifetime">Lifetime stats</h3>
     <dl class="stat-grid lifetime-grid" id="lifetimeGrid"></dl>
 
-    <h3 class="section-label">Players on this device</h3>
+    <h3 class="section-label" data-i18n="profile.players">Players on this device</h3>
     <div class="switcher">
-      <label class="sr-only" for="profileSelect">Active player</label>
+      <label class="sr-only" for="profileSelect" data-i18n="profile.activePlayer">Active player</label>
       <select class="input" id="profileSelect"></select>
-      <button type="button" class="btn btn-ghost btn-sm" id="newProfileBtn">New player</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="newProfileBtn" data-i18n="profile.newPlayer">New player</button>
       <button type="button" class="btn btn-danger btn-sm" id="deleteProfileBtn">Delete player</button>
     </div>
     <p class="fine-print" id="storageNote">Profiles are saved in this browser only.</p>
@@ -203,31 +204,31 @@
 
   <section class="tab-panel" role="tabpanel" id="panel-records" aria-labelledby="tab-records" hidden>
     <dl class="stat-grid records-grid" id="recordsGrid"></dl>
-    <h3 class="section-label">Verified leaderboard · this device</h3>
-    <p class="fine-print">Each player’s best average over 5 valid reactions in a row. Every run is replayed and checked before it’s shown. <span id="sealNote"></span></p>
-    <p class="chart-empty" id="boardEmpty">No verified runs yet. Get 5 valid reactions in a row to enter.</p>
+    <h3 class="section-label" data-i18n="board.heading">Verified leaderboard · this device</h3>
+    <p class="fine-print"><span data-i18n="board.intro">Each player’s best average over 5 valid reactions in a row. Every run is replayed and checked before it’s shown.</span> <span id="sealNote"></span></p>
+    <p class="chart-empty" id="boardEmpty" data-i18n="board.empty">No verified runs yet. Get 5 valid reactions in a row to enter.</p>
     <div class="table-wrap" id="boardWrap" hidden>
       <table class="board">
-        <caption class="sr-only">Verified leaderboard, fastest average first</caption>
-        <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col" class="num">Avg of 5</th><th scope="col" class="num">Best</th><th scope="col" class="num">Level</th><th scope="col">Date</th><th scope="col"><span class="sr-only">Status</span></th></tr></thead>
+        <caption class="sr-only" data-i18n="board.caption">Verified leaderboard, fastest average first</caption>
+        <thead><tr><th scope="col">#</th><th scope="col" data-i18n="th.player">Player</th><th scope="col" class="num" data-i18n="board.avg5">Avg of 5</th><th scope="col" class="num" data-i18n="th.best">Best</th><th scope="col" class="num" data-i18n="th.level">Level</th><th scope="col" data-i18n="th.date">Date</th><th scope="col"><span class="sr-only" data-i18n="board.status">Status</span></th></tr></thead>
         <tbody id="boardBody"></tbody>
       </table>
     </div>
     <details class="disclosure" id="excludedBox" hidden>
-      <summary>Excluded runs (<span id="excludedCount">0</span>)</summary>
+      <summary><span data-i18n="board.excluded">Excluded runs</span> (<span id="excludedCount">0</span>)</summary>
       <ul class="excluded-list" id="excludedList"></ul>
     </details>
     <details class="disclosure">
-      <summary>How runs are checked</summary>
+      <summary data-i18n="board.howTitle">How runs are checked</summary>
       <ul class="check-list">
-        <li><b>Real input only.</b> Clicks and key presses generated by a script are refused.</li>
-        <li><b>Replay.</b> Each run keeps its 5 rounds (the random delay, when the signal appeared, when you reacted). They’re re-checked every time this list is shown, and the stored score must match them exactly.</li>
-        <li><b>The game’s own schedule.</b> Every delay must be one the game could have chosen, and every part of the round must add up.</li>
-        <li><b>Clock integrity.</b> The high-precision timer is compared with the wall clock, which catches slowed or patched timers.</li>
-        <li><b>Human limits.</b> Averages under 140 ms, less than 5 ms of spread, or reactions that all land on screen refreshes (a bot watching pixels) are excluded.</li>
-        <li><b>Visible page.</b> The page has to be on screen and focused.</li>
-        <li><b>Sealed.</b> Runs are signed with a key this page can use but can’t read. Editing saved data breaks the seal.</li>
-        <li><b>Limits.</b> Everything runs in your browser, so this stops casual cheating (editing saved data, scripts, simple bots and clock tricks), not a determined expert. A shared global leaderboard would need a server.</li>
+        <li data-i18n-html="board.check1"><b>Real input only.</b> Clicks and key presses generated by a script are refused.</li>
+        <li data-i18n-html="board.check2"><b>Replay.</b> Each run keeps its 5 rounds (the random delay, when the signal appeared, when you reacted). They’re re-checked every time this list is shown, and the stored score must match them exactly.</li>
+        <li data-i18n-html="board.check3"><b>The game’s own schedule.</b> Every delay must be one the game could have chosen, and every part of the round must add up.</li>
+        <li data-i18n-html="board.check4"><b>Clock integrity.</b> The high-precision timer is compared with the wall clock, which catches slowed or patched timers.</li>
+        <li data-i18n-html="board.check5"><b>Human limits.</b> Averages under 140 ms, less than 5 ms of spread, or reactions that all land on screen refreshes (a bot watching pixels) are excluded.</li>
+        <li data-i18n-html="board.check6"><b>Visible page.</b> The page has to be on screen and focused.</li>
+        <li data-i18n-html="board.check7"><b>Sealed.</b> Runs are signed with a key this page can use but can’t read. Editing saved data breaks the seal.</li>
+        <li data-i18n-html="board.check8"><b>Limits.</b> Everything runs in your browser, so this stops casual cheating (editing saved data, scripts, simple bots and clock tricks), not a determined expert. A shared global leaderboard would need a server.</li>
       </ul>
     </details>
   </section>
@@ -240,34 +241,39 @@
 <dialog class="dialog" id="a11yDialog" aria-labelledby="a11yTitle">
   <div class="dialog-head">
     <div class="dialog-id">
-      <h2 id="a11yTitle">Display &amp; accessibility</h2>
-      <p>Changes apply straight away and are saved on this device.</p>
+      <h2 id="a11yTitle" data-i18n="a11y.title">Display &amp; accessibility</h2>
+      <p data-i18n="a11y.intro">Changes apply straight away and are saved on this device.</p>
     </div>
-    <button type="button" class="icon-btn" id="a11yClose" aria-label="Close display settings">
+    <button type="button" class="icon-btn" id="a11yClose" aria-label="Close display settings" data-i18n-attr="aria-label:a11y.close">
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
     </button>
   </div>
   <div class="tab-panel">
     <fieldset class="field-set">
-      <legend class="section-label">Colour vision</legend>
+      <legend class="section-label" data-i18n="a11y.language">Language</legend>
+      <!-- Each language is named in itself, so it can be found whatever the current language is. -->
+      <div class="segmented" id="langPick"></div>
+    </fieldset>
+    <fieldset class="field-set">
+      <legend class="section-label" data-i18n="a11y.colour">Colour vision</legend>
       <div class="palette-options" id="paletteOptions"></div>
-      <p class="fine-print">Colour is never the only signal: each state has its own 3D shape and text, and the colour-safe modes add a bright white ring when it’s time to react.</p>
+      <p class="fine-print" data-i18n="a11y.colourNote">Colour is never the only signal: each state has its own 3D shape and text, and the colour-safe modes add a bright white ring when it’s time to react.</p>
     </fieldset>
     <fieldset class="field-set">
-      <legend class="section-label">Text size</legend>
+      <legend class="section-label" data-i18n="a11y.textSize">Text size</legend>
       <div class="segmented" id="textScalePick"></div>
-      <p class="fine-print">Also follows your browser’s font-size setting.</p>
+      <p class="fine-print" data-i18n="a11y.textSizeNote">Also follows your browser’s font-size setting.</p>
     </fieldset>
     <fieldset class="field-set">
-      <legend class="section-label">Motion</legend>
+      <legend class="section-label" data-i18n="a11y.motion">Motion</legend>
       <label class="check-row" for="reduceMotion">
         <input type="checkbox" id="reduceMotion" />
-        <span><span>Reduce motion</span><span class="p-desc">Slower 3D animation, no camera shake or pop-in effects. Your system setting is also respected.</span></span>
+        <span><span data-i18n="a11y.reduceMotion">Reduce motion</span><span class="p-desc" data-i18n="a11y.reduceMotionDesc">Slower 3D animation, no camera shake or pop-in effects. Your system setting is also respected.</span></span>
       </label>
     </fieldset>
-    <p class="fine-print">Screen readers: round starts, results, level changes, power-ups and achievements are announced. The signal to react is visual on purpose, because this is a visual reaction-time test.</p>
+    <p class="fine-print" data-i18n="a11y.srNote">Screen readers: round starts, results, level changes, power-ups and achievements are announced. The signal to react is visual on purpose, because this is a visual reaction-time test.</p>
     <div class="dialog-actions">
-      <button type="button" class="btn btn-primary" id="a11yDone">Done</button>
+      <button type="button" class="btn btn-primary" id="a11yDone" data-i18n="a11y.done">Done</button>
     </div>
   </div>
 </dialog>
@@ -276,40 +282,40 @@
   <form id="tourneyForm" novalidate>
     <div class="dialog-head">
       <div class="dialog-id">
-        <h2 id="tourneyTitle">New tournament</h2>
-        <p>Players take turns on this device. Lowest score wins.</p>
+        <h2 id="tourneyTitle" data-i18n="tdlg.title">New tournament</h2>
+        <p data-i18n="tdlg.intro">Players take turns on this device. Lowest score wins.</p>
       </div>
-      <button type="button" class="icon-btn" id="tourneyClose" aria-label="Close tournament setup">
+      <button type="button" class="icon-btn" id="tourneyClose" aria-label="Close tournament setup" data-i18n-attr="aria-label:tdlg.close">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
       </button>
     </div>
     <div class="tab-panel">
       <fieldset class="field-set">
-        <legend class="section-label">Players, in turn order</legend>
+        <legend class="section-label" data-i18n="tdlg.players">Players, in turn order</legend>
         <ul class="player-picks" id="playerPicks"></ul>
         <div class="field-row">
-          <label class="sr-only" for="newPlayerName">New player name</label>
+          <label class="sr-only" for="newPlayerName" data-i18n="tdlg.newName">New player name</label>
           <input class="input" id="newPlayerName" type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Add a player" />
-          <button type="button" class="btn btn-ghost btn-sm" id="addPlayerBtn">Add player</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="addPlayerBtn" data-i18n="tdlg.add">Add player</button>
         </div>
         <p class="field-error" id="tourneyError" role="alert" hidden></p>
       </fieldset>
 
       <div class="setup-row">
         <fieldset class="field-set">
-          <legend class="section-label">Rounds each</legend>
+          <legend class="section-label" data-i18n="tdlg.rounds">Rounds each</legend>
           <div class="segmented" id="roundsPick"></div>
         </fieldset>
         <div class="field-set">
-          <label class="section-label" for="tourneyLevel">Level</label>
+          <label class="section-label" for="tourneyLevel" data-i18n="th.level">Level</label>
           <select class="input" id="tourneyLevel"></select>
         </div>
       </div>
 
       <p class="fine-print" id="tourneyRules"></p>
       <div class="dialog-actions">
-        <button type="button" class="btn btn-ghost" id="tourneyCancel">Cancel</button>
-        <button type="submit" class="btn btn-primary">Start tournament</button>
+        <button type="button" class="btn btn-ghost" id="tourneyCancel" data-i18n="tdlg.cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="tdlg.start">Start tournament</button>
       </div>
     </div>
   </form>
@@ -319,7 +325,7 @@
   <div class="dialog-head">
     <span class="avatar avatar-lg" id="winnerAvatar" aria-hidden="true"></span>
     <div class="dialog-id">
-      <p class="eyebrow-static">Tournament results</p>
+      <p class="eyebrow-static" data-i18n="rdlg.kicker">Tournament results</p>
       <h2 id="resultsTitle">Results</h2>
       <p id="resultsSub"></p>
     </div>
@@ -327,19 +333,20 @@
   <div class="tab-panel">
     <div class="table-wrap">
       <table class="board">
-        <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col" class="num">Score</th><th scope="col" class="num">Average</th><th scope="col" class="num">Best</th><th scope="col" class="num">Fouls</th></tr></thead>
+        <thead><tr><th scope="col">#</th><th scope="col" data-i18n="th.player">Player</th><th scope="col" class="num" data-i18n="th.score">Score</th><th scope="col" class="num" data-i18n="th.average">Average</th><th scope="col" class="num" data-i18n="th.best">Best</th><th scope="col" class="num" data-i18n="th.fouls">Fouls</th></tr></thead>
         <tbody id="resultsBody"></tbody>
       </table>
     </div>
     <div class="dialog-actions">
-      <button type="button" class="btn btn-ghost" id="resultsDone">Back to solo</button>
-      <button type="button" class="btn btn-primary" id="rematchBtn">Rematch</button>
+      <button type="button" class="btn btn-ghost" id="resultsDone" data-i18n="t.backToSolo">Back to solo</button>
+      <button type="button" class="btn btn-primary" id="rematchBtn" data-i18n="rdlg.rematch">Rematch</button>
     </div>
   </div>
 </dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/achievements.js"></script>
 <script src="js/audio.js"></script>

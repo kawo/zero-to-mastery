@@ -6,6 +6,7 @@
    * ==================================================================== */
   const missing = [
     ['ReflexLabConfig', 'js/config.js'],
+    ['ReflexLabI18n', 'js/i18n.js'],
     ['ReflexLabStorage', 'js/storage.js'],
     ['ReflexLabAchievements', 'js/achievements.js'],
     ['ReflexLabAudio', 'js/audio.js'],
@@ -27,6 +28,19 @@
   const Achievements = window.ReflexLabAchievements;
   const Sound = window.ReflexLabAudio;
   const Board = window.ReflexLabLeaderboard;
+  // Translation helpers. UI text comes from js/i18n.js; game data keeps its
+  // English in its own file and gets French from i18n.js by id.
+  const I18n = window.ReflexLabI18n;
+  const T = I18n.t;
+  const levelName = (n) => I18n.td(`level.${n}.name`, LEVELS[n - 1].name);
+  const levelBrief = (n) => I18n.td(`level.${n}.brief`, LEVELS[n - 1].brief);
+  const puName = (id) => I18n.td(`pu.${id}.name`, POWERUP_BY_ID[id].name);
+  const puDesc = (id) => I18n.td(`pu.${id}.desc`, POWERUP_BY_ID[id].desc);
+  const achTitle = (a) => I18n.td(`ach.${a.id}.title`, a.title);
+  const achDesc = (a) => I18n.td(`ach.${a.id}.desc`, a.desc);
+  const reasonText = (code) => I18n.td(`reason.${code}`, Board.REASONS[code] || code);
+  const paletteName = (id) => I18n.td(`palette.${id}.name`, PALETTES[id].name);
+  const paletteDesc = (id) => I18n.td(`palette.${id}.desc`, PALETTES[id].desc);
   Board.configure({
     minDelayMs: CONFIG.minDelayMs, maxDelayMs: CONFIG.maxDelayMs,
     anticipationMs: CONFIG.anticipationMs, timeoutMs: CONFIG.timeoutMs,
@@ -64,7 +78,7 @@
   }
 
   // Display settings (colour-vision palette, text size, motion); see applyDisplay().
-  const display = { palette: 'standard', textScale: 1, reduceMotion: false };
+  const display = { palette: 'standard', textScale: 1, reduceMotion: false, lang: 'en' };
 
   /**
    * Replace {go}, {wait} and {decoy} with the colour names of the active
@@ -75,7 +89,7 @@
     if (!text) return text;
     const words = (PALETTES[display.palette] || PALETTES.standard).words;
     return String(text).replace(/\{(go|wait|decoy)\}/gi, (m, key) => {
-      const word = words[key.toLowerCase()];
+      const word = I18n.td(`word.${display.palette}.${key.toLowerCase()}`, words[key.toLowerCase()]);
       return key[0] === key[0].toUpperCase() ? word[0].toUpperCase() + word.slice(1) : word;
     });
   }
@@ -135,12 +149,12 @@
   }
 
   function rate(ms) {
-    if (ms < 180) return 'Elite reflexes';
-    if (ms < 220) return 'Excellent';
-    if (ms < 270) return 'Sharp, above typical';
-    if (ms < 330) return 'Typical human range';
-    if (ms < 420) return 'A little slow, stay focused';
-    return 'Slow. Shake it off and go again';
+    if (ms < 180) return T('rate.elite');
+    if (ms < 220) return T('rate.excellent');
+    if (ms < 270) return T('rate.sharp');
+    if (ms < 330) return T('rate.typical');
+    if (ms < 420) return T('rate.slow');
+    return T('rate.verySlow');
   }
 
   /* ======================================================================
@@ -592,17 +606,17 @@
     leaderboardBtn: $('leaderboardBtn'),
     achList: $('achList'),
     tourneyBtn: $('tourneyBtn'), tourneyCard: $('tourneyCard'), tourneyMeta: $('tourneyMeta'), tourneyList: $('tourneyList'),
-    penaltyNote: $('penaltyNote'),
+    tourneyFine: $('tourneyFine'),
     powerSlots: $('powerSlots'), powerActive: $('powerActive'), powerBadges: $('powerBadges'),
     a11yBtn: $('a11yBtn'), a11yDialog: $('a11yDialog'), a11yClose: $('a11yClose'), a11yDone: $('a11yDone'),
     paletteOptions: $('paletteOptions'), textScalePick: $('textScalePick'), reduceMotion: $('reduceMotion'),
+    langPick: $('langPick'),
     tourneyDialog: $('tourneyDialog'), tourneyForm: $('tourneyForm'), tourneyClose: $('tourneyClose'), tourneyCancel: $('tourneyCancel'),
     playerPicks: $('playerPicks'), newPlayerName: $('newPlayerName'), addPlayerBtn: $('addPlayerBtn'),
     tourneyError: $('tourneyError'), roundsPick: $('roundsPick'), tourneyLevel: $('tourneyLevel'), tourneyRules: $('tourneyRules'),
     resultsDialog: $('resultsDialog'), winnerAvatar: $('winnerAvatar'), resultsTitle: $('resultsTitle'), resultsSub: $('resultsSub'),
     resultsBody: $('resultsBody'), resultsDone: $('resultsDone'), rematchBtn: $('rematchBtn'),
   };
-  const HINT_DEFAULT = dom.hint.innerHTML;
 
   /* ======================================================================
    * Game state
@@ -732,7 +746,7 @@
       // level are untouched.
       active.shield = false;
       activeProfile().stats.shieldSaves += 1;
-      powerNotes.push('Your shield absorbed it: streak and level are safe.');
+      powerNotes.push(T('pu.note.shield'));
       Sound.play('shield', { delay: 0.3 });
       applyLevel();
       return null;
@@ -742,7 +756,7 @@
       session.streak += active.double ? 2 : 1;
       if (active.double) {
         active.double = false;
-        powerNotes.push('Double: this round counted twice.');
+        powerNotes.push(T('pu.note.double'));
       }
       if (session.streak >= CONFIG.levelUpStreak && session.level < LEVELS.length) {
         session.level += 1;
@@ -771,17 +785,16 @@
   }
 
   function levelChangeCopy(change) {
-    const level = currentLevel();
     if (change === 'up') {
       return {
-        eyebrow: `Level up · ${session.level}: ${level.name}`,
-        note: level.brief,
+        eyebrow: T('level.upEyebrow', { n: session.level, name: levelName(session.level) }),
+        note: levelBrief(session.level),
       };
     }
     if (change === 'down') {
       return {
-        eyebrow: `Back to level ${session.level}: ${level.name}`,
-        note: `${CONFIG.levelDownStreak} misses in a row. Settle in and build a new streak.`,
+        eyebrow: T('level.downEyebrow', { n: session.level, name: levelName(session.level) }),
+        note: T('level.downNote', { n: CONFIG.levelDownStreak }),
       };
     }
     return null;
@@ -822,26 +835,25 @@
   }
 
   /* ---------- View: one place that maps a state to on-screen copy ---------- */
-  const VIEW = {
-    idle:    { pill: 'Idle',        eyebrow: 'Ready when you are', headline: 'Test your reflexes',
-               sub: 'Press Start, wait for the shape to turn {go}, then react as fast as you can.' },
-    waiting: { pill: 'Wait',        eyebrow: 'Hold steady',        headline: 'Wait for {go}…',
-               sub: 'The signal fires after a random 1–5 second delay. Don’t guess.',
-               hint: 'React only when the shape turns {go}' },
-    go:      { pill: 'Go',          eyebrow: 'Now',                headline: 'React!', sub: '' },
-    result:  { pill: 'Result',      hint: '<kbd>Space</kbd>, click or tap for the next round' },
-    false:   { pill: 'False start', eyebrow: 'Too soon',          hint: '<kbd>Space</kbd>, click or tap to try again' },
-    missed:  { pill: 'Missed',      eyebrow: 'No reaction',        headline: 'Too slow',
-               sub: `Nothing registered within ${CONFIG.timeoutMs / 1000} seconds, so this round doesn’t count.`,
-               hint: '<kbd>Space</kbd>, click or tap to try again' },
-  };
+  // Built on demand so it's always in the current language.
+  function viewFor(state) {
+    switch (state) {
+      case 'idle': return { pill: T('state.idle.pill'), eyebrow: T('state.idle.eyebrow'), headline: T('state.idle.headline'), sub: T('state.idle.sub') };
+      case 'waiting': return { pill: T('state.waiting.pill'), eyebrow: T('state.waiting.eyebrow'), headline: T('state.waiting.headline'), sub: T('state.waiting.sub'), hint: T('state.waiting.hint') };
+      case 'go': return { pill: T('state.go.pill'), eyebrow: T('state.go.eyebrow'), headline: T('state.go.headline'), sub: '' };
+      case 'result': return { pill: T('state.result.pill'), hint: T('hint.next') };
+      case 'false': return { pill: T('state.false.pill'), eyebrow: T('state.false.eyebrow'), hint: T('hint.retry') };
+      case 'missed': return { pill: T('state.missed.pill'), eyebrow: T('state.missed.eyebrow'), headline: T('state.missed.headline'), sub: T('state.missed.sub', { s: CONFIG.timeoutMs / 1000 }), hint: T('hint.retry') };
+      default: return {};
+    }
+  }
 
   let lastView = null; // so a palette change can redraw the current message
 
   function setState(next, copy = {}) {
     game.state = next;
     // On subtle levels the text keeps saying "wait": only the shape signals go.
-    const base = next === STATE.GO && currentLevel().subtle ? VIEW.waiting : VIEW[next];
+    const base = next === STATE.GO && currentLevel().subtle ? viewFor('waiting') : viewFor(next);
     const view = { ...base, ...copy };
     lastView = { state: next, copy };
 
@@ -854,7 +866,7 @@
     dom.headline.hidden = !view.headline;
     dom.subline.innerHTML = fillWords(view.sub) || '';
     dom.subline.hidden = !view.sub;
-    dom.hint.innerHTML = fillWords(view.hint) || HINT_DEFAULT;
+    dom.hint.innerHTML = fillWords(view.hint) || T('hint.default');
 
     const showReadout = typeof view.readout === 'number';
     dom.readout.hidden = !showReadout;
@@ -884,11 +896,9 @@
     clearTimers();
     game.running = false;
     setState(STATE.IDLE, copy || {
-      eyebrow: 'Session paused',
-      headline: session.times.length ? 'Nice work' : 'Test your reflexes',
-      sub: session.times.length
-        ? 'Your stats are kept until you reset or leave the page. Press Start to continue.'
-        : VIEW.idle.sub,
+      eyebrow: T('session.paused'),
+      headline: session.times.length ? T('session.niceWork') : T('state.idle.headline'),
+      sub: session.times.length ? T('session.pausedSub') : T('state.idle.sub'),
     });
   }
 
@@ -910,7 +920,7 @@
     scheduleDecoy(delay);
     Sound.play('arm'); // marks the start of the wait, never the signal itself
     // Screen readers hear when a round starts (never when the signal fires).
-    announce(fillWords(`Round ${session.rounds}. Wait for {go}.`));
+    announce(fillWords(T('announce.round', { n: session.rounds })));
   }
 
   /** Called from the render loop on the frame that shows the stimulus. */
@@ -956,7 +966,7 @@
     for (const id of ['leeway', 'calm']) {
       if (pu.active[id] > 0) {
         pu.active[id] -= 1;
-        if (pu.active[id] === 0) powerNotes.push(`${POWERUP_BY_ID[id].name} has worn off.`);
+        if (pu.active[id] === 0) powerNotes.push(T('pu.note.wornOff', { name: puName(id) }));
       }
     }
 
@@ -964,16 +974,16 @@
       (last.isRecord || random01() < CONFIG.powerUpDropChance);
     if (earned) {
       if (pu.inventory.length >= CONFIG.powerUpSlots) {
-        powerNotes.push('You earned a power-up, but your slots are full. Use one to make room.');
+        powerNotes.push(T('pu.note.full'));
       } else {
         const def = POWERUPS[Math.floor(random01() * POWERUPS.length)];
         pu.inventory.push(def.id);
         activeProfile().stats.powerUpsCollected += 1;
-        powerNotes.push(`Power-up found: <strong>${def.name}</strong>. Press ${pu.inventory.length} to use it.`);
+        powerNotes.push(T('pu.note.found', { name: puName(def.id), key: pu.inventory.length }));
         if (scene) scene.spawnPickup(def.hex3d);
         Sound.play('powerup', { delay: 0.25 });
         newSlotIndex = pu.inventory.length - 1;
-        announce(`Power-up found: ${def.name}.`);
+        announce(T('pu.announce.found', { name: puName(def.id) }));
       }
     }
     applyLevel();
@@ -990,7 +1000,7 @@
     if (!id) return;
     const def = POWERUP_BY_ID[id];
     if (pu.active[id]) {
-      announce(`${def.name} is already active.`);
+      announce(T('pu.alreadyActive', { name: puName(id) }));
       return;
     }
     pu.inventory.splice(index, 1);
@@ -1001,13 +1011,13 @@
     unlockAchievements(null);
     persist();
     renderProfileChip();
-    announce(`${def.name} activated. ${def.desc}`);
+    announce(T('pu.activated', { name: puName(id), desc: puDesc(id) }));
   }
 
   function effectLabel(id, value) {
     const def = POWERUP_BY_ID[id];
-    if (typeof value === 'number') return `${def.name} · ${value} round${value === 1 ? '' : 's'}`;
-    return `${def.name} ready`;
+    if (typeof value === 'number') return T('pu.effectRounds', { name: puName(id), n: value });
+    return T('pu.effectReady', { name: puName(id) });
   }
 
   function renderPowerUps() {
@@ -1023,17 +1033,17 @@
       if (!id) {
         btn.classList.add('is-empty');
         btn.disabled = true;
-        btn.textContent = 'Empty';
-        btn.setAttribute('aria-label', `Slot ${i + 1}: empty`);
+        btn.textContent = T('pu.slotEmpty');
+        btn.setAttribute('aria-label', T('pu.slotEmptyLabel', { n: i + 1 }));
         return btn;
       }
       const def = POWERUP_BY_ID[id];
       btn.style.setProperty('--pu', def.color);
-      btn.innerHTML = `${iconSvg(`pu-${id}`, 20)}<span class="slot-name"></span><span class="slot-key">key ${i + 1}</span>`;
-      btn.querySelector('.slot-name').textContent = def.name;
-      btn.title = def.desc;
+      btn.innerHTML = `${iconSvg(`pu-${id}`, 20)}<span class="slot-name"></span><span class="slot-key">${T('pu.slotKey', { n: i + 1 })}</span>`;
+      btn.querySelector('.slot-name').textContent = puName(id);
+      btn.title = puDesc(id);
       btn.disabled = locked || !between || !!pu.active[id];
-      btn.setAttribute('aria-label', `Use ${def.name} (key ${i + 1}). ${def.desc}${pu.active[id] ? ' Already active.' : ''}`);
+      btn.setAttribute('aria-label', T('pu.useLabel', { name: puName(id), n: i + 1, desc: puDesc(id) }) + (pu.active[id] ? T('pu.alreadyActiveSuffix') : ''));
       if (i === newSlotIndex) btn.classList.add('is-new');
       btn.addEventListener('click', () => activatePowerUp(i));
       return btn;
@@ -1050,7 +1060,7 @@
       return chip;
     });
     if (chips.length) dom.powerActive.replaceChildren(...chips);
-    else dom.powerActive.textContent = 'Beat the target to find power-ups. They never change your measured times.';
+    else dom.powerActive.textContent = T('pu.hint');
 
     // Compact icons on the play area, so active effects are visible mid-round.
     dom.powerBadges.replaceChildren(...effects.map(([id]) => {
@@ -1071,20 +1081,20 @@
     let copy;
     if (anticipated) {
       copy = {
-        eyebrow: 'Anticipated',
-        headline: `${fmt(Math.max(0, reactionMs))} ms is a guess`,
-        sub: `Visual reactions under ${CONFIG.anticipationMs} ms aren’t physiologically possible, so this one counts as a false start.`,
+        eyebrow: T('false.anticipated.eyebrow'),
+        headline: T('false.anticipated.headline', { ms: fmt(Math.max(0, reactionMs)) }),
+        sub: T('false.anticipated.sub', { min: CONFIG.anticipationMs }),
       };
     } else if (byDecoy) {
       copy = {
-        eyebrow: 'Decoy',
-        headline: 'That was a decoy',
-        sub: 'The {decoy} cube is a fake-out. Only react when the shape turns {go}.',
+        eyebrow: T('false.decoy.eyebrow'),
+        headline: T('false.decoy.headline'),
+        sub: T('false.decoy.sub'),
       };
     } else {
       copy = {
-        headline: 'Too soon!',
-        sub: 'You reacted before the shape turned {go}. False starts aren’t averaged, but they are counted.',
+        headline: T('false.early.headline'),
+        sub: T('false.early.sub'),
       };
     }
     const roundLevel = session.level;
@@ -1096,7 +1106,7 @@
     afterRound({ type: 'false', level: roundLevel });
     tournamentAfterRound({ type: 'false' });
     session.runWindow = []; // "in a row" is broken
-    announce(`${copy.headline}. False start.${change === 'down' ? ` Back to level ${session.level}.` : ''}`);
+    announce(T('announce.falseStart', { headline: copy.headline }) + (change === 'down' ? T('announce.levelBack', { n: session.level }) : ''));
   }
 
   function onMissed() {
@@ -1108,12 +1118,12 @@
     const change = registerOutcome(false);
     powerUpsAfterRound({ type: 'missed' });
     Sound.play('missed');
-    setState(STATE.MISSED, withPowerNotes(withLevelChange({ sub: VIEW.missed.sub }, change)));
+    setState(STATE.MISSED, withPowerNotes(withLevelChange({ sub: viewFor('missed').sub }, change)));
     renderStats();
     afterRound({ type: 'missed', level: roundLevel });
     tournamentAfterRound({ type: 'missed' });
     session.runWindow = [];
-    announce(`Too slow. Round not counted.${change === 'down' ? ` Back to level ${session.level}.` : ''}`);
+    announce(T('announce.missed') + (change === 'down' ? T('announce.levelBack', { n: session.level }) : ''));
   }
 
   /**
@@ -1147,16 +1157,16 @@
     const allTimeBest = activeProfile().stats.bestMs;
     let sub;
     if (allTimeBest !== null && ms < allTimeBest) {
-      sub = `<strong>New personal record</strong>, ${fmt(allTimeBest - ms)} ms faster than your all-time best.`;
+      sub = T('result.newRecord', { ms: fmt(allTimeBest - ms) });
     } else if (allTimeBest === null) {
-      sub = 'Your first recorded time. It’s your personal record for now.';
+      sub = T('result.firstEver');
     } else if (prev.n === 0) {
-      sub = 'First valid attempt of the session.';
+      sub = T('result.firstSession');
     } else if (ms < prev.best) {
-      sub = `<strong>New session best</strong>, ${fmt(prev.best - ms)} ms faster than your previous record.`;
+      sub = T('result.sessionBest', { ms: fmt(prev.best - ms) });
     } else {
       const delta = ms - prev.mean;
-      sub = `<strong>${fmt(Math.abs(delta))} ms ${delta <= 0 ? 'faster' : 'slower'}</strong> than your average of ${fmt(prev.mean)} ms.`;
+      sub = T(delta <= 0 ? 'result.faster' : 'result.slower', { ms: fmt(Math.abs(delta)), avg: fmt(prev.mean) });
     }
 
     // Every valid time goes into the stats; the level target only decides the streak.
@@ -1172,11 +1182,11 @@
       // No level progression in tournaments: everyone plays the same level.
     } else if (passed && !change) {
       sub += session.level === LEVELS.length
-        ? ' Top level, holding strong.'
-        : ` Streak ${session.streak}/${CONFIG.levelUpStreak}.`;
+        ? T('result.topLevel')
+        : T('result.streak', { n: session.streak, of: CONFIG.levelUpStreak });
     } else if (!passed) {
-      eyebrow = `Over the ${target} ms target`;
-      sub += ' The streak resets.';
+      eyebrow = T('result.overTarget', { ms: target });
+      sub += T('result.streakResets');
     }
 
     powerUpsAfterRound({ type: 'result', passed, isRecord: isRecord || allTimeBest === null });
@@ -1189,9 +1199,9 @@
       if (session.runWindow.length > Board.RUN_LENGTH) session.runWindow.shift();
       maybeSubmitRun();
     }
-    const levelNote = change === 'up' ? ` Level up, now level ${session.level}.`
-      : change === 'down' ? ` Back to level ${session.level}.` : '';
-    announce(`${fmt(ms)} milliseconds. ${eyebrow}.${levelNote}`);
+    const levelNote = change === 'up' ? T('announce.levelUpNow', { n: session.level })
+      : change === 'down' ? T('announce.levelBack', { n: session.level }) : '';
+    announce(T('announce.result', { ms: fmt(ms), eyebrow }) + levelNote);
   }
 
   /** Clear this page view's stats. Saved profile data is never touched here. */
@@ -1212,9 +1222,9 @@
     session.runWindow = [];
     powerNotes = [];
     applyLevel();
-    setState(STATE.IDLE, copy || { eyebrow: 'Session cleared', headline: 'Test your reflexes' });
+    setState(STATE.IDLE, copy || { eyebrow: T('session.cleared'), headline: T('state.idle.headline') });
     renderStats();
-    if (!copy) announce('Session cleared. Your profile and records are kept.');
+    if (!copy) announce(T('announce.cleared'));
   }
 
   /* ======================================================================
@@ -1226,7 +1236,7 @@
       saved.saveFailed = false;
     } else if (!saved.saveFailed) {
       saved.saveFailed = true; // warn once, not after every round
-      showBanner('Progress couldn’t be saved: browser storage is full or blocked. Your records will last until you close this page.');
+      showBanner(T('banner.saveFailed'));
     }
   }
 
@@ -1292,13 +1302,13 @@
         if (res.status === 'verified') {
           const p = saved.state.profiles[profile.id];
           if (p) p.stats.verifiedRuns += 1;
-          note = `New leaderboard entry: ${fmt(res.avg)} ms average over 5, rank #${res.rank} on this device.`;
+          note = T('board.newEntry', { avg: fmt(res.avg), rank: res.rank });
           if (p && saved.state.activeId === p.id) unlockAchievements(null);
           persist();
           renderProfileChip();
           Sound.play('record', { delay: 0.2 });
         } else if (res.status === 'rejected') {
-          note = `This run wasn’t added to the leaderboard. ${res.reasons.map((c) => Board.REASONS[c]).join(' ')}`;
+          note = T('board.rejected', { reasons: res.reasons.map(reasonText).join(' ') });
         }
         if (!note) return;
         if (stillShowing) {
@@ -1331,7 +1341,7 @@
     // Show the player's current name and colour when the profile still exists.
     const who = (row) => {
       const p = saved.state.profiles[row.profileId];
-      return p ? { name: p.name, color: p.color } : { name: String(row.name || 'Deleted player'), color: Storage.PROFILE_COLORS[4] };
+      return p ? { name: p.name, color: p.color } : { name: String(row.name || T('board.deleted')), color: Storage.PROFILE_COLORS[4] };
     };
 
     const top = verified.slice(0, 10);
@@ -1342,15 +1352,15 @@
       if (row.profileId === me) tr.className = 'is-me';
       tr.innerHTML = `<td class="rank">${i + 1}</td><td><span class="who"><span class="avatar" aria-hidden="true"></span><span class="who-name"></span></span></td>` +
         `<td class="num time">${fmt(row.avg)} ms</td><td class="num">${fmt(row.best)} ms</td><td class="num">${Number(row.level) || 1}</td>` +
-        `<td>${formatDate(row.at)}</td><td class="status"><span class="verified-badge" title="Replayed and checked${row.sealed ? ', seal intact' : ''}">✓<span class="sr-only"> verified</span></span></td>`;
+        `<td>${formatDate(row.at)}</td><td class="status"><span class="verified-badge" title="${escapeHtml(T('board.badgeTitle') + (row.sealed ? T('board.badgeSealed') : ''))}">✓<span class="sr-only">${escapeHtml(T('board.verifiedSr'))}</span></span></td>`;
       paintAvatar(tr.querySelector('.avatar'), who(row));
       tr.querySelector('.who-name').textContent = who(row).name;
       return tr;
     }));
 
     dom.sealNote.textContent = sealing
-      ? 'Runs are sealed with a key this page can use but not read, so edited data is caught.'
-      : 'This browser can’t seal runs (no Web Crypto or IndexedDB), so only the replay checks apply.';
+      ? T('board.sealOn')
+      : T('board.sealOff');
 
     dom.excludedBox.hidden = excluded.length === 0;
     dom.excludedCount.textContent = String(excluded.length);
@@ -1364,7 +1374,7 @@
       reasons.className = 'excluded-reasons';
       for (const code of row.reasons) {
         const r = document.createElement('li');
-        r.textContent = Board.REASONS[code] || code;
+        r.textContent = reasonText(code);
         reasons.appendChild(r);
       }
       li.append(head, reasons);
@@ -1390,7 +1400,7 @@
       window.setTimeout(() => showToast(a, owner), i * 450); // stagger several unlocks
     });
     if (unlocked.length) {
-      announce(`Achievement unlocked: ${unlocked.map((a) => a.title).join(', ')}.`);
+      announce(T('announce.ach', { list: unlocked.map(achTitle).join(', ') }));
     }
   }
 
@@ -1415,11 +1425,12 @@
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.innerHTML = `<span class="ach-icon">${iconSvg(achievement.kind)}</span>
-      <div><p class="toast-kicker">Achievement unlocked</p><p class="toast-title"></p><p class="toast-desc"></p></div>`;
+      <div><p class="toast-kicker"></p><p class="toast-title"></p><p class="toast-desc"></p></div>`;
+    toast.querySelector('.toast-kicker').textContent = T('toast.kicker');
     // In a tournament several people share the screen, so say whose it is.
-    if (owner) toast.querySelector('.toast-kicker').textContent = `Achievement unlocked · ${owner}`;
-    toast.querySelector('.toast-title').textContent = achievement.title;
-    toast.querySelector('.toast-desc').textContent = achievement.desc;
+    if (owner) toast.querySelector('.toast-kicker').textContent = T('toast.kickerOwner', { name: owner });
+    toast.querySelector('.toast-title').textContent = achTitle(achievement);
+    toast.querySelector('.toast-desc').textContent = achDesc(achievement);
     dom.toasts.appendChild(toast);
     Sound.play('achievement');
     // Keep at most three on screen.
@@ -1431,8 +1442,9 @@
   }
 
   /* ---------- Rendering ---------- */
-  const dateFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  const formatDate = (iso) => (iso ? dateFmt.format(new Date(iso)) : '—');
+  const formatDate = (iso) => (iso
+    ? new Intl.DateTimeFormat(I18n.locale(), { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso))
+    : '—');
 
   function initials(name) {
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -1453,9 +1465,9 @@
     const p = activeProfile();
     paintAvatar(dom.profileAvatar, p);
     dom.profileName.textContent = p.name;
-    const record = p.stats.bestMs !== null ? `Best ${fmt(p.stats.bestMs)} ms` : 'No record yet';
-    dom.profileSub.textContent = `${record} · ${unlockedCount(p)}/${Achievements.LIST.length} achievements`;
-    dom.profileBtn.setAttribute('aria-label', `Open profile for ${p.name}. ${dom.profileSub.textContent}.`);
+    const record = p.stats.bestMs !== null ? T('profile.best', { ms: fmt(p.stats.bestMs) }) : T('profile.noRecord');
+    dom.profileSub.textContent = `${record} · ${T('profile.achCount', { n: unlockedCount(p), of: Achievements.LIST.length })}`;
+    dom.profileBtn.setAttribute('aria-label', T('profile.openLabel', { name: p.name, sub: dom.profileSub.textContent }));
   }
 
   function statTile(label, value, note) {
@@ -1485,15 +1497,15 @@
     const s = p.stats;
     paintAvatar(dom.dlgAvatar, p);
     dom.dialogTitle.textContent = p.name;
-    dom.dlgSince.textContent = `Playing since ${formatDate(p.createdAt)}` +
-      (p.lastPlayedAt ? ` · last played ${formatDate(p.lastPlayedAt)}` : '');
+    dom.dlgSince.textContent = T('profile.since', { date: formatDate(p.createdAt) }) +
+      (p.lastPlayedAt ? T('profile.lastPlayed', { date: formatDate(p.lastPlayedAt) }) : '');
     if (document.activeElement !== dom.nameInput) dom.nameInput.value = p.name;
 
     // Colour choices
     if (!dom.colorOptions.children.length) {
       Storage.PROFILE_COLORS.forEach((color, i) => {
         const label = document.createElement('label');
-        label.innerHTML = `<input type="radio" name="avatarColor" value="${color}" id="avatarColor${i}"><span class="dot" style="--swatch:${color}"></span><span class="sr-only">Colour ${i + 1}</span>`;
+        label.innerHTML = `<input type="radio" name="avatarColor" value="${color}" id="avatarColor${i}"><span class="dot" style="--swatch:${color}"></span><span class="sr-only">${escapeHtml(T('profile.colourN', { n: i + 1 }))}</span>`;
         dom.colorOptions.appendChild(label);
       });
     }
@@ -1502,13 +1514,13 @@
     // Lifetime stats
     const avg = s.attempts ? s.totalMs / s.attempts : null;
     dom.lifetimeGrid.replaceChildren(
-      statTile('Best time', s.bestMs !== null ? msMarkup(s.bestMs) : null),
-      statTile('Average', avg !== null ? msMarkup(avg) : null, s.attempts ? `over ${s.attempts} reactions` : ''),
-      statTile('Peak level', `${s.peakLevel}<span class="u">/ ${LEVELS.length}</span>`, LEVELS[s.peakLevel - 1] ? LEVELS[s.peakLevel - 1].name : ''),
-      statTile('Sessions', String(s.sessions)),
-      statTile('False starts', String(s.falseStarts), s.missed ? `${s.missed} missed` : ''),
-      statTile('Decoys dodged', String(s.decoysDodged)),
-      statTile('Tournaments', String(s.tournamentsPlayed), s.tournamentsPlayed ? `${s.tournamentsWon} won` : ''),
+      statTile(T('stat.bestTime'), s.bestMs !== null ? msMarkup(s.bestMs) : null),
+      statTile(T('stat.average'), avg !== null ? msMarkup(avg) : null, s.attempts ? T('stat.overN', { n: s.attempts }) : ''),
+      statTile(T('stat.peakLevel'), `${s.peakLevel}<span class="u">/ ${LEVELS.length}</span>`, LEVELS[s.peakLevel - 1] ? levelName(s.peakLevel) : ''),
+      statTile(T('stat.sessions'), String(s.sessions)),
+      statTile(T('stat.falseStarts'), String(s.falseStarts), s.missed ? T('stat.nMissed', { n: s.missed }) : ''),
+      statTile(T('stat.decoysDodged'), String(s.decoysDodged)),
+      statTile(T('stat.tournaments'), String(s.tournamentsPlayed), s.tournamentsPlayed ? T('stat.nWon', { n: s.tournamentsWon }) : ''),
     );
 
     // Player switcher
@@ -1517,7 +1529,7 @@
     dom.profileSelect.replaceChildren(...profiles.map((pr) => {
       const opt = document.createElement('option');
       opt.value = pr.id;
-      opt.textContent = pr.name + (pr.stats.bestMs !== null ? ` (best ${fmt(pr.stats.bestMs)} ms)` : '');
+      opt.textContent = pr.stats.bestMs !== null ? T('profile.bestOption', { name: pr.name, ms: fmt(pr.stats.bestMs) }) : pr.name;
       opt.selected = pr.id === p.id;
       return opt;
     }));
@@ -1525,19 +1537,17 @@
     const locked = tournament.active;
     dom.profileSelect.disabled = locked;
     dom.newProfileBtn.disabled = locked || profiles.length >= Storage.MAX_PROFILES;
-    dom.newProfileBtn.title = profiles.length >= Storage.MAX_PROFILES ? `Up to ${Storage.MAX_PROFILES} players per device` : '';
+    dom.newProfileBtn.title = profiles.length >= Storage.MAX_PROFILES ? T('profile.maxPlayers', { n: Storage.MAX_PROFILES }) : '';
     dom.deleteProfileBtn.disabled = locked;
     resetDeleteButton();
-    dom.storageNote.textContent = (saved.persistent
-      ? 'Profiles, records and achievements are saved in this browser only. Clearing site data removes them.'
-      : 'This browser is blocking storage, so nothing will be kept after you close the page.') +
-      (locked ? ' Switching players is locked during a tournament.' : '');
+    dom.storageNote.textContent = T(saved.persistent ? 'profile.storageOn' : 'profile.storageOff') +
+      (locked ? T('profile.locked') : '');
 
     // Records
     dom.recordsGrid.replaceChildren(
-      statTile('Personal best', s.bestMs !== null ? msMarkup(s.bestMs) : null, p.top[0] ? formatDate(p.top[0].at) : ''),
-      statTile('Best 5 in a row', s.bestAvg5 !== null ? msMarkup(s.bestAvg5) : null, 'average'),
-      statTile('Longest clean run', String(s.longestClean), 'rounds'),
+      statTile(T('stat.personalBest'), s.bestMs !== null ? msMarkup(s.bestMs) : null, p.top[0] ? formatDate(p.top[0].at) : ''),
+      statTile(T('stat.best5'), s.bestAvg5 !== null ? msMarkup(s.bestAvg5) : null, T('stat.avgNote')),
+      statTile(T('stat.longestClean'), String(s.longestClean), T('stat.roundsNote')),
     );
     renderLeaderboard(); // async: re-checks every run before showing it
 
@@ -1550,12 +1560,12 @@
       const li = document.createElement('li');
       li.className = `ach${at ? ' is-unlocked' : ''}`;
       li.innerHTML = `<span class="ach-icon">${iconSvg(a.kind)}</span><div><p class="ach-title"></p><p class="ach-desc"></p><p class="ach-meta"></p></div>`;
-      li.querySelector('.ach-title').textContent = a.title;
-      li.querySelector('.ach-desc').textContent = a.desc;
+      li.querySelector('.ach-title').textContent = achTitle(a);
+      li.querySelector('.ach-desc').textContent = achDesc(a);
       const meta = li.querySelector('.ach-meta');
       const prog = Achievements.progressOf(a, ctx);
       if (at) {
-        meta.textContent = `Unlocked ${formatDate(at)}`;
+        meta.textContent = T('ach.unlockedOn', { date: formatDate(at) });
       } else if (prog) {
         meta.textContent = `${prog.current} / ${prog.goal}`;
         const bar = document.createElement('div');
@@ -1563,9 +1573,9 @@
         bar.innerHTML = `<span style="width:${Math.round((prog.current / prog.goal) * 100)}%"></span>`;
         li.lastElementChild.appendChild(bar);
       } else {
-        meta.textContent = 'Locked';
+        meta.textContent = T('ach.locked');
       }
-      li.setAttribute('aria-label', `${a.title}. ${a.desc} ${at ? 'Unlocked.' : prog ? `Progress ${prog.current} of ${prog.goal}.` : 'Locked.'}`);
+      li.setAttribute('aria-label', `${achTitle(a)}. ${achDesc(a)} ${at ? T('ach.aria.unlocked') : prog ? T('ach.aria.progress', { c: prog.current, g: prog.goal }) : T('ach.aria.locked')}`);
       return li;
     }));
   }
@@ -1574,8 +1584,8 @@
   function openProfile(tabId = 'tab-profile') {
     if (game.running) {
       stopSession({
-        eyebrow: 'Paused', headline: 'Paused',
-        sub: 'The session is paused while your profile is open. Press Start to continue.',
+        eyebrow: T('common.paused'), headline: T('common.paused'),
+        sub: T('session.profilePausedSub'),
       });
     }
     renderDialog();
@@ -1610,7 +1620,7 @@
     persist();
     renderProfileChip();
     renderDialog();
-    announce(`Name saved: ${name}.`);
+    announce(T('announce.nameSaved', { name }));
   }
 
   function switchProfile(id) {
@@ -1618,10 +1628,10 @@
     saved.state.activeId = id;
     persist();
     // A new player starts a fresh session: stats on screen belong to one person.
-    resetSession({ eyebrow: 'Player switched', headline: `Hi, ${activeProfile().name}` });
+    resetSession({ eyebrow: T('profile.switched'), headline: T('profile.hi', { name: activeProfile().name }) });
     renderProfileChip();
     renderDialog();
-    announce(`Switched to ${activeProfile().name}.`);
+    announce(T('announce.switched', { name: activeProfile().name }));
   }
 
   function createPlayer() {
@@ -1629,7 +1639,7 @@
     if (count >= Storage.MAX_PROFILES) return;
     const used = new Set(Object.values(saved.state.profiles).map((p) => p.color));
     const color = Storage.PROFILE_COLORS.find((c) => !used.has(c)) || Storage.PROFILE_COLORS[count % Storage.PROFILE_COLORS.length];
-    const profile = Storage.createProfile(`Player ${count + 1}`, color);
+    const profile = Storage.createProfile(T('profile.defaultNameN', { n: count + 1 }), color);
     saved.state.profiles[profile.id] = profile;
     saved.state.activeId = ''; // force switchProfile to run
     switchProfile(profile.id);
@@ -1642,14 +1652,14 @@
   function resetDeleteButton() {
     window.clearTimeout(deleteTimer);
     dom.deleteProfileBtn.classList.remove('is-confirming');
-    dom.deleteProfileBtn.textContent = 'Delete player';
+    dom.deleteProfileBtn.textContent = T('profile.delete');
   }
 
   /** Two-step delete: the first press arms the button for a few seconds. */
   function deletePlayer() {
     if (!dom.deleteProfileBtn.classList.contains('is-confirming')) {
       dom.deleteProfileBtn.classList.add('is-confirming');
-      dom.deleteProfileBtn.textContent = `Delete ${activeProfile().name}? Press again`;
+      dom.deleteProfileBtn.textContent = T('profile.deleteConfirm', { name: activeProfile().name });
       deleteTimer = window.setTimeout(resetDeleteButton, 4000);
       return;
     }
@@ -1658,16 +1668,16 @@
     delete saved.state.profiles[saved.state.activeId];
     let next = Object.values(saved.state.profiles)[0];
     if (!next) {
-      next = Storage.createProfile('Player');
+      next = Storage.createProfile(T('profile.defaultName'));
       saved.state.profiles[next.id] = next;
     }
     saved.state.activeId = '';
     switchProfile(next.id);
-    announce(`${gone} deleted. Now playing as ${next.name}.`);
+    announce(T('announce.deleted', { gone, name: next.name }));
   }
 
   function reloadFromStorage() {
-    const { state } = Storage.load();
+    const { state } = Storage.load({ defaultName: T('profile.defaultName') });
     saved.state = state;
     renderProfileChip();
     if (dom.dialog.open) renderDialog();
@@ -1750,7 +1760,7 @@
       const n = r.times.length;
       return {
         id,
-        name: p ? p.name : 'Deleted player',
+        name: p ? p.name : T('board.deleted'),
         color: p ? p.color : Storage.PROFILE_COLORS[4],
         score: tournamentScore(r),
         avg: n ? r.times.reduce((a, b) => a + b, 0) / n : null,
@@ -1807,15 +1817,13 @@
     renderTournament();
 
     const p = activeProfile();
-    const level = LEVELS[tournament.level - 1];
     setState(STATE.IDLE, {
-      eyebrow: `Tournament · player ${tournament.turn + 1} of ${tournament.players.length}`,
-      headline: `${p.name}, you’re up`,
-      sub: `${tournament.rounds} rounds on level ${tournament.level} (${escapeHtml(level.name)}). ` +
-        'Hand over the device, then press Space, click or tap when ready.',
-      hint: '<kbd>Space</kbd>, click or tap to start your turn',
+      eyebrow: T('t.handoff.eyebrow', { n: tournament.turn + 1, of: tournament.players.length }),
+      headline: T('t.handoff.headline', { name: p.name }),
+      sub: T('t.handoff.sub', { rounds: tournament.rounds, level: tournament.level, levelName: escapeHtml(levelName(tournament.level)) }),
+      hint: T('t.handoff.hint'),
     });
-    announce(`${p.name}, you’re up. ${tournament.rounds} rounds.`);
+    announce(T('announce.up', { name: p.name, rounds: tournament.rounds }));
   }
 
   /** Called after every round outcome; ends the turn once all rounds are played. */
@@ -1833,12 +1841,12 @@
       const next = tournament.players[tournament.turn + 1];
       const nextName = next && saved.state.profiles[next] ? saved.state.profiles[next].name : null;
       const note = nextName
-        ? ` <strong>Turn complete.</strong> Next up: ${escapeHtml(nextName)}.`
-        : ' <strong>That was the last turn.</strong> Continue to see the results.';
+        ? T('t.turnDone', { name: escapeHtml(nextName) })
+        : T('t.lastTurn');
       dom.subline.innerHTML += note;
       dom.subline.hidden = false;
-      dom.hint.innerHTML = '<kbd>Space</kbd>, click or tap to continue';
-      announce(nextName ? `Turn complete. Next up: ${nextName}.` : 'Last turn complete.');
+      dom.hint.innerHTML = T('hint.continue');
+      announce(nextName ? T('announce.turnDone', { name: nextName }) : T('announce.lastTurn'));
     }
     renderControls();
     renderTournament();
@@ -1892,14 +1900,14 @@
     dom.tourneyCard.hidden = true;
     dom.levelCard.hidden = false;
     resetTourneyButton();
-    resetSession({ eyebrow: message || 'Tournament ended', headline: 'Back to solo' });
+    resetSession({ eyebrow: message || T('t.ended'), headline: T('t.backToSolo') });
     renderProfileChip();
   }
 
   function renderTournament() {
     if (!tournament.active) return;
-    dom.tourneyMeta.textContent = `Level ${tournament.level} · ${tournament.rounds} rounds each`;
-    dom.penaltyNote.textContent = String(CONFIG.tournamentPenaltyMs);
+    dom.tourneyMeta.textContent = T('t.meta', { level: tournament.level, rounds: tournament.rounds });
+    dom.tourneyFine.textContent = T('tcard.fine', { p: CONFIG.tournamentPenaltyMs });
     dom.tourneyList.replaceChildren(...tournament.players.map((id, i) => {
       const p = saved.state.profiles[id];
       const r = tournament.results[id];
@@ -1911,16 +1919,16 @@
       li.innerHTML = '<span class="avatar" aria-hidden="true"></span><span class="t-name"></span><span class="t-score"></span>';
       if (p) paintAvatar(li.querySelector('.avatar'), p);
       const nameEl = li.querySelector('.t-name');
-      nameEl.textContent = p ? p.name : 'Deleted player';
+      nameEl.textContent = p ? p.name : T('board.deleted');
       const progress = document.createElement('span');
       progress.className = 't-progress';
       progress.textContent = i < tournament.turn || (i === tournament.turn && tournament.phase !== 'handoff' && played >= tournament.rounds)
-        ? `Done · ${r.fouls} foul${r.fouls === 1 ? '' : 's'}`
-        : i === tournament.turn ? `Playing · ${played}/${tournament.rounds}` : 'Waiting';
+        ? T('t.done', { n: r.fouls })
+        : i === tournament.turn ? T('t.playing', { p: played, of: tournament.rounds }) : T('t.waiting');
       nameEl.appendChild(progress);
       li.querySelector('.t-score').innerHTML = score === null
         ? '—'
-        : `${fmt(score)}<small>score, ms</small>`;
+        : `${fmt(score)}<small>${escapeHtml(T('t.scoreSmall'))}</small>`;
       return li;
     }));
   }
@@ -1929,8 +1937,8 @@
   function openTourneySetup() {
     if (game.running) {
       stopSession({
-        eyebrow: 'Paused', headline: 'Paused',
-        sub: 'Set up the tournament, or cancel to keep playing solo.',
+        eyebrow: T('common.paused'), headline: T('common.paused'),
+        sub: T('t.setupPausedSub'),
       });
     }
     const defaults = tournament.lastSetup || {
@@ -1947,13 +1955,11 @@
     dom.tourneyLevel.replaceChildren(...LEVELS.map((lvl, i) => {
       const opt = document.createElement('option');
       opt.value = String(i + 1);
-      opt.textContent = `${i + 1} · ${lvl.name} (target ${lvl.target} ms)`;
+      opt.textContent = T('t.levelOption', { n: i + 1, name: levelName(i + 1), target: lvl.target });
       opt.selected = i + 1 === defaults.level;
       return opt;
     }));
-    dom.tourneyRules.textContent =
-      `Score = average of valid times + ${CONFIG.tournamentPenaltyMs} ms for each false start or miss. ` +
-      'Ties go to the best single time. Every round also counts toward each player’s profile and achievements.';
+    dom.tourneyRules.textContent = T('t.rules', { p: CONFIG.tournamentPenaltyMs });
     dom.tourneyError.hidden = true;
     dom.newPlayerName.value = '';
     dom.tourneyDialog.showModal();
@@ -1970,13 +1976,13 @@
       input.checked = checked.has(p.id);
       paintAvatar(li.querySelector('.avatar'), p);
       li.querySelector('.p-name').textContent = p.name;
-      li.querySelector('.p-best').textContent = p.stats.bestMs !== null ? `best ${fmt(p.stats.bestMs)} ms` : 'new';
+      li.querySelector('.p-best').textContent = p.stats.bestMs !== null ? T('t.pickBest', { ms: fmt(p.stats.bestMs) }) : T('t.pickNew');
       return li;
     }));
     const full = profiles.length >= Storage.MAX_PROFILES;
     dom.addPlayerBtn.disabled = full;
     dom.newPlayerName.disabled = full;
-    dom.newPlayerName.placeholder = full ? `Device full (${Storage.MAX_PROFILES} players)` : 'Add a player';
+    dom.newPlayerName.placeholder = full ? T('t.deviceFull', { n: Storage.MAX_PROFILES }) : T('t.addPlaceholder');
   }
 
   function checkedPlayers() {
@@ -1991,11 +1997,11 @@
 
   function addPlayerFromSetup() {
     const name = Storage.cleanName(dom.newPlayerName.value);
-    if (!name) { setupError('Type a name first (1 to 20 characters).'); dom.newPlayerName.focus(); return; }
+    if (!name) { setupError(T('t.err.name')); dom.newPlayerName.focus(); return; }
     const all = Object.values(saved.state.profiles);
-    if (all.length >= Storage.MAX_PROFILES) { setupError(`This device already has ${Storage.MAX_PROFILES} players.`); return; }
+    if (all.length >= Storage.MAX_PROFILES) { setupError(T('t.err.full', { n: Storage.MAX_PROFILES })); return; }
     if (all.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-      setupError(`“${name}” already exists. Tick them in the list instead.`);
+      setupError(T('t.err.exists', { name }));
       return;
     }
     const used = new Set(all.map((p) => p.color));
@@ -2007,14 +2013,14 @@
     setupError('');
     dom.newPlayerName.value = '';
     dom.newPlayerName.focus();
-    announce(`${name} added.`);
+    announce(T('announce.added', { name }));
   }
 
   function submitSetup(event) {
     event.preventDefault();
     const players = checkedPlayers();
     if (players.length < CONFIG.tournamentMinPlayers) {
-      setupError(`Pick at least ${CONFIG.tournamentMinPlayers} players.`);
+      setupError(T('t.err.min', { n: CONFIG.tournamentMinPlayers }));
       return;
     }
     const roundsInput = dom.roundsPick.querySelector('input:checked');
@@ -2032,14 +2038,12 @@
     if (winner) {
       paintAvatar(dom.winnerAvatar, winner);
       dom.winnerAvatar.hidden = false;
-      dom.resultsTitle.textContent = `${winner.name} wins!`;
+      dom.resultsTitle.textContent = T('t.wins', { name: winner.name });
     } else {
       dom.winnerAvatar.hidden = true;
-      dom.resultsTitle.textContent = 'No winner this time';
+      dom.resultsTitle.textContent = T('t.noWinner');
     }
-    dom.resultsSub.textContent =
-      `${tournament.rounds} rounds each on level ${tournament.level} (${LEVELS[tournament.level - 1].name}). ` +
-      `Score = average + ${CONFIG.tournamentPenaltyMs} ms per foul.`;
+    dom.resultsSub.textContent = T('t.resultsSub', { rounds: tournament.rounds, level: tournament.level, name: levelName(tournament.level), p: CONFIG.tournamentPenaltyMs });
     dom.resultsBody.replaceChildren(...standings.map((row, i) => {
       const tr = document.createElement('tr');
       if (winner && row.id === winner.id) tr.className = 'is-winner';
@@ -2051,7 +2055,7 @@
       return tr;
     }));
     Sound.play(winner ? 'record' : 'missed', { delay: 0.1 });
-    announce(winner ? `${winner.name} wins the tournament.` : 'Tournament over. Nobody set a valid time.');
+    announce(winner ? T('announce.wins', { name: winner.name }) : T('announce.noWinner'));
     rematchRequested = false;
     dom.resultsDialog.showModal();
     dom.rematchBtn.focus();
@@ -2061,7 +2065,7 @@
   function resetTourneyButton() {
     window.clearTimeout(tourneyConfirmTimer);
     dom.tourneyBtn.classList.remove('is-confirming');
-    dom.tourneyBtn.textContent = tournament.active ? 'End tournament' : 'Tournament';
+    dom.tourneyBtn.textContent = tournament.active ? T('btn.endTournament') : T('btn.tournament');
   }
 
   function bindTournamentEvents() {
@@ -2069,13 +2073,13 @@
       if (!tournament.active) { openTourneySetup(); return; }
       // Ending early throws away the standings, so ask for a second press.
       if (!dom.tourneyBtn.classList.contains('is-confirming')) {
-        if (game.running) stopSession({ eyebrow: 'Paused', headline: 'Paused', sub: 'Press End tournament again to stop, or Resume turn to carry on.' });
+        if (game.running) stopSession({ eyebrow: T('common.paused'), headline: T('common.paused'), sub: T('t.endPausedSub') });
         dom.tourneyBtn.classList.add('is-confirming');
-        dom.tourneyBtn.textContent = 'End tournament? Press again';
+        dom.tourneyBtn.textContent = T('btn.endTournamentConfirm');
         tourneyConfirmTimer = window.setTimeout(resetTourneyButton, 4000);
         return;
       }
-      endTournament('Tournament ended early');
+      endTournament(T('t.endedEarly'));
     });
 
     dom.tourneyForm.addEventListener('submit', submitSetup);
@@ -2098,7 +2102,7 @@
         const setup = tournament.lastSetup;
         startTournament({ ...setup, players: setup.players.filter((id) => saved.state.profiles[id]) });
       } else {
-        endTournament('Tournament finished');
+        endTournament(T('t.finished'));
       }
     });
   }
@@ -2135,32 +2139,32 @@
   function renderControls() {
     const t = tournament.active;
     let label;
-    if (game.running) label = t ? 'Pause turn' : 'Stop session';
-    else if (!t) label = 'Start session';
+    if (game.running) label = t ? T('btn.pauseTurn') : T('btn.stop');
+    else if (!t) label = T('btn.start');
     else if (tournament.phase === 'turnDone' || tournament.phase === 'finished') {
-      label = tournament.turn + 1 < tournament.players.length ? 'Next player' : 'See results';
-    } else label = tournament.phase === 'handoff' ? 'Start turn' : 'Resume turn';
+      label = tournament.turn + 1 < tournament.players.length ? T('btn.nextPlayer') : T('btn.seeResults');
+    } else label = tournament.phase === 'handoff' ? T('btn.startTurn') : T('btn.resumeTurn');
     dom.startBtn.textContent = label;
     dom.startBtn.classList.toggle('is-running', game.running);
     const hasData = session.rounds > 0 || session.times.length > 0;
     dom.resetBtn.disabled = t || !hasData;
     if (!dom.tourneyBtn.classList.contains('is-confirming')) {
-      dom.tourneyBtn.textContent = t ? 'End tournament' : 'Tournament';
+      dom.tourneyBtn.textContent = t ? T('btn.endTournament') : T('btn.tournament');
     }
     if (t && saved.state) {
       const shown = Math.min(tournament.roundInTurn + 1, tournament.rounds);
-      dom.roundCount.textContent = `${activeProfile().name} · Round ${shown}/${tournament.rounds}`;
+      dom.roundCount.textContent = T('t.round', { name: activeProfile().name, r: shown, of: tournament.rounds });
     } else {
-      dom.roundCount.textContent = `Level ${session.level}${session.rounds ? ` · Round ${session.rounds}` : ''}`;
+      dom.roundCount.textContent = T('level.round', { n: session.level }) + (session.rounds ? T('level.roundSuffix', { r: session.rounds }) : '');
     }
   }
 
   function renderLevel() {
     const level = currentLevel();
     dom.levelNum.textContent = String(session.level);
-    dom.levelName.textContent = level.name;
-    dom.levelOf.textContent = `${session.level} of ${LEVELS.length}`;
-    dom.levelBrief.textContent = fillWords(level.brief);
+    dom.levelName.textContent = levelName(session.level);
+    dom.levelOf.textContent = T('level.of', { n: session.level, of: LEVELS.length });
+    dom.levelBrief.textContent = fillWords(levelBrief(session.level));
     const target = effectiveTarget();
     dom.levelTarget.textContent = target > level.target
       ? `≤ ${target} ms (+${target - level.target})`
@@ -2182,13 +2186,13 @@
     Array.from(dom.levelPips.children).forEach((pip, i) => {
       pip.classList.toggle('is-on', i < session.streak);
     });
-    dom.levelPips.setAttribute('aria-label', `Streak ${session.streak} of ${CONFIG.levelUpStreak}`);
+    dom.levelPips.setAttribute('aria-label', T('level.streakAria', { n: session.streak, of: CONFIG.levelUpStreak }));
     renderControls();
   }
 
   function msMarkup(ms) {
     // Screen readers say "milliseconds" rather than spelling out "m s".
-    return `${fmt(ms)}<span class="u" aria-hidden="true">ms</span><span class="sr-only"> milliseconds</span>`;
+    return `${fmt(ms)}<span class="u" aria-hidden="true">ms</span><span class="sr-only">${T('unit.msSr')}</span>`;
   }
 
   function renderStats(summary = summarize(session.times)) {
@@ -2198,14 +2202,14 @@
       dom.statAvg.textContent = '—';
       dom.statSd.innerHTML = '&nbsp;';
       dom.statMedian.innerHTML = '&nbsp;';
-      dom.statsScope.textContent = 'No attempts yet';
+      dom.statsScope.textContent = T('stats.noAttempts');
     } else {
       dom.statLast.innerHTML = msMarkup(summary.last);
       dom.statBest.innerHTML = msMarkup(summary.best);
       dom.statAvg.innerHTML = msMarkup(summary.mean);
-      dom.statSd.textContent = summary.n > 1 ? `± ${fmt(summary.sd)} ms spread` : 'needs 2+ attempts';
-      dom.statMedian.textContent = `median ${fmt(summary.median)} ms`;
-      dom.statsScope.textContent = 'This page view';
+      dom.statSd.textContent = summary.n > 1 ? T('stats.spread', { sd: fmt(summary.sd) }) : T('stats.needs2');
+      dom.statMedian.textContent = T('stats.median', { ms: fmt(summary.median) });
+      dom.statsScope.textContent = T('stats.thisView');
     }
     dom.statCount.textContent = String(summary.n || 0);
     dom.statFalse.textContent = String(session.falseStarts);
@@ -2261,7 +2265,7 @@
         x, y: y(t), width: barW, height: Math.max(1, y(0) - y(t)), rx: 2,
         class: `bar${isBest ? ' is-best' : ''}${isLast ? ' is-last' : ''}`,
       });
-      bar.appendChild(svgEl('title', {}, `Attempt ${firstIndex + i + 1}: ${fmt(t)} ms${isBest ? ' (best)' : ''}`));
+      bar.appendChild(svgEl('title', {}, T('chart.attempt', { n: firstIndex + i + 1, ms: fmt(t) }) + (isBest ? T('chart.bestSuffix') : '')));
       svg.appendChild(bar);
       // The best bar is also marked with a star, not by colour alone.
       if (isBest) svg.appendChild(svgEl('text', { x: x + barW / 2, y: Math.max(top + 7, y(t) - 3), 'text-anchor': 'middle', class: 'avg-label', 'aria-hidden': 'true' }, '★'));
@@ -2274,14 +2278,14 @@
       class: 'avg-line', 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.7,
     }));
     const labelY = avgY - 4 < top + 8 ? avgY + 11 : avgY - 4;
-    svg.appendChild(svgEl('text', { x: W - right, y: labelY, 'text-anchor': 'end', class: 'avg-label' }, `avg ${fmt(summary.mean)}`));
+    svg.appendChild(svgEl('text', { x: W - right, y: labelY, 'text-anchor': 'end', class: 'avg-label' }, T('chart.avg', { ms: fmt(summary.mean) })));
     svg.appendChild(svgEl('text', { x: left, y: H - 4 }, `#${firstIndex + 1}`));
     svg.appendChild(svgEl('text', { x: W - right, y: H - 4, 'text-anchor': 'end' }, `#${session.times.length}`));
 
     // The chart's text alternative lists the values, not just a summary.
-    svg.setAttribute('aria-label',
-      `Bar chart of the last ${times.length} reaction times, oldest first: ${times.map((t) => fmt(t)).join(', ')} milliseconds. ` +
-      `Session average ${fmt(summary.mean)}, best ${fmt(summary.best)}.`);
+    svg.setAttribute('aria-label', T('chart.aria', {
+      n: times.length, list: times.map((t) => fmt(t)).join(', '), avg: fmt(summary.mean), best: fmt(summary.best),
+    }));
   }
 
   function showBanner(message) {
@@ -2304,8 +2308,8 @@
     scene = null;
     dom.canvas.hidden = true;
     dom.flatOrb.hidden = false;
-    setRenderStatus('2D fallback', true);
-    showBanner(`3D graphics are unavailable (${reason}). The game still works, with a simplified display.`);
+    setRenderStatus(T('render.fallback'), true);
+    showBanner(T('banner.no3d', { reason }));
   }
 
   function tick(now) {
@@ -2331,7 +2335,7 @@
         sceneErrors = 0;
       } catch (err) {
         console.error('[Reflex Lab] render error', err);
-        if (++sceneErrors > 3) enterFlatMode('repeated rendering errors');
+        if (++sceneErrors > 3) enterFlatMode(T('render.reasonErrors'));
       }
     }
 
@@ -2343,7 +2347,7 @@
       fpsFrames = 0;
       fpsSince = now;
       if (scene && scene.ready) {
-        if (scene.contextLost) setRenderStatus('WebGL context lost, recovering…', true);
+        if (scene.contextLost) setRenderStatus(T('render.lost'), true);
         else setRenderStatus(`WebGL · ${fps} fps · ${scene.pixelRatio.toFixed(2).replace(/\.?0+$/, '')}×`, fps < 40);
       }
     }
@@ -2418,9 +2422,9 @@
         if (game.running && (game.state === STATE.WAITING || game.state === STATE.GO)) {
           session.rounds = Math.max(0, session.rounds - 1);
           stopSession({
-            eyebrow: 'Round cancelled',
-            headline: 'Paused',
-            sub: 'The page was hidden mid-round, so that round was discarded. Press Start to continue.',
+            eyebrow: T('session.roundCancelled'),
+            headline: T('common.paused'),
+            sub: T('session.hiddenSub'),
           });
         }
       } else {
@@ -2439,7 +2443,12 @@
 
   /** Apply palette, text size and motion settings everywhere, then save them. */
   function applyDisplay(changes = {}, { save = true } = {}) {
+    const langChanged = changes.lang !== undefined && changes.lang !== I18n.getLang();
     Object.assign(display, changes);
+    if (langChanged || changes.lang !== undefined) {
+      display.lang = I18n.setLang(display.lang);
+      I18n.apply(document); // static text first; the colour words are filled in below
+    }
     if (!PALETTES[display.palette]) display.palette = 'standard';
     if (!TEXT_SCALES.includes(display.textScale)) display.textScale = 1;
 
@@ -2466,23 +2475,43 @@
     }
     renderLevel();
     renderStats(); // chart colours come from CSS, but its labels are re-laid out
+    if (langChanged) refreshLanguage();
     if (save) Storage.savePrefs({ ...display });
   }
 
+  /** Redraw everything built in code after a language switch. */
+  function refreshLanguage() {
+    renderProfileChip();
+    renderAudioControls();
+    renderControls();
+    renderClockText();
+    if (!scene) setRenderStatus(T('render.fallback'), true);
+    if (tournament.active) renderTournament();
+    if (dom.dialog.open) renderDialog();
+  }
+
   function renderDisplaySettings() {
+    // Languages are named in their own language, so they're recognisable either way.
+    dom.langPick.replaceChildren(...Object.entries(I18n.LANGS).map(([id, info]) => {
+      const label = document.createElement('label');
+      label.innerHTML = `<input type="radio" name="lang" value="${id}" id="lang-${id}" lang="${id}"><span lang="${id}"></span>`;
+      label.querySelector('span').textContent = info.label;
+      label.querySelector('input').checked = id === display.lang;
+      return label;
+    }));
     dom.paletteOptions.replaceChildren(...Object.entries(PALETTES).map(([id, p]) => {
       const label = document.createElement('label');
       label.className = 'palette-option';
       label.innerHTML = `<input type="radio" name="palette" id="palette-${id}" value="${id}">
         <span><span class="p-title"></span><span class="p-desc"></span></span>
         <span class="palette-swatches" aria-hidden="true"><i>W</i><i>G</i><i>D</i></span>`;
-      label.querySelector('.p-title').textContent = p.name;
-      label.querySelector('.p-desc').textContent = p.desc;
+      label.querySelector('.p-title').textContent = paletteName(id);
+      label.querySelector('.p-desc').textContent = paletteDesc(id);
       const [w, g, d] = label.querySelectorAll('.palette-swatches i');
       w.style.background = hexCss(p.colors.waiting);
       g.style.background = hexCss(p.colors.go);
       d.style.background = hexCss(p.colors.decoy);
-      w.title = 'Wait'; g.title = 'Go'; d.title = 'Decoy';
+      w.title = T('a11y.swatchWait'); g.title = T('a11y.swatchGo'); d.title = T('a11y.swatchDecoy');
       label.querySelector('input').checked = id === display.palette;
       return label;
     }));
@@ -2491,7 +2520,7 @@
       const pct = Math.round(scale * 100);
       label.innerHTML = `<input type="radio" name="textScale" value="${scale}" id="textScale${pct}"><span>${pct}%</span>`;
       label.querySelector('input').checked = scale === display.textScale;
-      label.querySelector('input').setAttribute('aria-label', `Text size ${pct}%`);
+      label.querySelector('input').setAttribute('aria-label', T('a11y.textSizeAria', { n: pct }));
       return label;
     }));
     dom.reduceMotion.checked = display.reduceMotion;
@@ -2499,7 +2528,7 @@
 
   function openDisplaySettings() {
     if (game.running && (game.state === STATE.WAITING || game.state === STATE.GO)) {
-      stopSession({ eyebrow: 'Paused', headline: 'Paused', sub: 'The round was paused while you changed settings. Press Start to continue.' });
+      stopSession({ eyebrow: T('common.paused'), headline: T('common.paused'), sub: T('session.settingsPausedSub') });
     }
     renderDisplaySettings();
     dom.a11yDialog.showModal();
@@ -2515,12 +2544,20 @@
     dom.paletteOptions.addEventListener('change', (e) => {
       if (!(e.target instanceof HTMLInputElement) || !PALETTES[e.target.value]) return;
       applyDisplay({ palette: e.target.value });
-      announce(`${PALETTES[display.palette].name} colours on. The signal to react is now ${fillWords('{go}')}.`);
+      announce(fillWords(T('announce.palette', { name: paletteName(display.palette) })));
     });
     dom.textScalePick.addEventListener('change', (e) => {
       if (!(e.target instanceof HTMLInputElement)) return;
       applyDisplay({ textScale: Number(e.target.value) });
-      announce(`Text size ${Math.round(display.textScale * 100)} percent.`);
+      announce(T('announce.textSize', { n: Math.round(display.textScale * 100) }));
+    });
+    dom.langPick.addEventListener('change', (e) => {
+      if (!(e.target instanceof HTMLInputElement) || !I18n.LANGS[e.target.value]) return;
+      applyDisplay({ lang: e.target.value });
+      renderDisplaySettings(); // relabel this dialog, then keep focus on the choice
+      const chosen = document.getElementById(`lang-${display.lang}`);
+      if (chosen) chosen.focus();
+      announce(T('announce.language'));
     });
     dom.reduceMotion.addEventListener('change', () => {
       applyDisplay({ reduceMotion: dom.reduceMotion.checked });
@@ -2534,21 +2571,21 @@
     if (!Sound.supported) {
       [dom.sfxToggle, dom.musicToggle, dom.volumeSlider].forEach((el) => {
         el.disabled = true;
-        el.title = 'Audio isn’t supported in this browser';
+        el.title = T('audio.unsupported');
       });
       dom.sfxToggle.setAttribute('aria-pressed', 'false');
       dom.musicToggle.setAttribute('aria-pressed', 'false');
       return;
     }
     const prefs = Sound.getPrefs();
-    const paint = (btn, on, label, key) => {
+    const paint = (btn, on, kind) => {
       btn.setAttribute('aria-pressed', String(on));
-      btn.title = `${label}: ${on ? 'on' : 'off'} (${key})`;
+      btn.title = T(`audio.${kind}${on ? 'On' : 'Off'}`);
     };
-    paint(dom.sfxToggle, prefs.sfx, 'Sound effects', 'S');
-    paint(dom.musicToggle, prefs.music, 'Music', 'M');
+    paint(dom.sfxToggle, prefs.sfx, 'sfx');
+    paint(dom.musicToggle, prefs.music, 'music');
     dom.volumeSlider.value = String(Math.round(prefs.volume * 100));
-    dom.volumeSlider.title = `Volume ${dom.volumeSlider.value}%`;
+    dom.volumeSlider.title = T('audio.volumeTitle', { n: dom.volumeSlider.value });
     dom.volumeSlider.setAttribute('aria-valuetext', `${dom.volumeSlider.value}%`);
   }
 
@@ -2559,7 +2596,7 @@
     Storage.savePrefs(Sound.getPrefs());
     renderAudioControls();
     Sound.play('ui');
-    announce(`${kind === 'sfx' ? 'Sound effects' : 'Music'} ${on ? 'on' : 'off'}.`);
+    announce(T(`announce.${kind}${on ? 'On' : 'Off'}`));
   }
 
   function bindAudioEvents() {
@@ -2569,7 +2606,7 @@
     dom.volumeSlider.addEventListener('input', () => {
       Sound.unlock();
       Sound.setVolume(Number(dom.volumeSlider.value) / 100);
-      dom.volumeSlider.title = `Volume ${dom.volumeSlider.value}%`;
+      dom.volumeSlider.title = T('audio.volumeTitle', { n: dom.volumeSlider.value });
       dom.volumeSlider.setAttribute('aria-valuetext', `${dom.volumeSlider.value}%`);
     });
     dom.volumeSlider.addEventListener('change', () => {
@@ -2597,13 +2634,17 @@
    * Boot
    * ==================================================================== */
   function boot() {
-    const loaded = Storage.load();
+    const startPrefs = Storage.loadPrefs();
+    display.lang = I18n.setLang(startPrefs.lang || I18n.detect());
+    I18n.apply(document);
+
+    const loaded = Storage.load({ defaultName: T('profile.defaultName') });
     saved.state = loaded.state;
     saved.persistent = loaded.persistent;
     if (loaded.notice === 'blocked') {
-      showBanner('This browser is blocking storage, so your profile and records will only last until you close the page.');
+      showBanner(T('banner.blocked'));
     } else if (loaded.notice === 'corrupt') {
-      showBanner(`Saved progress couldn’t be read, so a fresh profile was started. The old data was kept under “${Storage.KEY}.backup” in this browser’s storage.`);
+      showBanner(T('banner.corrupt', { key: `${Storage.KEY}.backup` }));
       persist();
     }
 
@@ -2623,7 +2664,7 @@
       scene.init();
     } catch (err) {
       console.error('[Reflex Lab] 3D init failed', err);
-      enterFlatMode(err && err.message ? err.message : 'WebGL could not start');
+      enterFlatMode(typeof THREE === 'undefined' ? T('render.reasonNoThree') : T('render.reasonNoWebgl'));
     }
 
     const prefs = Storage.loadPrefs();
@@ -2640,17 +2681,19 @@
   let clockResMs = null; // measured timer precision, part of leaderboard evidence
 
   function renderClockResolution() {
-    const res = measureClockResolution();
-    clockResMs = res;
+    clockResMs = measureClockResolution();
+    renderClockText();
+  }
+
+  function renderClockText() {
+    const res = clockResMs;
     if (res === null) {
-      dom.clockRes.textContent = 'unavailable';
-      dom.clockChip.title = 'This browser has no high-resolution clock; timings may be off by several ms.';
+      dom.clockRes.textContent = T('clock.unavailable');
+      dom.clockChip.title = T('clock.noHiRes');
       return;
     }
     dom.clockRes.textContent = `± ${formatResolution(res)}`;
-    dom.clockChip.title =
-      `performance.now() ticks every ${formatResolution(res)} in this browser, ` +
-      'so each reaction time is accurate to about that much (plus one screen refresh).';
+    dom.clockChip.title = T('clock.title', { res: formatResolution(res) });
   }
 
   window.addEventListener('error', (e) => {
@@ -2664,7 +2707,7 @@
     const banner = document.getElementById('banner');
     const text = document.getElementById('bannerText');
     if (banner && text) {
-      text.textContent = 'Reflex Lab couldn’t start. Reload the page, or try a current version of Chrome, Firefox, Safari or Edge.';
+      text.textContent = window.ReflexLabI18n ? window.ReflexLabI18n.t('banner.fatal') : 'Reflex Lab couldn’t start. Reload the page.';
       banner.hidden = false;
     }
   }

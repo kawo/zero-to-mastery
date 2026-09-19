@@ -88,6 +88,23 @@ All the audio is generated with the Web Audio API, so there are no sound files. 
 - If WebGL or the CDN isn't available, a 2D fallback runs and the game still works.
 - The game supports `prefers-reduced-motion`.
 
+## Language
+
+The game is available in **English** and **French**. You choose the language at the top of the **Display & accessibility** window. By default, the game follows the browser's first preferred language (French if it starts with `fr`, English otherwise). Your choice is saved in this browser.
+
+- **Everything is translated:**
+  - the interface and screen-reader announcements;
+  - level names, power-ups, achievements and anti-cheat reasons;
+  - the default name of new profiles ("Player" / "Joueur");
+  - dates (`Intl.DateTimeFormat`);
+  - the page's `lang` attribute, so screen readers use the right voice.
+- **When you switch:** the change applies straight away. The text you can see is redrawn, including the current message and any open window.
+- **How it works (`js/i18n.js`):**
+  - `t(key, params)` handles parameters (`{name}`) and French/English plurals.
+  - The static HTML is translated with `data-i18n`, `data-i18n-html` and `data-i18n-attr` attributes.
+  - The game data keeps its English in its own files. Only the French lives in `i18n.js`, keyed by id, so there's no duplication.
+- **Colour words:** the colour words (`{go}`, `{wait}`, `{decoy}`) follow the colour-vision palette in both languages. The French sentences are written so the word never needs to agree in gender or number ("passe au {go}", "le cube {decoy}", "se colore en {wait}"), so they read correctly with vert, bleu, blanc…
+
 ## Accessibility
 
 To open **Display & accessibility**, use the ♿ button in the top bar. Your settings are saved in this browser.
@@ -151,7 +168,7 @@ Achievement: "On the Board" (get a verified run on the leaderboard).
 
 ## Data
 
-Profiles are saved in `localStorage` under the key `reflexlab.v1`. Audio and display settings are saved separately, under `reflexlab.prefs.v1`. The leaderboard is saved under `reflexlab.board.v1`, and its signing key is in IndexedDB (in the `reflexlab` database). That means they're saved in this browser only. Clearing site data removes them.
+Profiles are saved in `localStorage` under the key `reflexlab.v1`. Audio, display and language settings are saved separately, under `reflexlab.prefs.v1`. The leaderboard is saved under `reflexlab.board.v1`, and its signing key is in IndexedDB (in the `reflexlab` database). That means they're saved in this browser only. Clearing site data removes them.
 
 - Every value is checked when it's loaded. A missing or wrong value is replaced with a safe default.
 - If the saved data can't be read, the game copies it to `reflexlab.v1.backup` and starts a fresh profile.
@@ -168,7 +185,8 @@ index.html          markup: stage, controls, stats, chart, profile window
 favicon.png         32×32 tab icon
 css/style.css       colour tokens, per-state styles, profile window, responsive layout
 js/config.js        settings: timings, difficulty levels (LEVELS), power-ups (POWERUPS), colours, 3D presets
-js/storage.js       saving and loading, data checks, leaderboard
+js/i18n.js          translations (English, French): t(), plurals, data-i18n attributes
+js/storage.js       saving and loading, data checks, preferences
 js/achievements.js  achievement definitions and their rules
 js/audio.js         synthesised sound effects and music (Web Audio API)
 js/leaderboard.js   verified leaderboard: anti-cheat checks, replay, HMAC seal

@@ -141,8 +141,11 @@
     return { version: VERSION, activeId: profiles[raw.activeId] ? raw.activeId : ids[0], profiles };
   }
 
+  // Name for the first profile; the game sets it in the player's language.
+  let defaultName = 'Player';
+
   function freshState() {
-    const p = createProfile('Player');
+    const p = createProfile(defaultName);
     return { version: VERSION, activeId: p.id, profiles: { [p.id]: p } };
   }
 
@@ -153,7 +156,8 @@
    * Returns { state, persistent, notice } where notice is null, 'blocked'
    * (storage unavailable) or 'corrupt' (unreadable data was backed up and replaced).
    */
-  function load() {
+  function load(options = {}) {
+    if (options.defaultName) defaultName = cleanName(options.defaultName) || defaultName;
     if (!store) return { state: freshState(), persistent: false, notice: 'blocked' };
     let raw;
     try {
@@ -197,7 +201,9 @@
   const DEFAULT_PREFS = Object.freeze({
     sfx: true, music: true, volume: 0.7,
     palette: 'standard', textScale: 1, reduceMotion: false,
+    lang: null, // null = follow the browser's language
   });
+  const LANG_IDS = ['en', 'fr'];
   const PALETTE_IDS = ['standard', 'redgreen', 'blueyellow', 'mono'];
   const TEXT_SCALES = [1, 1.15, 1.3, 1.5];
 
@@ -216,6 +222,7 @@
       palette: PALETTE_IDS.includes(r.palette) ? r.palette : DEFAULT_PREFS.palette,
       textScale: TEXT_SCALES.includes(r.textScale) ? r.textScale : DEFAULT_PREFS.textScale,
       reduceMotion: typeof r.reduceMotion === 'boolean' ? r.reduceMotion : DEFAULT_PREFS.reduceMotion,
+      lang: LANG_IDS.includes(r.lang) ? r.lang : DEFAULT_PREFS.lang,
     };
     return { ...memoryPrefs };
   }
