@@ -6,6 +6,43 @@ A reaction-time game with a Three.js 3D scene. Plain HTML/CSS/JS, no build step.
 
 Open `index.html` in a browser.
 
+## Desktop app (Windows `.exe`)
+
+The `desktop/` folder packages the game with [Electron](https://www.electronjs.org/) into a **portable executable**. It's a single `.exe`, with no installation, and it works **offline**.
+
+```bash
+cd desktop
+npm install
+npm run build:win     # → desktop/dist/ReflexLab-1.0.0-portable.exe
+npm start             # run the app without packaging it
+npm run smoke         # automatic check in real Chromium (see below)
+```
+
+- **The web version isn't modified.** `scripts/prepare-app.js` copies it into `desktop/app/`, then:
+  - bundles Three.js r128 (npm package `three@0.128.0`) instead of the CDN;
+  - bundles the Inter and Outfit fonts (`@fontsource`, Latin and Latin Extended only) instead of Google Fonts;
+  - adds a strict Content-Security-Policy: only the app's own files, no remote scripts, no network.
+- **Icon:** `scripts/make-icon.js` draws a 512×512 icon from the header logo (the hexagon and lightning bolt), in pure Node.
+- **Security:**
+  - Node.js is disabled in the page (`contextIsolation`, `sandbox`);
+  - navigation and pop-ups are blocked, and all permissions are refused;
+  - there are no DevTools in the packaged build, which would make cheating on the leaderboard too easy.
+- **Window:** the app runs as a single instance, and `F11` switches to full screen.
+- **Smoke test:** `npm run smoke` loads the app in a hidden Electron window. It checks:
+  - Three.js and the fonts loaded;
+  - WebGL is running;
+  - no errors, CSP violations or network requests;
+  - a real `Space` press starts a round.
+  It also saves a screenshot to `dist/smoke.png`.
+- **Data:** profiles, settings and the leaderboard are stored in `%APPDATA%\Reflex Lab`, separately from the browser version.
+- **Other platforms:** `npm run build:mac` and `npm run build:linux` produce a `.dmg` and an AppImage. Each must be built on its own system.
+
+Good to know:
+
+- **SmartScreen:** the executable isn't signed, so Windows SmartScreen shows a warning the first time you launch it ("More info" → "Run anyway"). A code-signing certificate would remove it.
+- **Size:** the file is about 96 MB, which is normal for Electron since it embeds Chromium. The portable version unpacks itself each time it starts, so it takes a few seconds to launch.
+- **Launcher:** `npm start` and `npm run smoke` go through `scripts/run-electron.js`. It removes `ELECTRON_RUN_AS_NODE` (set by terminals opened from VS Code, which prevents the window from opening), and it downloads the Electron binary if npm skipped it (npm 12 blocks install scripts).
+
 ## How to play
 
 1. Press **Start session**, or tap the pad.
@@ -191,4 +228,5 @@ js/achievements.js  achievement definitions and their rules
 js/audio.js         synthesised sound effects and music (Web Audio API)
 js/leaderboard.js   verified leaderboard: anti-cheat checks, replay, HMAC seal
 js/app.js           stats, 3D scene (ReactionScene), game state machine, profile window, render loop
+desktop/            Electron app: main.js, scripts (prepare-app, make-icon, smoke-test, run-electron)
 ```

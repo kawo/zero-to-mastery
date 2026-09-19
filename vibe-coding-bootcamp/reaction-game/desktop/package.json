@@ -1,0 +1,55 @@
+{
+  "name": "reflex-lab",
+  "productName": "Reflex Lab",
+  "version": "1.0.0",
+  "description": "Reflex Lab, a 3D reaction-time game, as a desktop app.",
+  "author": "Kévin Audebrand <kevin.audebrand@gmail.com>",
+  "license": "GPL-3.0-only",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "prepare-app": "node scripts/prepare-app.js",
+    "icon": "node scripts/make-icon.js",
+    "start": "npm run prepare-app && node scripts/run-electron.js .",
+    "smoke": "npm run prepare-app && node scripts/run-electron.js scripts/smoke-test.js",
+    "build:win": "npm run prepare-app && npm run icon && electron-builder --win portable",
+    "build:mac": "npm run prepare-app && npm run icon && electron-builder --mac dmg",
+    "build:linux": "npm run prepare-app && npm run icon && electron-builder --linux AppImage"
+  },
+  "build": {
+    "appId": "com.kevinaudebrand.reflexlab",
+    "productName": "Reflex Lab",
+    "copyright": "© 2026 Kévin Audebrand, GPL-3.0",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "app/**/*",
+      "build/icon.png",
+      "!node_modules/**/*"
+    ],
+    "win": {
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "ReflexLab-${version}-portable.exe"
+    },
+    "mac": {
+      "category": "public.app-category.games",
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "category": "Game",
+      "icon": "build/icon.png"
+    }
+  },
+  "devDependencies": {
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/outfit": "5.3.0",
+    "electron": "44.4.3",
+    "electron-builder": "26.15.3",
+    "three": "0.128.0"
+  }
+}
