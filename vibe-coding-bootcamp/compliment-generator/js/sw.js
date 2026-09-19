@@ -26,7 +26,7 @@
    drop everything they have and download it all again, change VERSION.
    ========================================================================== */
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const APP_CACHE = `compliment-generator-app-${VERSION}`;
 const FONT_CACHE = 'compliment-generator-fonts-v1';
 
@@ -36,6 +36,7 @@ const APP_FILES = [
   'index.html',
   'css/style.css',
   'js/i18n.js',
+  'js/sync.js',
   'js/script.js',
   'manifest.webmanifest',
   'favicon.png',
@@ -113,6 +114,9 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
+  // The sync API (favorites, sign-in) is always live: never cached.
+  const scope = new URL(self.registration.scope);
+  if (url.origin === scope.origin && url.pathname.startsWith(`${scope.pathname}api/`)) return;
   if (url.origin === self.location.origin) {
     event.respondWith(appFile(event));
   } else if (FONT_ORIGINS.includes(url.origin)) {

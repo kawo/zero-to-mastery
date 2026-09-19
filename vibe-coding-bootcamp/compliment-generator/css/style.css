@@ -1157,6 +1157,166 @@ body {
   cursor: not-allowed;
 }
 
+/* ---------- Account and sync ---------- */
+.account-button svg path {
+  fill: none;
+  stroke: var(--color-text);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The check mark in the cloud only shows once signed in and synced */
+.account-button .account-check {
+  display: none;
+}
+
+.account-button[data-state="idle"] .account-check {
+  display: inline;
+}
+
+.account-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 24px 24px;
+  overflow-y: auto;
+}
+
+.account-body[hidden] {
+  display: none;
+}
+
+.account-intro,
+.account-who,
+.account-status {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.account-status {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.text-input {
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid rgba(33, 37, 41, 0.35);  /* 3:1 against white, like any input border should be */
+  border-radius: 12px;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+}
+
+.text-input:focus-visible {
+  border-color: var(--color-text);
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.text-input[aria-invalid="true"] {
+  border: 2px solid #C92A2A;
+}
+
+.field-hint,
+.account-privacy {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* Error text: a dark red (5.9:1 on white) with a warning mark, so it isn't
+   signalled by colour alone */
+.form-error {
+  margin: 0;
+  color: #C92A2A;
+  font-weight: 700;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.form-error:empty {
+  display: none;
+}
+
+.form-error::before {
+  content: "⚠ ";
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.account-submit {
+  min-width: 12rem;
+}
+
+.account-submit[aria-disabled="true"] {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* A button that looks like a link (it switches the form, it doesn't navigate) */
+.link-button {
+  appearance: none;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration-color: var(--color-accent);
+}
+
+.account-delete {
+  border-top: 1px solid rgba(33, 37, 41, 0.1);
+  padding-top: 12px;
+}
+
+.account-delete summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-delete form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.account-delete .field {
+  align-self: stretch;
+}
+
 /* Visually hidden, but read by screen readers */
 .sr-only {
   position: absolute;

@@ -18,6 +18,14 @@ python -m http.server 8000
 
 Then open the address it prints (`http://localhost:…`).
 
+To sync favorites between devices, run the sync server instead. It serves the app too:
+
+```
+node server/server.js
+```
+
+Then open <http://localhost:8787/>. See [server/README.md](server/README.md) for settings, deployment and the API.
+
 ## Features
 
 - **100 compliments:** each has its own emoji and exists in English and French.
@@ -63,6 +71,13 @@ Then open the address it prints (`http://localhost:…`).
   - **Saved** in `localStorage` (key `compliment-generator.favorites`), so favorites persist across visits. Other open tabs stay in sync.
   - **How items are identified:** by type and English text, so favorites still point to the right item if the lists are reordered. If an item's text is later edited, or the saved data is invalid, that favorite is dropped instead of breaking the page.
   - **Blocked storage:** if the browser blocks storage, favorites still work for the visit, and the list says they won't be kept.
+- **Sync across devices (optional):** with the sync server running ([server/](server/README.md)), a **Sync** button appears under the card.
+  - **Account:** a username (any nickname) and a password. No email and no real name are asked for.
+  - **Signing in** adds this device's favorites to the account's, so nothing is lost on either side. From then on, every device signed in to the account has the same list.
+  - **When it syncs:** 1.5 s after a change, when the connection comes back, when you return to the tab, and on **Sync now**. Changes made offline are sent later. For each favorite, the most recent change wins, whether it was an add or a removal, so a favorite removed on one device doesn't come back from another.
+  - **Signing out** keeps the favorites on the device. **Deleting the account** (with the password) removes it and its favorites from the server at once.
+  - **Without a server** (a `file://` page, or a host with no API), the button doesn't appear and favorites stay on the device, as before.
+  - **No password reset:** there's no email to send a reset link to, so a forgotten password can't be reset. The favorites stay on each device anyway.
 - **Language switch (EN / FR):**
   - it starts in the first of the browser's preferred languages that the app has, otherwise in English;
   - the choice is remembered for the next visit;
@@ -110,6 +125,11 @@ Then open the address it prints (`http://localhost:…`).
   - adding or removing a favorite is announced, and so is the "Clear all? Tap again" confirmation;
   - the list is a native `<dialog>`, which keeps focus inside and closes with `Esc`;
   - after an item is removed, focus moves to the next one.
+- **Sync dialog:**
+  - the fields have visible labels, hints linked with `aria-describedby`, and `autocomplete` values (`username`, `current-password` / `new-password`), so password managers fill them in;
+  - errors are read out at once (`role="alert"`), the field at fault gets `aria-invalid` and focus, and error text has a ⚠ mark so it isn't signalled by colour alone;
+  - while signing in, the button stays focused with `aria-disabled` rather than `disabled`, so focus isn't lost;
+  - once signed in, the account button shows the username, and its accessible name says what it is ("Sync account: sunny-otter").
 - **Read aloud:** a toggle button. Its name stays "Read aloud", `aria-pressed` is true while it speaks, and the tooltip says "Stop reading" then. It only appears when the browser can speak. A real failure is announced; stopping the reading on purpose isn't.
 - **Copy and share:**
   - both icon buttons are labelled in the current language;
@@ -141,6 +161,11 @@ compliment-generator/
 ├── index.html     page structure, background decoration, language switch, buttons, dialogs
 ├── manifest.webmanifest  app name, icons and colours for installing (PWA)
 ├── sw.js          one line that loads js/sw.js (must stay at the root, see below)
+├── server/        optional sync server (Node.js, no dependencies)
+│   ├── server.js     accounts, favorites sync API; also serves the app
+│   ├── test/         API tests: node --test "server/test/*.test.js"
+│   ├── README.md     settings, deployment, API, privacy
+│   └── data/         db.json, created on first run (not in git)
 ├── favicon.png    tab icon
 ├── images/
 │   ├── og-image.png  1200×630 link-preview image (Facebook, WhatsApp, X…)
@@ -150,6 +175,7 @@ compliment-generator/
 │   └── style.css  palette, background, layout, animations, responsive rules
 └── js/
     ├── i18n.js    interface text: one dictionary per language
+    ├── sync.js    favorites merge rules, shared by the page and the server
     ├── sw.js      service worker: keeps a copy of the app for offline use
     └── script.js  the 100 compliments, the 100 jokes, tags, logic
 ```
@@ -204,6 +230,8 @@ en: {
 **Offline copy (`js/sw.js`).** The service worker code is in `js/sw.js`, but the one-line `sw.js` that loads it has to stay at the root: a service worker only looks after pages in its own folder and below, so one registered from `js/` would never handle `index.html`. Paths in `js/sw.js` are therefore relative to the root. When you add a file the app needs, add it to `APP_FILES`. When you change which files exist, or want returning visitors to download everything again at once, change `VERSION` (`'v1'` → `'v2'`): the old copy is deleted when the new version takes over. If you change the Google Fonts link in `index.html`, copy it into `FONT_CSS` too.
 
 **App icons.** Edit `images/icons/icon.svg`, then export it again as PNG at 192 and 512 px. For the "maskable" versions, use a full square with no rounded corners, and keep the drawing inside the central 80%: Android crops these icons into circles or rounded squares.
+
+**Sync server address.** `<meta name="sync-api" content="auto">` in `index.html`: `auto` looks for the API next to the page (what `server/server.js` provides). A full URL points to an API hosted elsewhere, and `off` turns sync off.
 
 ## Publishing online
 

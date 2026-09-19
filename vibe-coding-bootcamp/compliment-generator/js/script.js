@@ -725,6 +725,8 @@
 
   const STORAGE_KEY = 'compliment-generator.lang';
   const FAVORITES_KEY = 'compliment-generator.favorites';
+  const REMOVED_KEY = 'compliment-generator.favorites.removed';  // removals, for sync
+  const ACCOUNT_KEY = 'compliment-generator.account';
 
   // Keyboard shortcut for the search: Ctrl+K, or ⌘K on Apple devices.
   // (Not a single key like "/": those fire by accident with speech input and
@@ -804,6 +806,9 @@
 
   let storageWorks = true; // false if the browser blocks storage (favorites then last for this visit only)
   let favorites = loadFavorites();
+  // When each favorite was removed: { "<key>": "<ISO date>" }. Sync needs this,
+  // so a favorite removed on one device doesn't come back from another one.
+  let removedFavorites = loadRemoved();
   let clearTimer = 0;
 
   /**
@@ -1004,6 +1009,7 @@
 
     renderCardTags();
     if (browseDialog.open) renderBrowse();
+    renderAccount();
   }
 
   /**
@@ -1118,7 +1124,9 @@
     if (!dialogOpeners.has(dialog)) return; // already done
     const opener = dialogOpeners.get(dialog);
     dialogOpeners.delete(dialog);
-    const fallback = dialog === browseDialog ? openBrowseButton : openFavoritesButton;
+    const fallback = dialog === browseDialog ? openBrowseButton
+      : dialog === accountDialog ? openAccountButton
+        : openFavoritesButton;
     (opener && opener.isConnected ? opener : fallback).focus();
   }
 
@@ -1157,10 +1165,27 @@
     return valid;
   }
 
+  /** Reads the saved removal dates, keeping only valid ones for existing items. */
+  function loadRemoved() {
+    let parsed = null;
+    try {
+      parsed = JSON.parse(localStorage.getItem(REMOVED_KEY) || '{}');
+    } catch (error) {
+      return {};
+    }
+    const valid = {};
+    if (!parsed || typeof parsed !== 'object') return valid;
+    for (const [key, when] of Object.entries(parsed)) {
+      if (itemByKey.has(key) && Number.isFinite(Date.parse(when)) && !isFavorite(key)) valid[key] = when;
+    }
+    return valid;
+  }
+
   /** Saves the favorites. If storage is blocked or full, they stay in memory. */
   function saveFavorites() {
     try {
       localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+      localStorage.setItem(REMOVED_KEY, JSON.stringify(removedFavorites));
       storageWorks = true;
     } catch (error) {
       storageWorks = false;
@@ -1197,13 +1222,16 @@
     const adding = !isFavorite(key);
     if (adding) {
       favorites.unshift({ type, en: item.en, at: new Date().toISOString() });
+      delete removedFavorites[key];
       announce(t('favorites.added'));
     } else {
       favorites = favorites.filter((favorite) => favoriteKey(favorite.type, favorite) !== key);
+      removedFavorites[key] = new Date().toISOString();
       announce(t('favorites.removed'));
     }
     saveFavorites();
     renderFavorites();
+    scheduleSync();
     return adding;
   }
 
@@ -1221,8 +1249,10 @@
     const position = favorites.findIndex((favorite) => favoriteKey(favorite.type, favorite) === key);
     if (position < 0) return;
     favorites.splice(position, 1);
+    removedFavorites[key] = new Date().toISOString();
     saveFavorites();
     renderFavorites();
+    scheduleSync();
     announce(t('favorites.removed'));
 
     // Focus the next item's remove button (or the previous one), else the close button.
@@ -1241,10 +1271,13 @@
       clearTimer = setTimeout(resetClearButton, 4000);
       return;
     }
+    const now = new Date().toISOString();
+    for (const favorite of favorites) removedFavorites[favoriteKey(favorite.type, favorite)] = now;
     favorites = [];
     saveFavorites();
     resetClearButton();
     renderFavorites();
+    scheduleSync();
     announce(t('favorites.cleared'));
     favoritesClose.focus();
   }
@@ -1617,6 +1650,401 @@
     else say(0);
   }
 
+  /* ---------- Account and sync ---------- */
+  // Optional: the favorites can be kept on a sync server (server/server.js) so
+  // every device signed in to the same account has the same list. Without a
+  // server, nothing here shows and favorites stay on this device as before.
+  //
+  // How it works: the page sends everything it knows (favorites and when
+  // each was added, removals and when), the server merges it with what it has
+  // (js/sync.js: the latest change of each item wins) and sends back the
+  // result. So changes made offline, on any device, all end up everywhere.
+
+  const syncRules = window.FavoritesSync || null;   // js/sync.js
+  const openAccountButton = document.getElementById('open-account');
+  const openAccountLabel = document.getElementById('open-account-label');
+  const accountDialog = document.getElementById('account-dialog');
+  const accountClose = document.getElementById('account-close');
+  const accountForm = document.getElementById('account-form');
+  const accountUsername = document.getElementById('account-username');
+  const accountPassword = document.getElementById('account-password');
+  const accountPasswordHint = document.getElementById('account-password-hint');
+  const accountError = document.getElementById('account-error');
+  const accountSubmit = document.getElementById('account-submit');
+  const accountModeButton = document.getElementById('account-mode');
+  const accountPanel = document.getElementById('account-panel');
+  const accountName = document.getElementById('account-name');
+  const accountStatus = document.getElementById('account-status');
+  const accountSyncButton = document.getElementById('account-sync');
+  const accountSignOut = document.getElementById('account-signout');
+  const accountDelete = document.getElementById('account-delete');
+  const accountDeleteForm = document.getElementById('account-delete-form');
+  const accountDeletePassword = document.getElementById('account-delete-password');
+  const accountDeleteError = document.getElementById('account-delete-error');
+  const accountElements = [openAccountButton, openAccountLabel, accountDialog, accountClose, accountForm, accountUsername,
+    accountPassword, accountPasswordHint, accountError, accountSubmit, accountModeButton, accountPanel, accountName,
+    accountStatus, accountSyncButton, accountSignOut, accountDelete, accountDeleteForm, accountDeletePassword, accountDeleteError];
+
+  const USERNAME_RULE = /^[A-Za-z0-9_.-]{3,32}$/; // same rule as the server
+  const syncApi = resolveSyncApi();               // '' when sync is off
+  let account = loadAccount();                    // { username, token, api, lastSynced } or null
+  let syncAvailable = false;                      // the server answered
+  let syncState = 'idle';                         // 'idle' | 'syncing' | 'offline' | 'error'
+  let syncTimer = 0;
+  let syncRunning = null;
+  let syncAgain = false;
+  let accountMode = 'login';                      // or 'register'
+  let accountBusy = false;
+
+  /** The API's address from <meta name="sync-api">, or '' if sync is off or can't work here. */
+  function resolveSyncApi() {
+    if (!syncRules || typeof fetch !== 'function' || accountElements.some((element) => !element)) return '';
+    const meta = document.querySelector('meta[name="sync-api"]');
+    const value = ((meta && meta.content) || '').trim();
+    if (!value || value === 'off') return '';
+    try {
+      if (value === 'auto') {
+        return /^https?:$/.test(window.location.protocol) ? new URL('api/', window.location.href).href : '';
+      }
+      return new URL(value.replace(/\/?$/, '/'), window.location.href).href;
+    } catch (error) {
+      return '';
+    }
+  }
+
+  /** The saved session, if it belongs to this API. */
+  function loadAccount() {
+    if (!syncApi) return null;
+    try {
+      const saved = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
+      if (saved && typeof saved.username === 'string' && typeof saved.token === 'string' && saved.api === syncApi) return saved;
+    } catch (error) {
+      // Nothing usable saved.
+    }
+    return null;
+  }
+
+  function saveAccount() {
+    try {
+      if (account) localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
+      else localStorage.removeItem(ACCOUNT_KEY);
+    } catch (error) {
+      // Storage blocked: the session lasts until the page is closed.
+    }
+  }
+
+  /** One call to the sync API. Resolves to { status, data }; rejects if the server can't be reached. */
+  async function api(method, route, { body, token } = {}) {
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 15000) : 0;
+    try {
+      const headers = {};
+      if (body !== undefined) headers['Content-Type'] = 'application/json';
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const response = await fetch(syncApi + route, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        cache: 'no-store',
+        credentials: 'omit', // the token travels in the header, never as a cookie
+        signal: controller ? controller.signal : undefined,
+      });
+      let data = {};
+      try {
+        data = (await response.json()) || {};
+      } catch (error) {
+        // No body (204) or not JSON.
+      }
+      return { status: response.status, data };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** This device's favorites and removals, in the shared sync format. */
+  function localEntries() {
+    const entries = favorites.map((f) => ({ type: f.type, en: f.en, updated: f.at }));
+    for (const [key, updated] of Object.entries(removedFavorites)) {
+      const { type, index } = itemByKey.get(key);
+      entries.push({ type, en: collections[type][index].en, updated, removed: true });
+    }
+    return entries;
+  }
+
+  /**
+   * Takes the server's merged list. It's merged once more with what's here,
+   * so a change made while the request was on its way isn't lost (the next
+   * sync sends it). Items this version of the app doesn't have are skipped.
+   */
+  function applyEntries(serverEntries) {
+    const merged = syncRules.mergeEntries(localEntries(), serverEntries);
+    if (!merged) return;
+    const nextFavorites = [];
+    const nextRemoved = {};
+    for (const entry of merged) {
+      const key = favoriteKey(entry.type, entry);
+      if (!itemByKey.has(key)) continue;
+      if (entry.removed) nextRemoved[key] = entry.updated;
+      else nextFavorites.push({ type: entry.type, en: entry.en, at: entry.updated });
+    }
+    const changed = JSON.stringify(nextFavorites) !== JSON.stringify(favorites) ||
+      JSON.stringify(nextRemoved) !== JSON.stringify(removedFavorites);
+    if (!changed) return;
+    favorites = nextFavorites;
+    removedFavorites = nextRemoved;
+    saveFavorites();
+    renderFavorites();
+  }
+
+  /** Syncs a moment after a change, so several quick changes go in one request. */
+  function scheduleSync() {
+    if (!account) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(syncNow, 1500);
+  }
+
+  /** Sends this device's favorites and takes back the merged list. */
+  function syncNow() {
+    if (!account) return Promise.resolve();
+    clearTimeout(syncTimer);
+    if (syncRunning) {
+      syncAgain = true; // one more round once this one is done
+      return syncRunning;
+    }
+    syncState = 'syncing';
+    renderAccount();
+    syncRunning = (async () => {
+      try {
+        const { status, data } = await api('POST', 'favorites/sync', { token: account.token, body: { entries: localEntries() } });
+        if (status === 200 && Array.isArray(data.entries)) {
+          applyEntries(data.entries);
+          syncAvailable = true;
+          syncState = 'idle';
+          account.lastSynced = new Date().toISOString();
+          saveAccount();
+        } else if (status === 401) {
+          sessionEnded();
+        } else {
+          syncState = 'error';
+        }
+      } catch (error) {
+        syncState = 'offline'; // tried again when the connection comes back
+      }
+      syncRunning = null;
+      renderAccount();
+      if (syncAgain && account) {
+        syncAgain = false;
+        await syncNow();
+      }
+    })();
+    return syncRunning;
+  }
+
+  /** The server no longer knows this session (expired, or the account was deleted elsewhere). */
+  function sessionEnded() {
+    account = null;
+    saveAccount();
+    syncState = 'idle';
+    announce(t('account.announce.expired'));
+  }
+
+  /** Asks the server whether sync is available here, then syncs if signed in. */
+  async function checkSyncServer() {
+    if (!syncApi) return;
+    try {
+      const { status, data } = await api('GET', 'health');
+      syncAvailable = status === 200 && data.service === 'compliment-generator-sync';
+    } catch (error) {
+      syncAvailable = false;
+    }
+    renderAccount();
+    if (account) syncNow();
+  }
+
+  function syncStatusText() {
+    if (syncState === 'syncing') return t('account.status.syncing');
+    if (syncState === 'offline') return t('account.status.offline');
+    if (syncState === 'error') return t('account.status.error');
+    if (!account || !account.lastSynced) return t('account.status.never');
+    const time = new Intl.DateTimeFormat(localeOf(currentLang), { dateStyle: 'medium', timeStyle: 'short' })
+      .format(new Date(account.lastSynced));
+    return t('account.status.synced', { time });
+  }
+
+  /** The account button and dialog, for the current state and language. */
+  function renderAccount() {
+    if (!syncApi) return;
+    openAccountButton.hidden = !syncAvailable && !account;
+    openAccountButton.dataset.state = account ? syncState : 'signed-out';
+    if (account) {
+      // The visible label is the username; the full name says what it is.
+      openAccountLabel.textContent = account.username;
+      openAccountButton.setAttribute('aria-label', t('account.buttonSignedIn', { name: account.username }));
+      openAccountButton.title = syncStatusText();
+    } else {
+      openAccountLabel.textContent = t('account.open');
+      openAccountButton.removeAttribute('aria-label');
+      openAccountButton.removeAttribute('title');
+    }
+
+    accountForm.hidden = Boolean(account);
+    accountPanel.hidden = !account;
+    if (account) {
+      accountName.textContent = account.username;
+      accountStatus.textContent = syncStatusText();
+      accountSyncButton.disabled = syncState === 'syncing';
+    } else {
+      const registering = accountMode === 'register';
+      accountSubmit.textContent = t(accountBusy ? 'account.working' : registering ? 'account.register' : 'account.login');
+      accountModeButton.textContent = t(registering ? 'account.haveAccount' : 'account.newHere');
+      accountPassword.setAttribute('autocomplete', registering ? 'new-password' : 'current-password');
+      accountPassword.setAttribute('minlength', registering ? '8' : '1');
+      accountPasswordHint.hidden = !registering;
+    }
+  }
+
+  /** Shows an error under a form (read out by the role="alert" region) and marks the field. */
+  function showAccountError(target, code, field) {
+    const key = `account.error.${code}`;
+    const message = t(key);
+    target.textContent = message === key ? t('account.error.server_error') : message;
+    if (field) {
+      field.setAttribute('aria-invalid', 'true');
+      field.focus();
+    }
+  }
+
+  function clearAccountErrors() {
+    accountError.textContent = '';
+    accountDeleteError.textContent = '';
+    for (const field of [accountUsername, accountPassword, accountDeletePassword]) field.removeAttribute('aria-invalid');
+  }
+
+  function setAccountBusy(busy) {
+    accountBusy = busy;
+    // aria-disabled rather than disabled: the button keeps focus while waiting.
+    accountSubmit.setAttribute('aria-disabled', String(busy));
+    accountForm.setAttribute('aria-busy', String(busy));
+    renderAccount();
+  }
+
+  /** Sign in or create an account. */
+  async function submitAccountForm(event) {
+    event.preventDefault();
+    if (accountBusy) return;
+    clearAccountErrors();
+    const registering = accountMode === 'register';
+    const username = accountUsername.value.trim();
+    const password = accountPassword.value;
+
+    // The same checks the server makes, to answer at once.
+    if (!USERNAME_RULE.test(username)) {
+      showAccountError(accountError, 'invalid_username', accountUsername);
+      return;
+    }
+    if (!password) {
+      showAccountError(accountError, 'missing_password', accountPassword);
+      return;
+    }
+    if (registering && (password.length < 8 || password.toLowerCase() === username.toLowerCase())) {
+      showAccountError(accountError, 'invalid_password', accountPassword);
+      return;
+    }
+
+    setAccountBusy(true);
+    try {
+      const { status, data } = await api('POST', registering ? 'register' : 'login', { body: { username, password } });
+      if ((status === 200 || status === 201) && data.token && data.user) {
+        account = { username: data.user.username, token: data.token, api: syncApi, lastSynced: null };
+        saveAccount();
+        syncAvailable = true;
+        accountUsername.value = '';
+        accountPassword.value = '';
+        accountMode = 'login';
+        setAccountBusy(false);
+        announce(t('account.announce.signedIn', { name: account.username }));
+        accountSyncButton.focus();
+        // This device's favorites join the account's (nothing is lost on either side).
+        await syncNow();
+        return;
+      }
+      const code = data.error || 'server_error';
+      const field = code === 'invalid_username' || code === 'username_taken' ? accountUsername
+        : code === 'invalid_password' || code === 'wrong_credentials' ? accountPassword
+          : null;
+      if (code === 'wrong_credentials') accountPassword.value = '';
+      showAccountError(accountError, code, field);
+    } catch (error) {
+      showAccountError(accountError, 'network', null);
+    } finally {
+      if (accountBusy) setAccountBusy(false);
+    }
+  }
+
+  /** Signs out on this device. Pending changes are sent first, if possible; favorites stay here. */
+  async function signOut() {
+    if (!account) return;
+    if (syncTimer || syncRunning) {
+      try {
+        await syncNow();
+      } catch (error) {
+        // Offline: they stay on this device anyway.
+      }
+    }
+    const { token } = account;
+    account = null;
+    saveAccount();
+    clearTimeout(syncTimer);
+    syncState = 'idle';
+    renderAccount();
+    announce(t('account.announce.signedOut'));
+    accountUsername.focus();
+    api('POST', 'logout', { token }).catch(() => {}); // end the session on the server too
+  }
+
+  /** Deletes the account on the server, after checking the password. */
+  async function deleteAccount(event) {
+    event.preventDefault();
+    if (!account || accountBusy) return;
+    clearAccountErrors();
+    const password = accountDeletePassword.value;
+    if (!password) {
+      showAccountError(accountDeleteError, 'missing_password', accountDeletePassword);
+      return;
+    }
+    accountBusy = true;
+    try {
+      const { status, data } = await api('DELETE', 'account', { token: account.token, body: { password } });
+      if (status === 204) {
+        account = null;
+        saveAccount();
+        accountDeletePassword.value = '';
+        accountDelete.open = false;
+        syncState = 'idle';
+        renderAccount();
+        announce(t('account.announce.deleted'));
+        accountUsername.focus();
+      } else if (status === 401) {
+        sessionEnded();
+        renderAccount();
+      } else {
+        showAccountError(accountDeleteError, data.error || 'server_error', data.error === 'wrong_password' ? accountDeletePassword : null);
+      }
+    } catch (error) {
+      showAccountError(accountDeleteError, 'network', null);
+    } finally {
+      accountBusy = false;
+    }
+  }
+
+  function openAccount() {
+    clearAccountErrors();
+    renderAccount();
+    openDialog(accountDialog);
+    (account ? accountSyncButton : accountUsername).focus();
+    if (account && syncState !== 'syncing') syncNow(); // show an up-to-date status
+  }
+
   /* ---------- Tags on the card ---------- */
 
   /** Chips under the text; each opens the search filtered on that tag. */
@@ -1986,8 +2414,13 @@
 
   // Favorites changed in another tab: pick up the new list.
   window.addEventListener('storage', (event) => {
-    if (event.key !== FAVORITES_KEY && event.key !== null) return;
+    if (event.key === ACCOUNT_KEY || event.key === null) {
+      account = loadAccount(); // signed in or out in another tab
+      renderAccount();
+    }
+    if (event.key !== FAVORITES_KEY && event.key !== REMOVED_KEY && event.key !== null) return;
     favorites = loadFavorites();
+    removedFavorites = loadRemoved();
     renderFavorites();
   });
 
@@ -2018,6 +2451,49 @@
   // Web fonts change the text's size once they arrive: measure again then.
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(lockComplimentHeight);
+  }
+
+  /* ---------- Account and sync: wiring ---------- */
+  if (syncApi) {
+    openAccountButton.addEventListener('click', openAccount);
+    accountClose.addEventListener('click', () => closeDialog(accountDialog));
+    accountDialog.addEventListener('click', (event) => {
+      if (event.target === accountDialog) closeDialog(accountDialog);
+    });
+    accountDialog.addEventListener('close', () => {
+      accountDelete.open = false;
+      accountPassword.value = '';
+      accountDeletePassword.value = '';
+      returnFocus(accountDialog);
+    });
+    accountForm.addEventListener('submit', submitAccountForm);
+    accountModeButton.addEventListener('click', () => {
+      accountMode = accountMode === 'login' ? 'register' : 'login';
+      clearAccountErrors();
+      renderAccount();
+      accountUsername.focus();
+    });
+    accountSyncButton.addEventListener('click', async () => {
+      await syncNow();
+      if (syncState === 'idle' && account) announce(t('account.announce.synced'));
+      else if (account) announce(syncStatusText());
+    });
+    accountSignOut.addEventListener('click', signOut);
+    accountDeleteForm.addEventListener('submit', deleteAccount);
+
+    // Back online, or back to this tab after a while: catch up.
+    window.addEventListener('online', () => {
+      if (account) syncNow();
+      else checkSyncServer();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || !account) return;
+      const last = Date.parse(account.lastSynced || 0) || 0;
+      if (Date.now() - last > 30000) syncNow();
+    });
+
+    renderAccount();   // signed in: the button shows at once, even offline
+    checkSyncServer();
   }
 
   /* ---------- Offline support ---------- */

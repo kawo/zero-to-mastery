@@ -21,6 +21,14 @@
   <meta name="apple-mobile-web-app-title" content="Compliments" />
   <meta name="mobile-web-app-capable" content="yes" />
 
+  <!-- Favorites sync (optional): where the sync server's API is.
+         "auto"  → ask the site this page is on ("api/" next to index.html): works
+                   when server/server.js serves the page; elsewhere nothing answers
+                   and the Sync button simply doesn't appear.
+         a URL   → an API hosted elsewhere, e.g. "https://my-sync.example.com/api/"
+         "off"   → no sync at all. -->
+  <meta name="sync-api" content="auto" />
+
   <!-- Link previews (Facebook, WhatsApp, X, Slack…). Facebook reads these tags
        itself: it doesn't run JavaScript, so they have to be written here. -->
   <meta property="og:type" content="website" />
@@ -165,6 +173,16 @@
         <span id="open-favorites-label" data-i18n="favorites.open">My favorites</span>
         <span class="count" id="favorites-count">0</span>
       </button>
+
+      <!-- Account and sync: only shown when a sync server answers (see the
+           "sync-api" tag in the head). Shows the username once signed in. -->
+      <button type="button" class="button-secondary account-button" id="open-account" aria-haspopup="dialog" aria-controls="account-dialog" hidden>
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 7.5 9.1 4.75 4.75 0 0 0 7 18.5Z" />
+          <path d="M10 13.5l1.75 1.75L15 12" class="account-check" />
+        </svg>
+        <span id="open-account-label" data-i18n="account.open">Sync</span>
+      </button>
     </div>
   </main>
 
@@ -236,12 +254,78 @@
     <p class="sr-only" data-live aria-live="polite"></p>
   </dialog>
 
+  <!-- Account: sign in or create an account (signed out), or the sync status
+       and account actions (signed in). Only a username and a password: no email. -->
+  <dialog class="favorites account" id="account-dialog" aria-labelledby="account-title">
+    <div class="favorites-head">
+      <h2 id="account-title" data-i18n="account.title">Sync your favorites</h2>
+      <button type="button" class="icon-button" id="account-close" aria-label="Close" data-i18n-attr="aria-label:dialog.close">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+      </button>
+    </div>
+
+    <!-- Signed out -->
+    <form class="account-body" id="account-form" novalidate>
+      <p class="account-intro" data-i18n="account.intro">Sign in to keep the same favorites on all your devices.</p>
+
+      <div class="field">
+        <label for="account-username" data-i18n="account.username">Username</label>
+        <input class="text-input" id="account-username" name="username" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required minlength="3" maxlength="32" aria-describedby="account-username-hint account-error" />
+        <p class="field-hint" id="account-username-hint" data-i18n="account.usernameHint">3 to 32 letters, digits, dots, dashes or underscores.</p>
+      </div>
+
+      <div class="field">
+        <label for="account-password" data-i18n="account.password">Password</label>
+        <input class="text-input" id="account-password" name="password" type="password" autocomplete="current-password" required maxlength="200" aria-describedby="account-password-hint account-error" />
+        <p class="field-hint" id="account-password-hint" data-i18n="account.passwordHint" hidden>At least 8 characters.</p>
+      </div>
+
+      <!-- Errors are read out as soon as they appear -->
+      <p class="form-error" id="account-error" role="alert"></p>
+
+      <div class="account-actions">
+        <button type="submit" class="button account-submit" id="account-submit">Sign in</button>
+        <button type="button" class="link-button" id="account-mode">New here? Create an account</button>
+      </div>
+
+      <p class="account-privacy" data-i18n="account.privacy">No email, no real name: just a username and a password.</p>
+    </form>
+
+    <!-- Signed in -->
+    <div class="account-body" id="account-panel" hidden>
+      <p class="account-who"><span data-i18n="account.signedInAs">Signed in as</span> <strong id="account-name"></strong></p>
+      <p class="account-status" id="account-status"></p>
+
+      <div class="account-actions">
+        <button type="button" class="button-secondary" id="account-sync" data-i18n="account.syncNow">Sync now</button>
+        <button type="button" class="button-secondary" id="account-signout" data-i18n="account.signOut">Sign out</button>
+      </div>
+      <p class="field-hint" data-i18n="account.signOutNote">Signing out keeps the favorites on this device.</p>
+
+      <details class="account-delete" id="account-delete">
+        <summary data-i18n="account.delete">Delete my account</summary>
+        <form id="account-delete-form" novalidate>
+          <p class="field-hint" data-i18n="account.deleteExplain">This deletes your account and the favorites kept on the server.</p>
+          <div class="field">
+            <label for="account-delete-password" data-i18n="account.password">Password</label>
+            <input class="text-input" id="account-delete-password" type="password" autocomplete="current-password" required maxlength="200" aria-describedby="account-delete-error" />
+          </div>
+          <p class="form-error" id="account-delete-error" role="alert"></p>
+          <button type="submit" class="button-secondary button-danger" id="account-delete-submit" data-i18n="account.deleteConfirm">Delete for good</button>
+        </form>
+      </details>
+    </div>
+
+    <p class="sr-only" data-live aria-live="polite"></p>
+  </dialog>
+
   <!-- Short announcements for screen readers ("Added to favorites"…) -->
   <p class="sr-only" id="status" aria-live="polite"></p>
 
   <!-- Scripts are loaded last so the elements above already exist when they run.
        i18n.js (the interface text) must come before script.js, which uses it. -->
   <script src="js/i18n.js"></script>
+  <script src="js/sync.js"></script>
   <script src="js/script.js"></script>
 </body>
 </html>
