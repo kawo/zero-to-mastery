@@ -156,6 +156,48 @@
         </div>
       </div>
 
+      <!-- Bring your own type: search Google Fonts, paste a URL, or load a
+           file from this computer. Closed by default to keep the card calm. -->
+      <details class="add-font" id="add-font">
+        <summary>Add a font</summary>
+
+        <div class="add-font-body">
+          <div class="control control-wide">
+            <label for="font-search">Search Google Fonts</label>
+            <div class="input-row">
+              <input type="search" id="font-search" list="font-catalogue" autocomplete="off"
+                     spellcheck="false" placeholder="Family name, e.g. Cabin" maxlength="60" />
+              <datalist id="font-catalogue"></datalist>
+              <button type="button" class="btn btn-sm" id="font-search-add">Add</button>
+            </div>
+            <p class="field-hint" id="font-search-hint">The whole Google Fonts catalogue, loaded on demand.</p>
+          </div>
+
+          <div class="control control-wide">
+            <label for="font-url">…or a font URL</label>
+            <div class="input-row">
+              <input type="url" id="font-url" autocomplete="off" spellcheck="false"
+                     placeholder="https://…/my-font.woff2" maxlength="2000" />
+              <button type="button" class="btn btn-sm" id="font-url-add">Add</button>
+            </div>
+            <p class="field-hint">A .woff2, .woff, .ttf or .otf file, or a Google Fonts stylesheet link.</p>
+          </div>
+
+          <div class="control control-wide">
+            <label for="font-file">…or a file from this computer</label>
+            <input type="file" id="font-file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" />
+            <p class="field-hint">Up to 5 MB. It stays in this browser: nothing is uploaded anywhere.</p>
+          </div>
+
+          <p class="form-error" id="font-error" role="alert"></p>
+
+          <div class="added-fonts" id="added-fonts" hidden>
+            <span class="control-label" id="added-fonts-label">Added this visit</span>
+            <ul class="added-list" id="added-list" aria-labelledby="added-fonts-label"></ul>
+          </div>
+        </div>
+      </details>
+
       <!-- Type your own words and shape them: the controls below drive the
            preview's headline or its body paragraph, live. -->
       <div class="specimen-controls" role="group" aria-label="Preview text controls">

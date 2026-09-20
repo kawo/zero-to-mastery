@@ -41,6 +41,14 @@ python -m http.server 8000
 
   The caption under the preview states the ratios it used, so the sample is never an unreadable mush.
 
+- **Bring your own type.** An *Add a font* panel under the pairing, closed until you want it, with three ways in. Whatever you add behaves like a built-in family: it can be set as the heading or the body, tuned with the controls below, and saved to favorites.
+  - **Search Google Fonts.** The whole catalogue (1,900-odd families) is fetched straight from the browser on first open — no API key and no server — and suggestions narrow as you type. If the catalogue can't be reached (offline, or a `file://` page the endpoint won't share with), the built-in families are listed instead and any family name can still be typed and tried.
+  - **Paste a URL:** a `.woff2`, `.woff`, `.ttf` or `.otf` file, or a Google Fonts stylesheet link.
+  - **Load a file** from your computer. It's read with `FileReader` and handed to the browser as a `FontFace`, so the bytes never leave the page — nothing is uploaded anywhere.
+  - **Added fonts last for the visit.** They aren't saved: a favorite that uses one will fall back (and say so) on a later visit.
+
+  **Checks before anything is used:** the extension must be one of the four; the type the browser reports must be a font type; the file must be under 5 MB; and then the browser itself has to parse the bytes, which is the real test — a text file renamed `.woff2` is refused. Links must be `https` (or `http` on localhost), and anything that could break out of a CSS `url("…")` is rejected. Family names are reduced to letters, digits and spaces before they reach the stylesheet.
+
 - **Type your own words.** Above the preview: a text box, an *Apply to* switch (Heading or Body), and size, weight and line-height controls. Everything updates as you type or drag — one style write per change, measured at well under a millisecond.
   - **Each role keeps its own settings,** so a 96px headline and a 17px paragraph can be tuned separately without fighting each other.
   - **The weight list is the family's own weights.** Asking for a weight a font doesn't publish makes the browser synthesise one, so only the real ones are offered; switching to a family with fewer weights snaps to the nearest published one.
@@ -105,7 +113,7 @@ palette-font-kit/
 
 ## Customize
 
-**Fonts.** The `FONTS` object lists each family with the weights to load and a real fallback stack. Only the listed weights are requested: asking for a weight a family doesn't publish makes the whole request fail, which is why they're written out.
+**Fonts.** The `FONTS` object lists each family with the weights to load and a real fallback stack. Fonts added through the panel are registered in the same object at runtime, which is why everything else — the weight list, the exports, favorites — treats them identically. Only the listed weights are requested: asking for a weight a family doesn't publish makes the whole request fail, which is why they're written out.
 
 ```js
 'Space Grotesk': { weights: [400, 700], stack: 'system-ui, sans-serif' },

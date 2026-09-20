@@ -457,17 +457,25 @@
 
     elements.headingName.textContent = fonts.heading + ' · ' + headingWeight(fonts.heading);
     elements.bodyName.textContent = fonts.body + ' · 400';
-    elements.headingLink.href = 'https://fonts.google.com/specimen/' + fonts.heading.replace(/ /g, '+');
-    elements.bodyLink.href = 'https://fonts.google.com/specimen/' + fonts.body.replace(/ /g, '+');
-    elements.headingLink.setAttribute('aria-label', fonts.heading + ' on Google Fonts (opens in a new tab)');
-    elements.bodyLink.setAttribute('aria-label', fonts.body + ' on Google Fonts (opens in a new tab)');
+    dressPairingLink(elements.headingLink, fonts.heading);
+    dressPairingLink(elements.bodyLink, fonts.body);
+
+    /* Any warning belongs to the pairing that just left: drop it now, and let
+       the check below decide again for this one. */
+    clearTimeout(checkFontsArrived.retry);
+    elements.previewWarning.hidden = true;
+    elements.previewWarning.textContent = '';
 
     /* Dim the preview until the faces are ready, but never wait forever:
        an offline or blocked CDN just falls back to the stack above. */
     preview.classList.add('is-loading');
     var done = function () {
       preview.classList.remove('is-loading');
-      checkFontsArrived(fonts);
+      /* Shuffling quickly leaves earlier loads still running: only the
+         pairing that is actually on screen gets to report. */
+      if (state.fonts.heading === fonts.heading && state.fonts.body === fonts.body) {
+        checkFontsArrived(fonts);
+      }
       syncSpecimenToFonts();   // the new family may not publish the old weight
     };
     if (document.fonts && document.fonts.load) {
@@ -481,6 +489,21 @@
     } else {
       setTimeout(done, 400);
     }
+  }
+
+  /**
+   * The "View on Google Fonts" link under a family name. A font that came
+   * from a file has no page to point at, so the link steps aside.
+   */
+  function dressPairingLink(link, family) {
+    var config = FONTS[family];
+    /* Built-in families and ones found through the search have a specimen
+       page; a font from a file or a direct link does not. */
+    var onGoogle = !config || !config.source || config.specimen === true;
+    link.hidden = !onGoogle;
+    if (!onGoogle) return;
+    link.href = 'https://fonts.google.com/specimen/' + family.replace(/ /g, '+');
+    link.setAttribute('aria-label', family + ' on Google Fonts (opens in a new tab)');
   }
 
   /** One contrast badge ("On white 8.59:1 ✓"), readable by screen readers. */
@@ -771,7 +794,16 @@
 
   function dressPreviewLink() {
     if (!elements.previewLink) return;
+    var config = FONTS[state.fonts.body];
+    if (config && config.source && !config.specimen) {
+      /* A font from a file: nothing to link to, so it reads as plain text. */
+      elements.previewLink.removeAttribute('href');
+      elements.previewLink.removeAttribute('target');
+      elements.previewLink.title = state.fonts.body + ' was added from a file';
+      return;
+    }
     elements.previewLink.href = 'https://fonts.google.com/specimen/' + state.fonts.body.replace(/ /g, '+');
+    elements.previewLink.target = '_blank';
     elements.previewLink.title = state.fonts.body + ' on Google Fonts (opens in a new tab)';
   }
 
@@ -914,6 +946,19 @@
    * match; if it didn't, monospace and cursive give different widths.
    */
   function familyIsAvailable(family, weight) {
+    /* A face added from JavaScript (an upload, or a URL) is in the document's
+       font set. Canvas measuring can't see those — Chromium only measures
+       with fonts that came from the stylesheet — so ask the set first. */
+    try {
+      var added = false;
+      document.fonts.forEach(function (face) {
+        if (face.family.replace(/^["']|["']$/g, '') === family && face.status === 'loaded') added = true;
+      });
+      if (added) return true;
+    } catch (error) {
+      /* No font set to ask: fall through to measuring. */
+    }
+
     try {
       var canvas = familyIsAvailable.canvas || (familyIsAvailable.canvas = document.createElement('canvas'));
       var context = canvas.getContext('2d');
@@ -936,10 +981,379 @@
     missing = missing.filter(function (family, index) { return missing.indexOf(family) === index; });
     elements.previewWarning.hidden = missing.length === 0;
     if (missing.length) {
+      /* A slow connection can still be fetching: look again shortly, and take
+         the warning back if the font turned up after all. */
+      clearTimeout(checkFontsArrived.retry);
+      checkFontsArrived.retry = setTimeout(function () {
+        if (state.fonts.heading === fonts.heading && state.fonts.body === fonts.body) checkFontsArrived(fonts);
+      }, 2500);
+      /* A family added from a file has no Google Fonts to blame: say what is
+         actually true of it instead. */
+      var fromGoogle = missing.every(function (family) {
+        var config = FONTS[family];
+        return !config || !config.source || config.specimen === true;
+      });
       elements.previewWarning.textContent = missing.join(' and ') +
-        (missing.length > 1 ? ' could not be loaded' : ' could not be loaded') +
-        ' from Google Fonts — showing ' + stackOf(missing[0]).split(',')[0] + ' instead.';
+        (fromGoogle
+          ? ' could not be loaded from Google Fonts'
+          : (missing.length > 1 ? ' are not available' : ' is not available')) +
+        ' — showing ' + stackOf(missing[0]).split(',')[0] + ' instead.';
     }
+  }
+
+  /* ---------- Adding fonts: Google Fonts, a URL, or a file ---------- */
+
+  var MAX_FONT_BYTES = 5 * 1024 * 1024;        // 5 MB: a generous woff2 is ~100 KB
+  /* Extension → the format() hint that goes with it. Anything not in here is
+     refused before a single byte is read. */
+  var FONT_FORMATS = { woff2: 'woff2', woff: 'woff', ttf: 'truetype', otf: 'opentype' };
+  /* Types browsers and operating systems really report for those files.
+     Windows often reports nothing at all, so '' is allowed and the extension
+     and the actual parse are what decide. */
+  var FONT_TYPES = ['', 'font/woff2', 'font/woff', 'font/ttf', 'font/otf', 'font/sfnt',
+    'application/font-woff', 'application/font-woff2', 'application/x-font-woff',
+    'application/x-font-ttf', 'application/x-font-otf', 'application/vnd.ms-opentype',
+    'application/octet-stream'];
+
+  var addedFonts = [];        // what was added this visit, for the chips
+  var catalogue = null;       // Google's family list, fetched once, on demand
+
+  /**
+   * A family name safe to put in CSS and in a saved favorite: letters, digits
+   * and spaces only, so it can never close a string or open a declaration.
+   * Made unique, since two files can share a name.
+   */
+  /* Files served from a CDN are often named like "UcCO3FwrK3iLTeHuS0nVMrM":
+     that is an identifier, not a name worth showing. */
+  function looksLikeAHash(stem) {
+    return /^[A-Za-z0-9_-]{16,}$/.test(stem) && /\d/.test(stem) && /[a-z]/.test(stem) && /[A-Z]/.test(stem);
+  }
+
+  function safeFamilyName(raw, fallback) {
+    if (looksLikeAHash(String(raw || '').trim())) raw = '';
+    var name = String(raw || '').replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+    if (!name) name = fallback;
+    var unique = name;
+    var suffix = 2;
+    while (FONTS[unique]) {
+      unique = name + ' ' + suffix;
+      suffix += 1;
+    }
+    return unique;
+  }
+
+  function showFontError(message) {
+    elements.fontError.textContent = message || '';
+  }
+
+  /** Adds a family to the app: it now behaves like any curated one. */
+  function registerFont(name, config) {
+    FONTS[name] = config;
+    loadedFamilies.add(name);   // never ask Google for it
+    addedFonts.push({ name: name, source: config.source });
+    renderAddedFonts();
+  }
+
+  function useFont(name, role) {
+    var fonts = { heading: state.fonts.heading, body: state.fonts.body };
+    fonts[role] = name;
+    applyCombo(
+      { palette: state.palette, scheme: state.scheme, fonts: fonts },
+      { recipe: state.recipe, base: state.base, paletteStill: true }
+    );
+    toast(name + ' set as the ' + role + ' font');
+  }
+
+  function renderAddedFonts() {
+    elements.addedFonts.hidden = addedFonts.length === 0;
+    elements.addedList.replaceChildren.apply(elements.addedList, addedFonts.map(function (font) {
+      var item = document.createElement('li');
+      item.className = 'added-item';
+
+      var name = document.createElement('span');
+      name.className = 'added-name';
+      name.textContent = font.name;
+      var source = document.createElement('span');
+      source.className = 'added-source';
+      source.textContent = font.source;
+      item.append(name, source);
+
+      ['heading', 'body'].forEach(function (role) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-sm';
+        button.textContent = role === 'heading' ? 'Heading' : 'Body';
+        button.setAttribute('aria-label', 'Use ' + font.name + ' as the ' + role + ' font');
+        button.addEventListener('click', function () { useFont(font.name, role); });
+        item.appendChild(button);
+      });
+      return item;
+    }));
+  }
+
+  /**
+   * Fetches a Google Fonts stylesheet and puts it in the page.
+   *
+   * Not a <link>: a family that doesn't exist answers with an error page,
+   * and a link can only report that as a console message the page can't see,
+   * after the load has timed out. Fetching gives the status straight away.
+   * If fetching isn't allowed here, it falls back to a <link>.
+   */
+  function loadFontStylesheet(href) {
+    if (typeof fetch !== 'function') return Promise.resolve(linkStylesheet(href));
+    return fetch(href).then(function (response) {
+      if (!response.ok) return { ok: false };
+      return response.text().then(function (css) {
+        if (css.indexOf('@font-face') === -1) return { ok: false };
+        var style = document.createElement('style');
+        style.textContent = css;
+        document.head.appendChild(style);
+        return { ok: true, node: style };
+      });
+    }).catch(function () {
+      /* Blocked (an origin Google won't share with, say): try the old way. */
+      return linkStylesheet(href);
+    });
+  }
+
+  function linkStylesheet(href) {
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+    return { ok: true, node: link, unverified: true };
+  }
+
+  /** Waits until a family really renders, or gives up. */
+  function waitForFamily(family, weight) {
+    return new Promise(function (resolve) {
+      var deadline = Date.now() + 4000;
+      if (document.fonts && document.fonts.load) {
+        document.fonts.load(weight + ' 1rem "' + family + '"').catch(function () {});
+      }
+      var tick = function () {
+        if (familyIsAvailable(family, weight)) return resolve(true);
+        if (Date.now() > deadline) return resolve(false);
+        setTimeout(tick, 120);
+      };
+      tick();
+    });
+  }
+
+  /**
+   * Google's own catalogue, fetched straight from the browser: no API key and
+   * no server. If it can't be reached (offline, or an origin the endpoint
+   * won't share with, such as a file:// page), the built-in families stand in
+   * and any family name can still be typed by hand.
+   */
+  function loadCatalogue() {
+    if (catalogue) return Promise.resolve(catalogue);
+    return fetch('https://fonts.google.com/metadata/fonts')
+      .then(function (response) { return response.text(); })
+      .then(function (text) {
+        /* The response starts with )]}' to make it useless as a script. */
+        var data = JSON.parse(text.replace(/^\)\]\}'[^\n]*\n?/, ''));
+        catalogue = (data.familyMetadataList || []).map(function (item) {
+          return {
+            family: item.family,
+            weights: Object.keys(item.fonts || {})
+              .filter(function (key) { return /^\d+$/.test(key); })
+              .map(Number)
+              .sort(function (a, b) { return a - b; })
+          };
+        }).filter(function (item) { return item.family; });
+        elements.fontSearchHint.textContent = catalogue.length + ' families from Google Fonts. Start typing to search.';
+        return catalogue;
+      })
+      .catch(function () {
+        catalogue = Object.keys(FONTS).map(function (family) {
+          return { family: family, weights: FONTS[family].weights };
+        });
+        elements.fontSearchHint.textContent =
+          'Google\u2019s catalogue couldn\u2019t be fetched here, so the built-in families are listed. ' +
+          'Any family name can still be typed and tried.';
+        return catalogue;
+      });
+  }
+
+  /** Up to twenty matches for what has been typed, for the datalist. */
+  function renderCatalogueMatches() {
+    if (!catalogue) return;
+    var typed = elements.fontSearch.value.trim().toLowerCase();
+    var matches = catalogue
+      .filter(function (item) { return !typed || item.family.toLowerCase().indexOf(typed) !== -1; })
+      .slice(0, 20);
+    elements.fontCatalogue.replaceChildren.apply(elements.fontCatalogue, matches.map(function (item) {
+      var option = document.createElement('option');
+      option.value = item.family;
+      return option;
+    }));
+  }
+
+  /** The weights worth loading: the ones the app uses, when the family has them. */
+  function weightsToLoad(available) {
+    var wanted = (available || []).filter(function (weight) { return weight === 400 || weight === 700; });
+    if (wanted.length) return wanted;
+    if (available && available.length) return [available[0]];
+    return [400];
+  }
+
+  function addGoogleFont() {
+    var typed = elements.fontSearch.value.trim();
+    showFontError('');
+    if (!typed) return showFontError('Type a family name first.');
+    if (!/^[A-Za-z0-9 ]{2,40}$/.test(typed)) {
+      return showFontError('Family names are letters, digits and spaces.');
+    }
+    var known = (catalogue || []).filter(function (item) {
+      return item.family.toLowerCase() === typed.toLowerCase();
+    })[0];
+    var family = known ? known.family : typed;
+
+    if (FONTS[family] && loadedFamilies.has(family)) {
+      useFont(family, specimen.role);
+      return;
+    }
+
+    var weights = weightsToLoad(known && known.weights);
+    var href = 'https://fonts.googleapis.com/css2?family=' +
+      encodeURIComponent(family).replace(/%20/g, '+') +
+      ':wght@' + weights.join(';') + '&display=swap';
+
+    elements.fontSearchAdd.disabled = true;
+    loadFontStylesheet(href).then(function (sheet) {
+      if (!sheet.ok) {
+        elements.fontSearchAdd.disabled = false;
+        showFontError('Couldn\u2019t find \u201c' + family + '\u201d on Google Fonts. Check the spelling, or try another family.');
+        return Promise.resolve(false);
+      }
+      return waitForFamily(family, weights[0]).then(function (arrived) {
+        if (!arrived && sheet.node) sheet.node.remove();
+        return arrived;
+      });
+    }).then(function (arrived) {
+      elements.fontSearchAdd.disabled = false;
+      if (!arrived) {
+        if (elements.fontError.textContent === '') {
+          showFontError('\u201c' + family + '\u201d didn\u2019t arrive. It may be blocked here, or the connection may be down.');
+        }
+        return;
+      }
+      registerFont(family, { weights: weights, stack: 'system-ui, sans-serif', source: 'Google Fonts', specimen: true });
+      elements.fontSearch.value = '';
+      useFont(family, specimen.role);
+    });
+  }
+
+  function addFontFromUrl() {
+    var raw = elements.fontUrl.value.trim();
+    showFontError('');
+    if (!raw) return showFontError('Paste a link to a font file first.');
+
+    var url;
+    try {
+      url = new URL(raw);
+    } catch (error) {
+      return showFontError('That doesn\u2019t look like a web address.');
+    }
+    /* https only, so a font can't be swapped in transit — with localhost
+       allowed, since that is where people test their own files. */
+    var isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(url.hostname);
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLocal)) {
+      return showFontError('Only https links are accepted (or http on localhost).');
+    }
+    /* The address ends up inside a CSS url("…"): refuse anything that could
+       close that string. */
+    if (/["'()\\]/.test(url.href)) {
+      return showFontError('That link contains characters that can\u2019t be used in CSS.');
+    }
+
+    if (url.hostname === 'fonts.googleapis.com') {
+      var family = (new URLSearchParams(url.search).get('family') || '').split(':')[0].replace(/\+/g, ' ');
+      if (!/^[A-Za-z0-9 ]{2,40}$/.test(family)) return showFontError('That Google Fonts link doesn\u2019t name a family.');
+      elements.fontUrlAdd.disabled = true;
+      loadFontStylesheet(url.href).then(function (sheet) {
+        if (!sheet.ok) return false;
+        return waitForFamily(family, 400).then(function (arrived) {
+          if (!arrived && sheet.node) sheet.node.remove();
+          return arrived;
+        });
+      }).then(function (arrived) {
+        elements.fontUrlAdd.disabled = false;
+        if (!arrived) {
+          return showFontError('That stylesheet didn\u2019t give us \u201c' + family + '\u201d.');
+        }
+        registerFont(family, { weights: [400], stack: 'system-ui, sans-serif', source: 'Google Fonts link', specimen: true });
+        elements.fontUrl.value = '';
+        useFont(family, specimen.role);
+      });
+      return;
+    }
+
+    var extension = (url.pathname.split('.').pop() || '').toLowerCase();
+    if (!FONT_FORMATS[extension]) {
+      return showFontError('The link must end in .woff2, .woff, .ttf or .otf.');
+    }
+    var name = safeFamilyName(decodeURIComponent(url.pathname.split('/').pop()).replace(/\.[^.]+$/, ''), 'Custom Font');
+    var face = new FontFace(name, 'url("' + url.href + '") format("' + FONT_FORMATS[extension] + '")');
+    elements.fontUrlAdd.disabled = true;
+    face.load().then(function (loaded) {
+      document.fonts.add(loaded);
+      elements.fontUrlAdd.disabled = false;
+      registerFont(name, { weights: [400], stack: 'system-ui, sans-serif', source: 'From a link' });
+      elements.fontUrl.value = '';
+      useFont(name, specimen.role);
+    }).catch(function () {
+      elements.fontUrlAdd.disabled = false;
+      showFontError('Couldn\u2019t load that file. The link may be wrong, or the server may not allow other sites to use its fonts (CORS).');
+    });
+  }
+
+  /**
+   * A font from this computer. Checked three times over before it is used:
+   * the extension, the type the browser reports, and the size — and then the
+   * browser itself has to parse the bytes as a font, which is the real test.
+   * Nothing is uploaded anywhere: the bytes never leave the page.
+   */
+  function addFontFromFile(fileInput) {
+    var file = fileInput.files && fileInput.files[0];
+    showFontError('');
+    if (!file) return;
+
+    var extension = (file.name.split('.').pop() || '').toLowerCase();
+    if (!FONT_FORMATS[extension]) {
+      fileInput.value = '';
+      return showFontError('Only .woff2, .woff, .ttf and .otf files can be used.');
+    }
+    if (FONT_TYPES.indexOf(file.type) === -1) {
+      fileInput.value = '';
+      return showFontError('That file says it is \u201c' + file.type + '\u201d, which isn\u2019t a font.');
+    }
+    if (file.size > MAX_FONT_BYTES) {
+      fileInput.value = '';
+      return showFontError('That file is ' + (file.size / 1048576).toFixed(1) + ' MB. The limit is 5 MB.');
+    }
+
+    var reader = new FileReader();
+    reader.onerror = function () { showFontError('That file couldn\u2019t be read.'); };
+    reader.onload = function () {
+      var name = safeFamilyName(file.name.replace(/\.[^.]+$/, ''), 'Custom Font');
+      var face;
+      try {
+        face = new FontFace(name, reader.result);
+      } catch (error) {
+        return showFontError('That file isn\u2019t a font the browser can read.');
+      }
+      face.load().then(function (loaded) {
+        document.fonts.add(loaded);
+        registerFont(name, { weights: [400], stack: 'system-ui, sans-serif', source: file.name });
+        fileInput.value = '';
+        useFont(name, specimen.role);
+      }).catch(function () {
+        showFontError('That file isn\u2019t a font the browser can read.');
+      });
+    };
+    reader.readAsArrayBuffer(file);
   }
 
   /* ======================================================================
@@ -1352,6 +1766,22 @@
       if (option) chooseRole(option);
     });
 
+    /* Adding fonts. The catalogue is only fetched when the panel is opened
+       first: a visitor who never opens it pays nothing. */
+    elements.addFont.addEventListener('toggle', function () {
+      if (elements.addFont.open) loadCatalogue().then(renderCatalogueMatches);
+    });
+    elements.fontSearch.addEventListener('input', renderCatalogueMatches);
+    elements.fontSearch.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') { event.preventDefault(); addGoogleFont(); }
+    });
+    elements.fontSearchAdd.addEventListener('click', addGoogleFont);
+    elements.fontUrl.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') { event.preventDefault(); addFontFromUrl(); }
+    });
+    elements.fontUrlAdd.addEventListener('click', addFontFromUrl);
+    elements.fontFile.addEventListener('change', function () { addFontFromFile(elements.fontFile); });
+
     document.addEventListener('keydown', onKeydown);
   }
 
@@ -1385,6 +1815,17 @@
       specimenLeading: $('specimen-leading'),
       specimenLeadingValue: $('specimen-leading-value'),
       specimenReset: $('specimen-reset'),
+      addFont: $('add-font'),
+      fontSearch: $('font-search'),
+      fontCatalogue: $('font-catalogue'),
+      fontSearchAdd: $('font-search-add'),
+      fontSearchHint: $('font-search-hint'),
+      fontUrl: $('font-url'),
+      fontUrlAdd: $('font-url-add'),
+      fontFile: $('font-file'),
+      fontError: $('font-error'),
+      addedFonts: $('added-fonts'),
+      addedList: $('added-list'),
       previewButton: $('preview-button'),
       previewSecondary: $('preview-secondary'),
       previewLink: $('preview-link'),

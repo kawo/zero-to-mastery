@@ -563,7 +563,7 @@ input[type="range"] {
   background-color: var(--surface-2);
 }
 
-.control-wide { flex: 1 1 280px; min-width: 200px; }
+.control-wide { flex: 1 1 280px; min-width: 0; }   /* min-width: 0 so it can shrink on a phone */
 
 /* Matches .control > label, for groups labelled by a span instead */
 .control-label {
@@ -981,6 +981,126 @@ pre {
 }
 
 .switch input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* ---------- Add a font ---------- */
+.add-font {
+  margin-bottom: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+}
+
+.add-font > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  font-family: var(--font-ui-heading);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-font > summary:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: -3px;
+  border-radius: var(--radius-sm);
+}
+
+.add-font-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  padding: 4px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.input-row input {
+  flex: 1 1 140px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui-body);
+  font-size: 0.95rem;
+}
+
+input[type="file"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;   /* a long file name must not set a minimum width */
+  font-family: var(--font-ui-body);
+  font-size: 0.9rem;
+}
+
+input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+input[type="file"]::file-selector-button:hover { background-color: var(--surface-2); }
+
+.added-fonts {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.added-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.added-item {
+  display: flex;
+  flex-wrap: wrap;   /* a long family name wraps onto a second line */
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background-color: var(--surface);
+  font-size: 0.875rem;
+}
+
+.added-name {
+  overflow-wrap: anywhere;
+  font-family: var(--font-ui-heading);
+  font-weight: 600;
+}
+
+.added-source {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.added-item .btn-sm {
+  min-height: 30px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+}
 
 /* ---------- Toast ---------- */
 .toast {
