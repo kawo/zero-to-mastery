@@ -456,6 +456,72 @@ main { padding-bottom: 56px; }
   font-size: 0.8rem;
 }
 
+/* ---------- Palette controls (base color + saturation) ---------- */
+.palette-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 24px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-grow { flex: 1 1 220px; min-width: 170px; }
+
+.control > label {
+  color: var(--text-muted);
+  font-family: var(--font-ui-heading);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.color-field,
+.range-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+input[type="color"] {
+  width: 58px;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  cursor: pointer;
+}
+
+input[type="range"] {
+  flex: 1;
+  min-width: 110px;
+  height: 40px;              /* a comfortable target without changing the track */
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.control output {
+  min-width: 8ch;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* While a control is being dragged the swatches are rebuilt every frame, so
+   the entrance animation is suppressed: otherwise they would flicker. */
+.swatches.is-live .swatch { animation: none; }
+
 /* ---------- Font pairing + preview ---------- */
 .pairing {
   display: grid;
@@ -854,6 +920,29 @@ pre {
         <em>used as text</em> on white and on black, and whether it passes WCAG&nbsp;2.1 AA
         for normal text (4.5:1).
       </p>
+      <div class="palette-controls" role="group" aria-label="Palette controls">
+        <div class="control">
+          <label for="base-color">Base color</label>
+          <div class="color-field">
+            <input type="color" id="base-color" value="#0f172a" />
+            <output id="base-color-value" for="base-color">#0F172A</output>
+          </div>
+        </div>
+
+        <div class="control control-grow">
+          <label for="saturation">Saturation</label>
+          <div class="range-field">
+            <input type="range" id="saturation" min="6" max="95" step="1" value="45" />
+            <output id="saturation-value" for="saturation">45%</output>
+          </div>
+        </div>
+
+        <label class="switch" for="keep-base">
+          <input type="checkbox" id="keep-base" />
+          Keep on shuffle
+        </label>
+      </div>
+
       <ul class="swatches" id="palette-list"></ul>
     </section>
 
@@ -1096,6 +1185,25 @@ pre {
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
 
+  /** The reverse of hslToHex: used to read a hue and saturation out of a picked color. */
+  function hexToHsl(hex) {
+    var rgb = hexToRgb(hex).map(function (value) { return value / 255; });
+    var max = Math.max.apply(null, rgb);
+    var min = Math.min.apply(null, rgb);
+    var delta = max - min;
+    var lightness = (max + min) / 2;
+    var hue = 0;
+    var saturation = 0;
+    if (delta) {
+      saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+      if (max === rgb[0]) hue = (rgb[1] - rgb[2]) / delta + (rgb[1] < rgb[2] ? 6 : 0);
+      else if (max === rgb[1]) hue = (rgb[2] - rgb[0]) / delta + 2;
+      else hue = (rgb[0] - rgb[1]) / delta + 4;
+      hue *= 60;
+    }
+    return { h: Math.round(hue), s: Math.round(saturation * 100), l: Math.round(lightness * 100) };
+  }
+
   /* WCAG 2.1 relative luminance (sRGB) */
   function relativeLuminance(hex) {
     var channels = hexToRgb(hex).map(function (value) {
@@ -1163,25 +1271,77 @@ pre {
    * Saturation eases off at the extremes, which is what keeps the darks from
    * going muddy and the lights from going neon.
    */
-  function getRandomPalette(count) {
-    count = count || randInt(4, 6);
-    var schemeName = pick(Object.keys(SCHEMES));
-    var baseHue = randInt(0, 359);
-    var hues = SCHEMES[schemeName](baseHue);
-    var baseSat = randInt(38, 82);
-
-    var darkest = randInt(8, 18);
-    var lightest = randInt(88, 96);
-    var step = (lightest - darkest) / (count - 1);
-
-    var palette = [];
+  /**
+   * A "recipe" is everything a palette is built from. Keeping it around is
+   * what lets the base-color and saturation controls morph a palette
+   * smoothly: only the hue or the saturation changes, while the scheme, the
+   * number of colors and the lightness ramp stay put. Shuffle rolls a new one.
+   */
+  function randomRecipe(options) {
+    options = options || {};
+    var count = options.count || randInt(4, 6);
+    var jitter = [];
     for (var i = 0; i < count; i++) {
-      var lightness = darkest + step * i + (i === 0 || i === count - 1 ? 0 : randInt(-4, 4));
-      var edge = Math.abs(lightness - 50) / 50;                 // 0 mid, 1 at the extremes
-      var saturation = Math.round(baseSat * (1 - edge * 0.45)); // calmer at both ends
-      palette.push(hslToHex(hues[i % hues.length], Math.max(12, saturation), lightness));
+      jitter.push(i === 0 || i === count - 1 ? 0 : randInt(-4, 4));  // the anchors stay put
     }
-    return { palette: palette, scheme: schemeName + ' · ' + count + ' colors' };
+    return {
+      scheme: options.scheme || pick(Object.keys(SCHEMES)),
+      hue: typeof options.hue === 'number' ? options.hue : randInt(0, 359),
+      saturation: typeof options.saturation === 'number' ? options.saturation : randInt(38, 82),
+      count: count,
+      darkest: typeof options.darkest === 'number' ? options.darkest : randInt(8, 18),
+      lightest: typeof options.lightest === 'number' ? options.lightest : randInt(88, 96),
+      jitter: jitter,
+      exact: options.exact || null
+    };
+  }
+
+  /**
+   * Builds the colors of a recipe. Lightness runs from a dark anchor to a
+   * light one so every palette works as a real UI scale, and saturation eases
+   * off at both ends, which keeps the darks from going muddy and the lights
+   * from going neon. A picked base color is dropped into the slot closest to
+   * its own lightness, so the color you chose is really in the palette.
+   */
+  function buildPalette(recipe) {
+    var hues = SCHEMES[recipe.scheme](recipe.hue);
+    var step = (recipe.lightest - recipe.darkest) / Math.max(1, recipe.count - 1);
+    var palette = [];
+    for (var i = 0; i < recipe.count; i++) {
+      var lightness = recipe.darkest + step * i + (recipe.jitter[i] || 0);
+      var edge = Math.abs(lightness - 50) / 50;                       // 0 mid, 1 at the extremes
+      var saturation = Math.round(recipe.saturation * (1 - edge * 0.45));
+      palette.push(hslToHex(hues[i % hues.length], Math.max(6, saturation), lightness));
+    }
+    if (recipe.exact && HEX_RE.test(recipe.exact)) {
+      var target = hexToHsl(recipe.exact).l;
+      var nearest = 0;
+      var smallest = Infinity;
+      palette.forEach(function (hex, index) {
+        var distance = Math.abs(hexToHsl(hex).l - target);
+        if (distance < smallest) { smallest = distance; nearest = index; }
+      });
+      palette[nearest] = recipe.exact.toUpperCase();
+    }
+    return palette;
+  }
+
+  /** A fresh random palette. `options` can pin the hue, saturation or count. */
+  function getRandomPalette(options) {
+    var recipe = randomRecipe(options);
+    return {
+      palette: buildPalette(recipe),
+      recipe: recipe,
+      scheme: recipe.scheme + ' · ' + recipe.count + ' colors'
+    };
+  }
+
+  /** The most colorful swatch: what the base-color control shows for a palette
+      that didn't come from a recipe (a preset or a saved favorite). */
+  function baseFromPalette(palette) {
+    var main = palette.slice().sort(function (a, b) { return chroma(b) - chroma(a); })[0] || palette[0];
+    var hsl = hexToHsl(main);
+    return { hex: main, hue: hsl.h, saturation: hsl.s };
   }
 
   /** A heading/body pair from the curated list, never the one already shown. */
@@ -1224,6 +1384,9 @@ pre {
      ====================================================================== */
   var state = {
     palette: [],
+    recipe: null,                 // how the current palette was built (null for presets/favorites)
+    base: { hex: '#0F172A', hue: 222, saturation: 47 },
+    keepBase: false,              // keep the base color and saturation when shuffling
     scheme: '',
     fonts: { heading: '', body: '' },
     favorites: [],
@@ -1311,8 +1474,9 @@ pre {
   }
 
   /** Swatches with HEX labels, copy buttons and contrast badges. */
-  function renderPalette(palette, scheme) {
+  function renderPalette(palette, scheme, live) {
     var list = elements.paletteList;
+    list.classList.toggle('is-live', Boolean(live));   // no entrance animation while dragging
     list.textContent = '';
 
     palette.forEach(function (hex, index) {
@@ -1359,7 +1523,7 @@ pre {
   }
 
   /** Applies the palette's colors to the preview and replays its entrance. */
-  function renderPreview(combo) {
+  function renderPreview(combo, live) {
     var colors = previewColors(combo.palette);
     var preview = elements.preview;
     preview.style.setProperty('--preview-heading', colors.heading);
@@ -1373,10 +1537,13 @@ pre {
       colors.accent + ' with ' + (colors.accentText === '#FFFFFF' ? 'white' : 'near-black') +
       ' text, ' + ratio + ':1 (AA ' + (colors.buttonRatio >= AA_NORMAL ? 'pass' : 'fail') + ').';
 
-    /* Restart the animation: drop the class, force a reflow, add it back. */
-    preview.classList.remove('is-in');
-    void preview.offsetWidth;
-    preview.classList.add('is-in');
+    /* Restart the animation: drop the class, force a reflow, add it back.
+       Skipped while a control is being dragged, or it would flicker. */
+    if (!live) {
+      preview.classList.remove('is-in');
+      void preview.offsetWidth;
+      preview.classList.add('is-in');
+    }
   }
 
   function renderExports(combo) {
@@ -1398,20 +1565,94 @@ pre {
     state.scheme = combo.scheme || '';
     state.fonts = { heading: combo.fonts.heading, body: combo.fonts.body };
     state.preset = options.preset || null;
+    state.recipe = options.recipe || null;
+    /* The base control follows whatever is on screen: the seed it was built
+       from, or the most colorful swatch of a preset or saved combination. */
+    state.base = options.base || baseFromPalette(state.palette);
 
     applyFonts(state.fonts);
-    renderPalette(state.palette, state.scheme);
-    renderPreview(state);
+    renderPalette(state.palette, state.scheme, options.live);
+    renderPreview(state, options.live);
     renderExports(state);
     renderPresets();
+    renderBaseControls();
+  }
+
+  /** Puts the current base color and saturation into the two controls. */
+  function renderBaseControls() {
+    elements.baseColor.value = state.base.hex.toLowerCase();
+    elements.baseColorValue.textContent = state.base.hex.toUpperCase();
+    elements.saturation.value = String(state.base.saturation);
+    elements.saturationValue.textContent = state.base.saturation + '%';
+  }
+
+  /* A preset or a favorite has no recipe, so the first tweak makes one from
+     what's on screen: same number of colors, the chosen hue and saturation. */
+  function ensureRecipe() {
+    if (!state.recipe) {
+      state.recipe = randomRecipe({
+        count: state.palette.length,
+        hue: state.base.hue,
+        saturation: state.base.saturation
+      });
+    }
+    return state.recipe;
+  }
+
+  /**
+   * Rebuilds the palette from the two controls, keeping the scheme, the
+   * number of colors, the lightness ramp and the fonts. `live` is true while
+   * a control is being dragged.
+   */
+  function updateFromControls(source, live) {
+    var hex = elements.baseColor.value.toUpperCase();
+    var hsl = hexToHsl(hex);
+    var saturation;
+
+    if (source === 'color') {
+      /* Picking a color moves the slider to that color's own saturation, so
+         the chosen color and the palette around it agree. */
+      saturation = hsl.s;
+      elements.saturation.value = String(saturation);
+    } else {
+      /* Dragging the slider carries the base color with it: its hue and
+         lightness stay, its saturation follows the slider. */
+      saturation = Number(elements.saturation.value);
+      hex = hslToHex(hsl.h, saturation, hsl.l);
+      hsl = hexToHsl(hex);
+    }
+
+    var recipe = Object.assign({}, ensureRecipe(), { hue: hsl.h, saturation: saturation, exact: hex });
+    applyCombo(
+      { palette: buildPalette(recipe), scheme: recipe.scheme + ' · ' + recipe.count + ' colors', fonts: state.fonts },
+      { recipe: recipe, base: { hex: hex, hue: hsl.h, saturation: saturation }, live: live }
+    );
+  }
+
+  /* Dragging fires many events a second: rebuild at most once per frame. */
+  var controlFrame = 0;
+  function scheduleControlUpdate(source) {
+    if (controlFrame) cancelAnimationFrame(controlFrame);
+    controlFrame = requestAnimationFrame(function () {
+      controlFrame = 0;
+      updateFromControls(source, true);
+    });
   }
 
   function shuffle() {
-    var generated = getRandomPalette();
+    /* With "Keep on shuffle" ticked, the base color and saturation carry over
+       and only the scheme, the number of colors and the fonts change. */
+    var seed = state.keepBase
+      ? { hue: state.base.hue, saturation: state.base.saturation, exact: state.base.hex }
+      : {};
+    var generated = getRandomPalette(seed);
     applyCombo({
       palette: generated.palette,
       scheme: generated.scheme,
       fonts: pickFontPair(state.fonts)
+    }, {
+      recipe: generated.recipe,
+      base: state.keepBase ? state.base : undefined   // undefined: read it back off the new palette
     });
     toast('New palette and pairing: ' + state.fonts.heading + ' with ' + state.fonts.body);
   }
@@ -1760,6 +2001,17 @@ pre {
     elements.downloadJson2.addEventListener('click', downloadJSON);
 
     elements.paletteList.addEventListener('click', onSwatchClick);
+
+    /* Base color and saturation: live while dragging ("input"), then one
+       final, animated update when the control is released ("change"). */
+    elements.baseColor.addEventListener('input', function () { scheduleControlUpdate('color'); });
+    elements.baseColor.addEventListener('change', function () { updateFromControls('color', false); });
+    elements.saturation.addEventListener('input', function () { scheduleControlUpdate('saturation'); });
+    elements.saturation.addEventListener('change', function () { updateFromControls('saturation', false); });
+    elements.keepBase.addEventListener('change', function () {
+      state.keepBase = elements.keepBase.checked;
+      toast(state.keepBase ? 'Shuffle will keep this base color' : 'Shuffle will pick a new base color');
+    });
     elements.favoritesList.addEventListener('click', onFavoritesClick);
 
     Array.prototype.forEach.call(document.querySelectorAll('.chip[data-preset]'), function (chip) {
@@ -1796,6 +2048,11 @@ pre {
       downloadJson: $('download-json'),
       downloadJson2: $('download-json-2'),
       paletteList: $('palette-list'),
+      baseColor: $('base-color'),
+      baseColorValue: $('base-color-value'),
+      saturation: $('saturation'),
+      saturationValue: $('saturation-value'),
+      keepBase: $('keep-base'),
       schemeTag: $('scheme-tag'),
       preview: $('preview'),
       eyebrow: document.querySelector('.preview-eyebrow'),

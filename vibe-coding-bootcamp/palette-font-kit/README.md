@@ -19,6 +19,10 @@ python -m http.server 8000
 ## Features
 
 - **Palettes of 4 to 6 colors.** Generated from a hue scheme — analogous, complementary, triadic, split complementary or monochrome — rather than random RGB, which is what keeps them cohesive. Every palette runs from a dark anchor to a light one, so it works as a real UI scale, and saturation eases off at both ends so the darks don't go muddy and the lights don't go neon.
+- **Steer it, or leave it to chance.** A base color picker and a saturation slider sit above the swatches.
+  - **Base color:** the color you pick lands in the palette itself, in the slot closest to its own lightness, and the rest of the palette is built around its hue. The saturation slider follows the color you picked.
+  - **Saturation:** drag it and the whole palette, base color included, moves with it. The scheme, the number of colors and the lightness ramp stay put, so the palette morphs rather than re-rolling.
+  - **Keep on shuffle:** off by default — shuffle picks a fresh base each time and the controls show what came out. Tick it and shuffle keeps your color and saturation while changing everything else.
 - **Contrast built in.** Each swatch shows its contrast ratio *used as text* on white and on black, with a pass/fail badge for WCAG 2.1 AA at normal text size (4.5:1). Ratios are floored rather than rounded, so "4.50:1" never appears next to a FAIL badge.
 - **Font pairings from a curated list.** 20 Google Fonts families in 14 hand-checked pairings. Only the two families in play are downloaded, and only in the weights actually used, so the whole set is never loaded upfront.
 - **Live preview.** The pairing applied to a headline, a subhead, a paragraph at a readable measure, and a sample button. The preview's colors are picked from the palette with a contrast check: the headline takes the darkest color that genuinely passes on white, and the button takes the most saturated color with black or white text chosen by ratio. The caption states the button's ratio, so the sample is never unreadable.
@@ -82,7 +86,7 @@ Inside `index.html`, the script is split into commented sections: curated data, 
 
 **Curated presets.** `PRESETS` holds Minimal, Playful and Bold — a label, a palette and a pairing each. Editing one changes the chips under the controls; `Minimal` is what the page opens with.
 
-**Palette feel.** In `getRandomPalette`, `SCHEMES` defines the hue relationships, and the lightness anchors (`randInt(8, 18)` for the darkest, `randInt(88, 96)` for the lightest) decide how much range a palette covers.
+**Palette feel.** A palette is built from a *recipe*: scheme, hue, saturation, how many colors, the lightness anchors and a small per-color jitter. `randomRecipe` rolls one, `buildPalette` turns it into colors, and `getRandomPalette` does both. Keeping the recipe is what lets the controls change the hue or the saturation while everything else holds still. `SCHEMES` defines the hue relationships, and the lightness anchors (`randInt(8, 18)` for the darkest, `randInt(88, 96)` for the lightest) decide how much range a palette covers.
 
 **Interface colors.** The tokens at the top of the `<style>` block: `:root` for light, `.theme-dark` for dark. Nothing else hard-codes a color.
 
