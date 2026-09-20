@@ -869,6 +869,21 @@ pre {
   tab-size: 2;
 }
 
+/* ---------- Share link ---------- */
+.share-url {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+/* A saved entry that carries more than a palette says so */
+.fav-extra {
+  color: var(--accent-soft-text);
+  font-size: 0.78rem;
+}
+
+.theme-dark .fav-extra { color: var(--accent-hover); }
+
 /* ---------- Favorites ---------- */
 .fav-list { display: grid; gap: 12px; }
 

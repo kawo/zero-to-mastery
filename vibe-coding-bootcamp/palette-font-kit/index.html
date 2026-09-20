@@ -330,6 +330,17 @@
 
       <div class="export-block">
         <div class="export-head">
+          <span class="export-label" id="share-label">Share link</span>
+          <button type="button" class="btn btn-sm" id="copy-share">Copy link</button>
+        </div>
+        <!-- The whole configuration travels in the address, so a link opens
+             exactly what you are looking at. -->
+        <input class="text-input share-url" id="share-url" type="text" readonly aria-labelledby="share-label" />
+        <p class="field-hint" id="share-hint"></p>
+      </div>
+
+      <div class="export-block">
+        <div class="export-head">
           <span class="export-label" id="json-label">JSON</span>
           <span style="display: flex; gap: 8px;">
             <button type="button" class="btn btn-sm" id="copy-json">Copy JSON</button>

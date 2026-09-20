@@ -676,8 +676,10 @@
     renderBaseControls();
     renderPresets();
     renderPreview(state, true);   // no entrance animation while typing
-    renderExports(state);
+    /* Before the exports: dropping a color can change the pair, and the share
+       link has to describe where things end up, not where they were. */
     renderPairOptions({ keepChoice: true });
+    renderExports(state);
   }
 
   /** "#abc", "abc", "#AABBCC" → "#AABBCC"; anything else → null. */
@@ -774,6 +776,8 @@
           : foreground + ' on ' + background + ' fails AA: too close together to read.';
 
     verdict.append(badge, words);
+    /* The pair is part of the configuration, so the share link changes with it. */
+    if (elements.shareUrl) renderShare();
   }
 
   /** Applies the palette's colors to the preview and replays its entrance. */
@@ -834,6 +838,7 @@
   function renderExports(combo) {
     elements.cssOutput.textContent = exportCSSVars(combo);
     elements.jsonOutput.textContent = exportJSON(combo);
+    renderShare();
   }
 
   /** Marks which curated preset (if any) is showing. */
@@ -1134,6 +1139,9 @@
     }
     elements.specimenReset.disabled = !settings.custom && !settings.text;
     applySpecimen();
+    /* The text and the type settings are part of the configuration, so the
+       share link has to keep up with them. */
+    if (elements.shareUrl) renderShare();
   }
 
   /** Back to the sample copy and the stylesheet's own sizes, for this role. */
@@ -1747,6 +1755,8 @@
         id: typeof combo.id === 'string' ? combo.id : makeId(),
         palette: combo.palette.map(function (hex) { return hex.toUpperCase(); }),
         fonts: { heading: combo.fonts.heading, body: combo.fonts.body },
+        /* Only a version this app understands is kept. */
+        config: combo.config && combo.config.v <= CONFIG_VERSION ? combo.config : null,
         savedAt: typeof combo.savedAt === 'string' ? combo.savedAt : new Date().toISOString()
       };
     });
@@ -1773,6 +1783,9 @@
       id: makeId(),
       palette: state.palette.slice(),
       fonts: { heading: state.fonts.heading, body: state.fonts.body },
+      /* The type settings travel with the colors, so applying a favorite
+         brings back what you had, not just the palette. */
+      config: currentConfig(),
       savedAt: new Date().toISOString()
     });
     if (state.favorites.length > MAX_FAVORITES) state.favorites.length = MAX_FAVORITES;
@@ -1784,7 +1797,20 @@
   function applyFavorite(id) {
     var combo = state.favorites.find(function (item) { return item.id === id; });
     if (!combo) return;
+    /* Saved before the type settings were kept? Then it is just a palette and
+       a pairing, and the controls go back to their defaults. */
+    if (combo.config && applyConfig(combo.config, { scheme: 'Saved combination' })) {
+      toast('Applied ' + combo.fonts.heading + ' with ' + combo.fonts.body);
+      return;
+    }
+    ['heading', 'body'].forEach(function (role) {
+      specimen[role].text = '';
+      specimen[role].custom = false;
+      specimen[role].axes = {};
+    });
     applyCombo({ palette: combo.palette, scheme: 'Saved combination', fonts: combo.fonts });
+    applySpecimen();
+    renderSpecimenControls();
     toast('Applied ' + combo.fonts.heading + ' with ' + combo.fonts.body);
   }
 
@@ -1837,12 +1863,25 @@
       var date = document.createElement('p');
       date.className = 'fav-date';
       date.textContent = combo.palette.length + ' colors · saved ' + formatDate(combo.savedAt);
+      var extras = [];
+      if (combo.config && combo.config.s) {
+        if (combo.config.s.h && combo.config.s.h.t) extras.push('your heading');
+        if (combo.config.s.b && combo.config.s.b.t) extras.push('your body text');
+        if (!extras.length && Object.keys(combo.config.s).length) extras.push('type settings');
+      }
+      var extraLine = null;
+      if (extras.length) {
+        extraLine = document.createElement('p');
+        extraLine.className = 'fav-extra';
+        extraLine.textContent = 'with ' + extras.join(' and ');
+      }
       /* The strip is decorative, so the HEX values are read out here instead. */
       var hexes = document.createElement('span');
       hexes.className = 'sr-only';
       hexes.textContent = 'Palette: ' + combo.palette.join(', ');
       meta.appendChild(fonts);
       meta.appendChild(date);
+      if (extraLine) meta.appendChild(extraLine);
       meta.appendChild(hexes);
 
       var actions = document.createElement('div');
@@ -1892,6 +1931,157 @@
     /* The preview's background changed, so its colors have to be picked again
        against it. (Not on the first call: nothing is rendered yet.) */
     if (state.palette.length) renderPreview(state);
+  }
+
+  /* ---------- The configuration: saving, and sharing by link ---------- */
+
+  /* Everything that makes up what is on screen, in short keys so it fits in a
+     URL. `v` is the format version: a link made today still has to open in a
+     later version of this page, and a link from a newer format is refused
+     rather than half-read. */
+  var CONFIG_VERSION = 1;
+  /* Long enough for anything sensible, short enough to survive the places
+     links get pasted (chat apps and mail clients cut around 2,000). */
+  var MAX_URL_LENGTH = 2000;
+
+  function currentConfig() {
+    var config = {
+      v: CONFIG_VERSION,
+      p: state.palette.map(function (hex) { return hex.replace('#', ''); }),
+      f: { h: state.fonts.heading, b: state.fonts.body },
+      s: {},
+      pair: [elements.pairBg.value.replace('#', ''), elements.pairFg.value.replace('#', '')]
+    };
+    ['heading', 'body'].forEach(function (role) {
+      var settings = specimen[role];
+      var part = {};
+      if (settings.text) part.t = settings.text;
+      if (settings.custom) {
+        part.z = Math.round(settings.size);
+        part.w = settings.weight;
+        part.l = Number(settings.leading);
+      }
+      if (Object.keys(settings.axes || {}).length) part.a = settings.axes;
+      if (Object.keys(part).length) config.s[role === 'heading' ? 'h' : 'b'] = part;
+    });
+    return config;
+  }
+
+  /** Checks a configuration and puts it on screen. Returns false if unusable. */
+  function applyConfig(config, options) {
+    options = options || {};
+    if (!config || config.v > CONFIG_VERSION) return false;
+
+    var palette = (Array.isArray(config.p) ? config.p : [])
+      .map(function (value) { return normalizeHex(String(value)); })
+      .filter(Boolean);
+    if (palette.length < 3 || palette.length > 8) return false;
+
+    var fonts = config.f || {};
+    if (!FAMILY_RE.test(String(fonts.h)) || !FAMILY_RE.test(String(fonts.b))) return false;
+    /* A family this copy of the app has never heard of (a Google one the
+       sender searched for) still works: it is fetched like any other. */
+    [fonts.h, fonts.b].forEach(function (family) {
+      if (!FONTS[family]) FONTS[family] = { weights: [400, 700], stack: 'system-ui, sans-serif' };
+    });
+
+    ['heading', 'body'].forEach(function (role) {
+      var part = (config.s || {})[role === 'heading' ? 'h' : 'b'] || {};
+      var limits = SPECIMEN_LIMITS[role];
+      var settings = specimen[role];
+      settings.text = typeof part.t === 'string' ? part.t.slice(0, 300) : '';
+      settings.custom = part.z !== undefined || part.w !== undefined || part.l !== undefined;
+      if (settings.custom) {
+        settings.size = clampNumber(part.z, limits.min, limits.max, settings.size);
+        settings.weight = clampNumber(part.w, 100, 1000, settings.weight);
+        settings.leading = clampNumber(part.l, limits.leadMin, limits.leadMax, settings.leading);
+      }
+      settings.axes = {};
+      if (part.a && typeof part.a === 'object') {
+        Object.keys(part.a).forEach(function (tag) {
+          if (!/^[A-Za-z]{4}$/.test(tag)) return;
+          var value = parseFloat(part.a[tag]);
+          if (isFinite(value)) settings.axes[tag] = value;
+        });
+      }
+    });
+
+    applyCombo({ palette: palette, scheme: options.scheme || 'Shared combination', fonts: { heading: fonts.h, body: fonts.b } });
+
+    /* The pair choice is restored after the lists are rebuilt. */
+    var pair = Array.isArray(config.pair) ? config.pair.map(function (v) { return normalizeHex(String(v)); }) : [];
+    if (pair[0] && pair[1] && palette.indexOf(pair[0]) !== -1 && palette.indexOf(pair[1]) !== -1) {
+      elements.pairBg.value = pair[0];
+      elements.pairFg.value = pair[1];
+      renderPair();
+    }
+
+    applySpecimen();
+    renderSpecimenControls();
+    renderExports(state);
+    return true;
+  }
+
+  /* base64url, so the text survives being a URL. TextEncoder first, because
+     btoa alone throws on anything outside Latin-1 — an accented word in the
+     preview text would break the link. */
+  function encodeConfig(config) {
+    var bytes = new TextEncoder().encode(JSON.stringify(config));
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function decodeConfig(text) {
+    try {
+      var padded = text.replace(/-/g, '+').replace(/_/g, '/');
+      while (padded.length % 4) padded += '=';
+      var binary = atob(padded);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch (error) {
+      return null;   // truncated, edited by hand, or not one of ours
+    }
+  }
+
+  /**
+   * The link for what is on screen. Preview text is the only part that can
+   * run long, so if the address would be too long to survive being pasted,
+   * the text is left out and the caller is told.
+   */
+  function shareUrl() {
+    var base = window.location.href.split('#')[0];
+    var config = currentConfig();
+    var url = base + '#c=' + encodeConfig(config);
+    if (url.length <= MAX_URL_LENGTH) return { url: url, trimmed: false };
+
+    ['h', 'b'].forEach(function (role) {
+      if (config.s[role]) delete config.s[role].t;
+      if (config.s[role] && !Object.keys(config.s[role]).length) delete config.s[role];
+    });
+    return { url: base + '#c=' + encodeConfig(config), trimmed: true };
+  }
+
+  function renderShare() {
+    var share = shareUrl();
+    elements.shareUrl.value = share.url;
+    elements.shareHint.textContent = share.trimmed
+      ? 'Your preview text is too long to fit in a link, so it is left out of this one (' + share.url.length + ' characters).'
+      : 'Everything on screen travels in this link: palette, fonts, text and type settings (' + share.url.length + ' characters).';
+  }
+
+  /** A link someone opened: read it, apply it, and leave the address alone. */
+  function applyConfigFromUrl() {
+    var match = /[#&]c=([A-Za-z0-9_-]+)/.exec(window.location.hash || '');
+    if (!match) return false;
+    var config = decodeConfig(match[1]);
+    if (!applyConfig(config, { scheme: 'Shared combination' })) {
+      toast('That link could not be read, so the usual starting point is showing.');
+      return false;
+    }
+    toast('Opened a shared combination');
+    return true;
   }
 
   /* ======================================================================
@@ -2159,6 +2349,17 @@
     });
     elements.downloadCss.addEventListener('click', downloadCSS);
 
+    elements.copyShare.addEventListener('click', function () {
+      var share = shareUrl();
+      /* Put it in the address too, so the page you are on is the page you
+         shared — replaceState, so the back button still works. */
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', share.url);
+      }
+      copyText(share.url, share.trimmed ? 'Link copied, without your preview text' : 'Link copied');
+    });
+    elements.shareUrl.addEventListener('focus', function () { elements.shareUrl.select(); });
+
     /* The preview's sample controls copy the color they are wearing. */
     [elements.previewButton, elements.previewSecondary].forEach(function (button) {
       button.addEventListener('click', function () {
@@ -2236,6 +2437,11 @@
     elements.fontUrlAdd.addEventListener('click', addFontFromUrl);
     elements.fontFile.addEventListener('change', function () { addFontFromFile(elements.fontFile); });
 
+    /* Following a link to this page while it is already open only changes the
+       address hash — the document never reloads — so the configuration has to
+       be read again here. */
+    window.addEventListener('hashchange', function () { applyConfigFromUrl(); });
+
     document.addEventListener('keydown', onKeydown);
   }
 
@@ -2255,6 +2461,9 @@
       pairSample: $('pair-sample'),
       pairVerdict: $('pair-verdict'),
       downloadCss: $('download-css'),
+      shareUrl: $('share-url'),
+      shareHint: $('share-hint'),
+      copyShare: $('copy-share'),
       baseColor: $('base-color'),
       baseColorValue: $('base-color-value'),
       saturation: $('saturation'),
@@ -2323,10 +2532,11 @@
     stockCopy.heading = elements.previewHeadline.textContent.trim();
     stockCopy.body = [].map.call(elements.previewBody.childNodes, function (node) { return node.cloneNode(true); });
 
-    /* The page opens on "Minimal" rather than something random, so the first
-       impression is a designed combination. */
+    /* A shared link decides what opens; otherwise the page opens on
+       "Minimal", so the first impression is a designed combination. */
     applyCombo(PRESETS.minimal, { preset: 'minimal' });
     syncSpecimenToFonts();
+    applyConfigFromUrl();
 
     wireEvents();
   }

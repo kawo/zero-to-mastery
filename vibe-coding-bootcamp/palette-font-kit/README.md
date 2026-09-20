@@ -69,7 +69,17 @@ python -m http.server 8000
   **The sample controls are real controls.** The two buttons and the link are `<button>` and `<a>` elements, not dressed-up spans: they take keyboard focus, show hover, press and focus states in the palette's own colors, and do something rather than nothing — each button copies the color it is wearing (as the swatches do), and the link opens the body face's specimen on Google Fonts. That way the states you are judging are the states a browser really renders.
 - **Shuffle All** changes palette and pairing together, from the button or the keyboard. **Shuffle Fonts Only**, next to it, changes the pairing and leaves the colors exactly as they are — useful once a palette is right and the type isn't. The swatches don't replay their entrance animation when only the fonts move.
 - **Three curated starting points** — Minimal, Playful and Bold — so the page is never empty. It opens on Minimal.
-- **Favorites.** Save a combination, re-apply it, or delete it. Stored in `localStorage`, so they survive a reload.
+- **Favorites.** Save a combination, re-apply it, or delete it. A saved entry carries the whole configuration — palette, fonts, your preview text, size, line height and axis values — so applying it brings back what you had, not just the colours. The list says when an entry carries your own text. Stored in `localStorage`, so they survive a reload; entries saved before this existed still apply, with the type settings reset.
+- **Shareable link.** The Export card offers a link that carries everything on screen, so whoever opens it sees exactly what you see. It's a versioned, URL-safe base64 payload in the address hash, and nothing is uploaded anywhere.
+
+  ```
+  …/index.html#c=eyJ2IjoxLCJwIjpbIjEyMzQ1NiIsIjMzNDE1NSIsIjk0QTNCOCJd…
+  ```
+
+  - **Versioned:** the payload records the format it was written in. A link from a newer version is refused rather than half-read, and one from an older version keeps working.
+  - **Robust:** a link that's been truncated, edited or filled with impossible values is refused with a plain message, and the page opens on its usual starting point.
+  - **URL size:** preview text is the only part that can run long. If the address would get too long to survive being pasted (over 2,000 characters), the text is left out and the hint says so — everything else still travels. For anything larger, favourites in `localStorage` are the place for it.
+  - **Fonts:** a family found through the search travels by name and is fetched on the other side. A font added from a file can't travel — the recipient falls back and sees the message explaining which family is missing.
 - **Export** the current combination as CSS custom properties or as JSON — copied to the clipboard, or downloaded as a `.css` or `.json` file.
 
   The CSS carries a variable per swatch, the font families, any variable-axis settings, the matching Google Fonts `<link>` as a comment, **and a sample usage snippet** so it's something to paste rather than something to interpret:
