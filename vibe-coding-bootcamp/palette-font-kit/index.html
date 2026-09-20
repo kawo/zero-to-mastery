@@ -131,6 +131,30 @@
       </div>
 
       <ul class="swatches" id="palette-list"></ul>
+
+      <!-- Two colors from the palette, tried against each other the way they
+           would really be used: text on a background. -->
+      <div class="pair-check" role="group" aria-labelledby="pair-check-title">
+        <p class="control-label" id="pair-check-title">Background and text</p>
+        <div class="pair-controls">
+          <div class="control">
+            <label for="pair-bg">Background</label>
+            <select id="pair-bg"></select>
+          </div>
+          <div class="control">
+            <label for="pair-fg">Text</label>
+            <select id="pair-fg"></select>
+          </div>
+          <button type="button" class="btn btn-sm" id="pair-swap" aria-label="Swap background and text">Swap</button>
+          <button type="button" class="btn btn-sm" id="pair-best">Best pair</button>
+        </div>
+
+        <div class="pair-sample" id="pair-sample">
+          <p class="pair-sample-title" id="pair-sample-title">Aa</p>
+          <p class="pair-sample-text">Body copy on this background, at the size you would actually read it.</p>
+        </div>
+        <p class="pair-verdict" id="pair-verdict"></p>
+      </div>
     </section>
 
     <!-- ---------- Font pairing + live preview ---------- -->
@@ -294,9 +318,12 @@
       <div class="export-block">
         <div class="export-head">
           <span class="export-label" id="css-label">CSS variables</span>
-          <button type="button" class="btn btn-sm" id="copy-css" aria-keyshortcuts="C">
-            Copy CSS <kbd aria-hidden="true">C</kbd>
-          </button>
+          <span style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-sm" id="copy-css" aria-keyshortcuts="C">
+              Copy CSS <kbd aria-hidden="true">C</kbd>
+            </button>
+            <button type="button" class="btn btn-sm" id="download-css">Download .css</button>
+          </span>
         </div>
         <pre tabindex="0" role="region" aria-labelledby="css-label"><code id="css-output"></code></pre>
       </div>

@@ -24,6 +24,8 @@ python -m http.server 8000
   - **Saturation:** drag it and the whole palette, base color included, moves with it. The scheme, the number of colors and the lightness ramp stay put, so the palette morphs rather than re-rolling.
   - **Keep on shuffle:** off by default — shuffle picks a fresh base each time and the controls show what came out. Tick it and shuffle keeps your color and saturation while changing everything else.
 - **Contrast built in.** Each swatch shows its contrast ratio *used as text* on white and on black, with a pass/fail badge for WCAG 2.1 AA at normal text size (4.5:1). Ratios are floored rather than rounded, so "4.50:1" never appears next to a FAIL badge.
+- **Every swatch is editable.** The hex under a colour is a field: type over it and the swatch, its badges, the preview and both exports follow as you type. `#abc` shorthand works, a bad value is marked invalid and never applied, and leaving the field tidies what you typed or puts the old value back. Editing marks the palette as hand-edited, since it no longer comes from a generated recipe.
+- **Background and text check.** Pick any two colours from the palette and see them as they'd really be used — a heading and a paragraph on that background — with the ratio and the WCAG verdict spelled out ("passes AA and AAA", "only passes for large text", "fails AA"). **Swap** turns the pair around; **Best pair** finds the highest-contrast combination the palette can offer, which is also an honest way to discover that a palette has none that passes.
 - **Font pairings from a curated list.** 20 Google Fonts families in 14 hand-checked pairings. Only the two families in play are downloaded, and only in the weights actually used, so the whole set is never loaded upfront.
 - **Live preview.** The pairing applied to a headline, a subhead, a paragraph at a readable measure, a link, two buttons, a tinted panel and a row of chips — so most of the palette is on screen doing a job, not just sitting in swatches.
 
@@ -68,7 +70,30 @@ python -m http.server 8000
 - **Shuffle All** changes palette and pairing together, from the button or the keyboard. **Shuffle Fonts Only**, next to it, changes the pairing and leaves the colors exactly as they are — useful once a palette is right and the type isn't. The swatches don't replay their entrance animation when only the fonts move.
 - **Three curated starting points** — Minimal, Playful and Bold — so the page is never empty. It opens on Minimal.
 - **Favorites.** Save a combination, re-apply it, or delete it. Stored in `localStorage`, so they survive a reload.
-- **Export** the current combination as CSS custom properties (with the matching Google Fonts `<link>` as a comment) or as JSON, copied to the clipboard or downloaded:
+- **Export** the current combination as CSS custom properties or as JSON — copied to the clipboard, or downloaded as a `.css` or `.json` file.
+
+  The CSS carries a variable per swatch, the font families, any variable-axis settings, the matching Google Fonts `<link>` as a comment, **and a sample usage snippet** so it's something to paste rather than something to interpret:
+
+  ```css
+  :root {
+    --color-1: #0F172A;
+    /* … */
+    --font-heading: "Space Grotesk", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  }
+
+  /* Sample usage. Every pair below is at least 4.5:1,
+     so the text stays readable wherever you paste it. */
+  body {
+    background: var(--color-5);   /* #F8FAFC */
+    color: var(--color-1);        /* #0F172A · 17.06:1 */
+    font-family: var(--font-body);
+  }
+  ```
+
+  The snippet's pairs are checked against the surface they sit on, not against the preview, so they hold up on their own. If no colour in the palette is readable on the chosen background, it falls back to black or white and says so in the comment rather than shipping a pair that fails.
+
+  The JSON keeps its shape, with the axis values added only when you've moved them:
 
   ```json
   { "palette": ["#0F172A", "…"], "fonts": { "heading": "Space Grotesk", "body": "IBM Plex Sans" } }

@@ -986,6 +986,98 @@ pre {
 
 .switch input { width: 18px; height: 18px; accent-color: var(--accent); }
 
+/* ---------- Editable hex ---------- */
+.swatch-hex {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* It only looks like a field once you go near it: the palette stays calm */
+.swatch-hex:hover { border-color: var(--border-strong); }
+
+.swatch-hex:focus {
+  border-color: var(--text);
+  outline: 3px solid var(--color-focus, var(--ring));
+  outline-offset: 1px;
+  background-color: var(--surface);
+}
+
+.swatch-hex[aria-invalid="true"] {
+  border-color: var(--fail);
+  color: var(--fail);
+}
+
+/* ---------- Background and text check ---------- */
+.pair-check {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.pair-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 16px;
+  margin-top: 10px;
+}
+
+.pair-controls select {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.pair-controls .btn-sm { align-self: flex-end; }
+
+/* The sample takes the two colors being tried, and nothing else */
+.pair-sample {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 18px;
+  margin-top: 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--pair-bg, #ffffff);
+  color: var(--pair-fg, #111111);
+}
+
+.pair-sample-title {
+  font-family: var(--font-ui-heading);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.pair-sample-text {
+  flex: 1 1 260px;
+  font-size: 0.975rem;
+  line-height: 1.5;
+}
+
+.pair-verdict {
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+
+.pair-verdict .badge { margin-right: 6px; }
+
 /* ---------- Variable axis sliders ---------- */
 .axes-control[hidden] { display: none; }
 

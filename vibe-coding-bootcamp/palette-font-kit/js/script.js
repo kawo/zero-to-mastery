@@ -607,18 +607,26 @@
       chip.style.backgroundColor = hex;
       chip.setAttribute('aria-hidden', 'true');
 
-      var label = document.createElement('span');
-      label.className = 'swatch-hex';
-      label.textContent = hex;
-
       var hint = document.createElement('span');
       hint.className = 'swatch-hint';
       hint.setAttribute('aria-hidden', 'true');
       hint.textContent = 'Copy';
 
       button.appendChild(chip);
-      button.appendChild(label);
       button.appendChild(hint);
+
+      /* The hex is a field, not a label: type over it to change the color.
+         It sits outside the copy button — a field inside a button would be
+         unreachable by keyboard and invalid markup. */
+      var field = document.createElement('input');
+      field.type = 'text';
+      field.className = 'swatch-hex';
+      field.value = hex;
+      field.maxLength = 7;
+      field.spellcheck = false;
+      field.autocomplete = 'off';
+      field.dataset.index = String(index);
+      field.setAttribute('aria-label', 'Color ' + (index + 1) + ' of ' + palette.length + ', hex value');
 
       var badges = document.createElement('ul');
       badges.className = 'badges';
@@ -627,11 +635,145 @@
       badges.appendChild(renderBadge('black', contrast.black));
 
       item.appendChild(button);
+      item.appendChild(field);
       item.appendChild(badges);
       list.appendChild(item);
     });
 
     elements.schemeTag.textContent = scheme;
+  }
+
+  /**
+   * A hex typed into a swatch. Applied as it is typed, but without rebuilding
+   * the list: that would take the field out from under the cursor.
+   */
+  function editSwatch(field) {
+    var index = Number(field.dataset.index);
+    var typed = field.value.trim();
+    var hex = normalizeHex(typed);
+    field.setAttribute('aria-invalid', String(!hex));
+    if (!hex || state.palette[index] === hex) return;
+
+    state.palette[index] = hex;
+    /* The palette no longer comes from a recipe, so the controls stop
+       pretending it does. */
+    state.recipe = null;
+    state.preset = null;
+    state.scheme = 'Edited · ' + state.palette.length + ' colors';
+    elements.schemeTag.textContent = state.scheme;
+
+    var item = field.closest('.swatch');
+    var button = item.querySelector('.swatch-btn');
+    button.dataset.hex = hex;
+    button.setAttribute('aria-label', 'Copy ' + hex + ' to clipboard');
+    item.querySelector('.swatch-chip').style.backgroundColor = hex;
+
+    var contrast = checkContrast(hex);
+    var badges = item.querySelector('.badges');
+    badges.replaceChildren(renderBadge('white', contrast.white), renderBadge('black', contrast.black));
+
+    state.base = baseFromPalette(state.palette);
+    renderBaseControls();
+    renderPresets();
+    renderPreview(state, true);   // no entrance animation while typing
+    renderExports(state);
+    renderPairOptions({ keepChoice: true });
+  }
+
+  /** "#abc", "abc", "#AABBCC" → "#AABBCC"; anything else → null. */
+  function normalizeHex(value) {
+    var text = String(value || '').trim().replace(/^#/, '');
+    if (/^[0-9a-fA-F]{3}$/.test(text)) {
+      text = text[0] + text[0] + text[1] + text[1] + text[2] + text[2];
+    }
+    return /^[0-9a-fA-F]{6}$/.test(text) ? ('#' + text.toUpperCase()) : null;
+  }
+
+  /** On leaving the field: tidy what was typed, or put back what was there. */
+  function settleSwatch(field) {
+    var index = Number(field.dataset.index);
+    var hex = normalizeHex(field.value);
+    field.value = hex || state.palette[index];
+    field.removeAttribute('aria-invalid');
+  }
+
+  /* ---------- Background and text check ---------- */
+
+  /** Fills both lists with the palette, keeping the current choice if it survives. */
+  function renderPairOptions(options) {
+    options = options || {};
+    var previous = { bg: elements.pairBg.value, fg: elements.pairFg.value };
+    [elements.pairBg, elements.pairFg].forEach(function (select) {
+      select.replaceChildren.apply(select, state.palette.map(function (hex) {
+        var option = document.createElement('option');
+        option.value = hex;
+        option.textContent = hex;
+        return option;
+      }));
+    });
+
+    var keep = options.keepChoice &&
+      state.palette.indexOf(previous.bg) !== -1 && state.palette.indexOf(previous.fg) !== -1;
+    if (keep) {
+      elements.pairBg.value = previous.bg;
+      elements.pairFg.value = previous.fg;
+    } else {
+      var best = bestPair();
+      elements.pairBg.value = best.background;
+      elements.pairFg.value = best.foreground;
+    }
+    renderPair();
+  }
+
+  /** The two colors in the palette that read best against each other. */
+  function bestPair() {
+    var best = { background: state.palette[0], foreground: state.palette[0], ratio: 0 };
+    state.palette.forEach(function (background) {
+      state.palette.forEach(function (foreground) {
+        var ratio = contrastRatio(background, foreground);
+        if (ratio > best.ratio) best = { background: background, foreground: foreground, ratio: ratio };
+      });
+    });
+    /* Read dark-on-light, which is what most interfaces do. */
+    if (relativeLuminance(best.background) < relativeLuminance(best.foreground)) {
+      best = { background: best.foreground, foreground: best.background, ratio: best.ratio };
+    }
+    return best;
+  }
+
+  /** Paints the sample and says whether the pair is usable. */
+  function renderPair() {
+    var background = elements.pairBg.value || state.palette[0];
+    var foreground = elements.pairFg.value || state.palette[state.palette.length - 1];
+    var sample = elements.pairSample;
+    sample.style.setProperty('--pair-bg', background);
+    sample.style.setProperty('--pair-fg', foreground);
+
+    var ratio = contrastRatio(background, foreground);
+    var shown = (Math.floor(ratio * 100) / 100).toFixed(2);
+    var verdict = elements.pairVerdict;
+    verdict.replaceChildren();
+
+    var badge = document.createElement('span');
+    badge.className = 'badge ' + (ratio >= AA_NORMAL ? 'is-pass' : 'is-fail');
+    var mark = document.createElement('span');
+    mark.className = 'badge-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = ratio >= AA_NORMAL ? '✓' : '✕';
+    var badgeText = document.createElement('span');
+    badgeText.textContent = shown + ':1';
+    badge.append(mark, badgeText);
+
+    var words = document.createElement('span');
+    words.textContent = ratio >= 7
+      ? foreground + ' on ' + background + ' passes AA and AAA for normal text.'
+      : ratio >= AA_NORMAL
+        ? foreground + ' on ' + background + ' passes AA for normal text, but not AAA (7:1).'
+        : ratio >= AA_LARGE
+          ? foreground + ' on ' + background + ' only passes for large text (18.66px bold, or 24px).'
+          : foreground + ' on ' + background + ' fails AA: too close together to read.';
+
+    verdict.append(badge, words);
   }
 
   /** Applies the palette's colors to the preview and replays its entrance. */
@@ -719,6 +861,7 @@
     renderExports(state);
     renderPresets();
     renderBaseControls();
+    renderPairOptions({ keepChoice: Boolean(options.live || options.paletteStill) });
   }
 
   /** Puts the current base color and saturation into the two controls. */
@@ -1773,8 +1916,61 @@
       '&family=' + encodeURIComponent(combo.fonts.body).replace(/%20/g, '+') +
       ':wght@' + (FONTS[combo.fonts.body] || DEFAULT_FONT).weights.join(';');
 
+    /* A snippet that uses the variables, with every pair checked against the
+       surface it actually sits on, so the export is something to paste rather
+       than something to interpret. */
+    var colors = previewColors(combo.palette, previewBackground());
+    var ratio = function (x, y) { return (Math.floor(contrastRatio(x, y) * 100) / 100).toFixed(2); };
+    /* A palette color becomes a var(); anything else is written out, which
+       only happens when no color in the palette is readable on the surface. */
+    var reference = function (hex) {
+      var index = combo.palette.indexOf(hex);
+      return index === -1 ? hex : 'var(--color-' + (index + 1) + ')';
+    };
+
+    var surface = colors.surface;
+    /* The text has to work on THIS background, not on the preview's: the
+       lightest color of a palette can be far from the preview's ground. */
+    var ink = combo.palette
+      .slice()
+      .sort(function (x, y) { return contrastRatio(y, surface) - contrastRatio(x, surface); })
+      .filter(function (hex) { return contrastRatio(hex, surface) >= AA_NORMAL; })[0] || bestTextOn(surface);
+    var accent = colors.accent;
+    var accentText = colors.accentText;
+
+    var pad = function (text) { return text + new Array(Math.max(1, 26 - text.length)).join(' '); };
+    /* When nothing in the palette can be read on that background, the snippet
+       falls back to black or white and says so, rather than shipping a pair
+       that fails. */
+    var note = combo.palette.indexOf(ink) === -1
+      ? '   but no color in this palette is readable on that background,\n' +
+        '   so the body text falls back to ' + ink + '. */'
+      : '   so the text stays readable wherever you paste it. */';
+
+    var usage = [
+      '',
+      '/* Sample usage. Every pair below is at least ' + AA_NORMAL.toFixed(1) + ':1,',
+      note,
+      'body {',
+      '  ' + pad('background: ' + reference(surface) + ';') + '/* ' + surface + ' */',
+      '  ' + pad('color: ' + reference(ink) + ';') + '/* ' + ink + ' · ' + ratio(surface, ink) + ':1 */',
+      '  font-family: var(--font-body);',
+      '}',
+      '',
+      'h1, h2, h3 {',
+      '  font-family: var(--font-heading);',
+      '  color: ' + reference(ink) + ';',
+      '}',
+      '',
+      '.button {',
+      '  ' + pad('background: ' + reference(accent) + ';') + '/* ' + accent + ' */',
+      '  ' + pad('color: ' + reference(accentText) + ';') + '/* ' + ratio(accent, accentText) + ':1 */',
+      '  font-family: var(--font-body);',
+      '}'
+    ].join('\n');
+
     return '/* Fonts: <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=' +
-      families + '&display=swap"> */\n:root {\n' + lines.join('\n') + '\n}';
+      families + '&display=swap"> */\n:root {\n' + lines.join('\n') + '\n}\n' + usage + '\n';
   }
 
   /** The exact shape promised in the docs: { palette, fonts }. */
@@ -1788,13 +1984,22 @@
     return JSON.stringify({ palette: combo.palette, fonts: fonts }, null, 2);
   }
 
+  /** The same block the Copy button gives you, as a file. */
+  function downloadCSS() {
+    downloadFile(exportCSSVars(state), 'text/css', 'css');
+  }
+
   function downloadJSON() {
+    downloadFile(exportJSON(state), 'application/json', 'json');
+  }
+
+  function downloadFile(text, type, extension) {
     var stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    var blob = new Blob([exportJSON(state)], { type: 'application/json' });
+    var blob = new Blob([text], { type: type });
     var url = URL.createObjectURL(blob);
     var link = document.createElement('a');
     link.href = url;
-    link.download = 'aesthetic-' + stamp + '.json';
+    link.download = 'aesthetic-' + stamp + '.' + extension;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -1918,6 +2123,42 @@
 
     elements.paletteList.addEventListener('click', onSwatchClick);
 
+    /* Typing a hex over a swatch. Delegated, because the swatches are rebuilt
+       whenever the palette changes. */
+    elements.paletteList.addEventListener('input', function (event) {
+      if (event.target.classList.contains('swatch-hex')) editSwatch(event.target);
+    });
+    elements.paletteList.addEventListener('change', function (event) {
+      if (event.target.classList.contains('swatch-hex')) settleSwatch(event.target);
+    });
+    elements.paletteList.addEventListener('focusout', function (event) {
+      if (event.target.classList.contains('swatch-hex')) settleSwatch(event.target);
+    });
+    elements.paletteList.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && event.target.classList.contains('swatch-hex')) {
+        event.preventDefault();
+        settleSwatch(event.target);
+        event.target.select();
+      }
+    });
+
+    elements.pairBg.addEventListener('change', renderPair);
+    elements.pairFg.addEventListener('change', renderPair);
+    elements.pairSwap.addEventListener('click', function () {
+      var background = elements.pairBg.value;
+      elements.pairBg.value = elements.pairFg.value;
+      elements.pairFg.value = background;
+      renderPair();
+    });
+    elements.pairBest.addEventListener('click', function () {
+      var best = bestPair();
+      elements.pairBg.value = best.background;
+      elements.pairFg.value = best.foreground;
+      renderPair();
+      toast('Best pair: ' + best.foreground + ' on ' + best.background);
+    });
+    elements.downloadCss.addEventListener('click', downloadCSS);
+
     /* The preview's sample controls copy the color they are wearing. */
     [elements.previewButton, elements.previewSecondary].forEach(function (button) {
       button.addEventListener('click', function () {
@@ -2007,6 +2248,13 @@
       copyJson: $('copy-json'),
       downloadJson: $('download-json'),
       paletteList: $('palette-list'),
+      pairBg: $('pair-bg'),
+      pairFg: $('pair-fg'),
+      pairSwap: $('pair-swap'),
+      pairBest: $('pair-best'),
+      pairSample: $('pair-sample'),
+      pairVerdict: $('pair-verdict'),
+      downloadCss: $('download-css'),
       baseColor: $('base-color'),
       baseColorValue: $('base-color-value'),
       saturation: $('saturation'),
