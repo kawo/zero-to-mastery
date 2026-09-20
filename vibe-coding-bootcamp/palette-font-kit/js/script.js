@@ -1702,7 +1702,11 @@
       }
       face.load().then(function (loaded) {
         document.fonts.add(loaded);
-        registerFont(name, { weights: [400], stack: 'system-ui, sans-serif', source: file.name });
+        /* The bytes are kept so the font can travel in the ZIP. */
+        registerFont(name, {
+          weights: [400], stack: 'system-ui, sans-serif', source: file.name,
+          bytes: reader.result, extension: extension
+        });
         fileInput.value = '';
         useFont(name, specimen.role);
       }).catch(function () {
@@ -2084,6 +2088,320 @@
     return true;
   }
 
+  /* ---------- A ZIP of sample assets ---------- */
+
+  /*
+   * Written here rather than with a ZIP library: this page has no build step
+   * and no dependencies, and it has to keep working when opened as a file.
+   * Entries are stored, not deflated — a few kilobytes of CSS and HTML gain
+   * little from compression, and font files are compressed already.
+   */
+
+  var CRC_TABLE = (function () {
+    var table = new Uint32Array(256);
+    for (var i = 0; i < 256; i++) {
+      var value = i;
+      for (var bit = 0; bit < 8; bit++) {
+        value = (value & 1) ? (0xEDB88320 ^ (value >>> 1)) : (value >>> 1);
+      }
+      table[i] = value >>> 0;
+    }
+    return table;
+  })();
+
+  function crc32(bytes) {
+    var crc = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) {
+      crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  /** Builds a ZIP from [{ name, bytes }]. Stored entries, UTF-8 names. */
+  function makeZip(files) {
+    var encoder = new TextEncoder();
+    var now = new Date();
+    /* MS-DOS time and date, which is what the format has always used. */
+    var time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+    var date = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+
+    var entries = files.map(function (file) {
+      var name = encoder.encode(file.name);
+      return { name: name, bytes: file.bytes, crc: crc32(file.bytes) };
+    });
+
+    var localSize = entries.reduce(function (total, entry) { return total + 30 + entry.name.length + entry.bytes.length; }, 0);
+    var centralSize = entries.reduce(function (total, entry) { return total + 46 + entry.name.length; }, 0);
+    var output = new Uint8Array(localSize + centralSize + 22);
+    var view = new DataView(output.buffer);
+    var at = 0;
+
+    entries.forEach(function (entry) {
+      entry.offset = at;
+      view.setUint32(at, 0x04034B50, true);        // local file header
+      view.setUint16(at + 4, 20, true);            // version needed
+      view.setUint16(at + 6, 0x0800, true);        // UTF-8 names
+      view.setUint16(at + 8, 0, true);             // stored
+      view.setUint16(at + 10, time, true);
+      view.setUint16(at + 12, date, true);
+      view.setUint32(at + 14, entry.crc, true);
+      view.setUint32(at + 18, entry.bytes.length, true);
+      view.setUint32(at + 22, entry.bytes.length, true);
+      view.setUint16(at + 26, entry.name.length, true);
+      view.setUint16(at + 28, 0, true);
+      output.set(entry.name, at + 30);
+      output.set(entry.bytes, at + 30 + entry.name.length);
+      at += 30 + entry.name.length + entry.bytes.length;
+    });
+
+    var centralStart = at;
+    entries.forEach(function (entry) {
+      view.setUint32(at, 0x02014B50, true);        // central directory header
+      view.setUint16(at + 4, 20, true);
+      view.setUint16(at + 6, 20, true);
+      view.setUint16(at + 8, 0x0800, true);
+      view.setUint16(at + 10, 0, true);
+      view.setUint16(at + 12, time, true);
+      view.setUint16(at + 14, date, true);
+      view.setUint32(at + 16, entry.crc, true);
+      view.setUint32(at + 20, entry.bytes.length, true);
+      view.setUint32(at + 24, entry.bytes.length, true);
+      view.setUint16(at + 28, entry.name.length, true);
+      view.setUint32(at + 42, entry.offset, true);
+      output.set(entry.name, at + 46);
+      at += 46 + entry.name.length;
+    });
+
+    view.setUint32(at, 0x06054B50, true);          // end of central directory
+    view.setUint16(at + 8, entries.length, true);
+    view.setUint16(at + 10, entries.length, true);
+    view.setUint32(at + 12, at - centralStart, true);
+    view.setUint32(at + 16, centralStart, true);
+    return output;
+  }
+
+  /**
+   * The font files themselves, when they can be had: Google serves them with
+   * permission for other sites to read them, so they can be fetched and put
+   * in the ZIP. A font added from a file is already in hand. Anything that
+   * can't be fetched is simply left out, and the page keeps its web link.
+   */
+  function collectFontFiles(families) {
+    var wanted = ['latin', 'latin-ext'];   // enough for the sample copy
+    var jobs = families.map(function (family) {
+      var config = FONTS[family] || DEFAULT_FONT;
+      if (config.bytes) {
+        return Promise.resolve([{
+          family: family,
+          file: 'fonts/' + family.replace(/ /g, '-') + '.' + (config.extension || 'woff2'),
+          bytes: new Uint8Array(config.bytes),
+          rule: null
+        }]);
+      }
+      if (config.source && !config.specimen) return Promise.resolve([]);   // nothing to fetch
+
+      return fetch(fontHref(family, config))
+        .then(function (response) { return response.ok ? response.text() : ''; })
+        .then(function (css) {
+          var blocks = [];
+          var pattern = /\/\*\s*([\w-]+)\s*\*\/\s*@font-face\s*{([^}]*)}/g;
+          var match;
+          while ((match = pattern.exec(css))) {
+            if (wanted.indexOf(match[1]) === -1) continue;
+            var url = /url\((https:\/\/[^)]+)\)/.exec(match[2]);
+            if (url) blocks.push({ subset: match[1], body: match[2], url: url[1] });
+          }
+          return Promise.all(blocks.map(function (block, index) {
+            return fetch(block.url)
+              .then(function (response) { return response.ok ? response.arrayBuffer() : null; })
+              .then(function (buffer) {
+                if (!buffer) return null;
+                var file = 'fonts/' + family.replace(/ /g, '-') + '-' + block.subset + '-' + (index + 1) + '.woff2';
+                return {
+                  family: family,
+                  file: file,
+                  bytes: new Uint8Array(buffer),
+                  /* The block is kept as Google wrote it (unicode-range and
+                     all), with the address pointed at the local copy. */
+                  rule: '@font-face {' + block.body.replace(/url\([^)]+\)/, 'url("' + file.replace('fonts/', '') + '")') + '}'
+                };
+              });
+          }));
+        })
+        .then(function (results) { return results.filter(Boolean); })
+        .catch(function () { return []; });
+    });
+    return Promise.all(jobs).then(function (lists) {
+      return lists.reduce(function (all, list) { return all.concat(list); }, []);
+    });
+  }
+
+  /** The example page: the palette and the pairing, used the way they would be. */
+  function sampleHtml(bundledFonts) {
+    var colors = previewColors(state.palette, previewBackground());
+    var headingText = specimen.heading.text || 'Type sets the tone before a word is read';
+    var bodyText = specimen.body.text ||
+      'Good pairings agree on rhythm and disagree on everything else: one face with character ' +
+      'for headlines, one built for long reading underneath.';
+    var escape = function (text) {
+      return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+    var fontLink = bundledFonts
+      ? '  <link rel="stylesheet" href="fonts/fonts.css" />'
+      : '  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />\n' +
+        '  <link rel="stylesheet" href="' + fontHref(state.fonts.heading, FONTS[state.fonts.heading] || DEFAULT_FONT) + '" />\n' +
+        '  <link rel="stylesheet" href="' + fontHref(state.fonts.body, FONTS[state.fonts.body] || DEFAULT_FONT) + '" />';
+
+    return [
+      '<!DOCTYPE html>',
+      '<html lang="en">',
+      '<head>',
+      '  <meta charset="utf-8" />',
+      '  <meta name="viewport" content="width=device-width, initial-scale=1" />',
+      '  <title>' + escape(state.fonts.heading) + ' and ' + escape(state.fonts.body) + '</title>',
+      fontLink,
+      '  <link rel="stylesheet" href="styles.css" />',
+      '</head>',
+      '<body>',
+      '  <main class="page">',
+      '    <h1>' + escape(headingText) + '</h1>',
+      '    <p class="lede">' + escape(bodyText) + '</p>',
+      '    <p><a class="button" href="#">Sample button</a></p>',
+      '    <ul class="swatches">',
+      state.palette.map(function (hex, index) {
+        return '      <li style="background: var(--color-' + (index + 1) + '); color: ' +
+          bestTextOn(hex) + ';">' + hex + '</li>';
+      }).join('\n'),
+      '    </ul>',
+      '  </main>',
+      '</body>',
+      '</html>',
+      ''
+    ].join('\n');
+  }
+
+  /** The stylesheet: the same export, plus the little bit of layout the page needs. */
+  function sampleCss() {
+    var colors = previewColors(state.palette, previewBackground());
+    return exportCSSVars(state) + [
+      '',
+      '/* Layout for the sample page */',
+      '.page {',
+      '  max-width: 42rem;',
+      '  margin: 0 auto;',
+      '  padding: 3rem 1.25rem;',
+      '}',
+      '',
+      '.lede { max-width: 34rem; line-height: 1.6; }',
+      '',
+      '.button {',
+      '  display: inline-block;',
+      '  margin-top: 1.5rem;',
+      '  padding: 0.85rem 1.5rem;',
+      '  border-radius: 10px;',
+      '  text-decoration: none;',
+      '}',
+      '',
+      '.swatches {',
+      '  display: flex;',
+      '  flex-wrap: wrap;',
+      '  gap: 0.5rem;',
+      '  margin-top: 2.5rem;',
+      '  padding: 0;',
+      '  list-style: none;',
+      '  font-family: ui-monospace, Menlo, Consolas, monospace;',
+      '  font-size: 0.8rem;',
+      '}',
+      '',
+      '.swatches li {',
+      '  padding: 0.75rem 1rem;',
+      '  border-radius: 8px;',
+      '}',
+      ''
+    ].join('\n');
+  }
+
+  function sampleReadme(fontFiles) {
+    var lines = [
+      'Palette & Font Kit — sample assets',
+      '==================================',
+      '',
+      'index.html   an example page using the palette and the pairing',
+      'styles.css   the palette as CSS custom properties, with sample usage',
+      'combination.json  the same combination as data, to load back into the kit',
+      ''
+    ];
+    if (fontFiles.length) {
+      lines.push('fonts/       the font files themselves, plus fonts.css that declares them,');
+      lines.push('             so the page works with no connection.');
+      lines.push('');
+      lines.push('Fonts: ' + state.fonts.heading + ' (headings), ' + state.fonts.body + ' (body text).');
+      lines.push('Google Fonts are published under the SIL Open Font License; a font you');
+      lines.push('added yourself keeps whatever licence it came with. Check before you ship.');
+    } else {
+      lines.push('The page links to Google Fonts for its type: the font files could not be');
+      lines.push('fetched here, so they are not included.');
+    }
+    lines.push('');
+    lines.push('Made with the Palette & Font Kit.');
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  /** Gathers everything, zips it, and hands it over. */
+  function downloadZip() {
+    var button = elements.downloadZip;
+    button.disabled = true;
+    var label = button.textContent;
+    button.textContent = 'Building…';
+    var encoder = new TextEncoder();
+    var families = state.fonts.heading === state.fonts.body
+      ? [state.fonts.heading]
+      : [state.fonts.heading, state.fonts.body];
+
+    return collectFontFiles(families).then(function (fontFiles) {
+      var files = [];
+      var rules = fontFiles.filter(function (item) { return item.rule; }).map(function (item) { return item.rule; });
+      /* A font from a file has no rule of Google's to reuse: write one. */
+      fontFiles.filter(function (item) { return !item.rule; }).forEach(function (item) {
+        rules.push('@font-face {\n  font-family: "' + item.family + '";\n  src: url("' +
+          item.file.replace('fonts/', '') + '");\n  font-display: swap;\n}');
+      });
+
+      if (fontFiles.length) {
+        files.push({ name: 'fonts/fonts.css', bytes: encoder.encode(rules.join('\n\n') + '\n') });
+        fontFiles.forEach(function (item) { files.push({ name: item.file, bytes: item.bytes }); });
+      }
+      files.unshift(
+        { name: 'index.html', bytes: encoder.encode(sampleHtml(fontFiles.length > 0)) },
+        { name: 'styles.css', bytes: encoder.encode(sampleCss()) },
+        { name: 'combination.json', bytes: encoder.encode(exportJSON(state) + '\n') },
+        { name: 'README.txt', bytes: encoder.encode(sampleReadme(fontFiles)) }
+      );
+
+      var zip = makeZip(files);
+      var stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      var url = URL.createObjectURL(new Blob([zip], { type: 'application/zip' }));
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = 'aesthetic-' + stamp + '.zip';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+
+      var size = Math.max(1, Math.round(zip.length / 1024));
+      toast(fontFiles.length
+        ? 'Downloaded ' + files.length + ' files, fonts included (' + size + ' KB)'
+        : 'Downloaded ' + files.length + ' files — the fonts could not be fetched, so the page links to them');
+    }).catch(function () {
+      toast('The ZIP could not be built.');
+    }).then(function () {
+      button.disabled = false;
+      button.textContent = label;
+    });
+  }
+
   /* ======================================================================
      7. Exports and clipboard
      ====================================================================== */
@@ -2348,6 +2666,7 @@
       toast('Best pair: ' + best.foreground + ' on ' + best.background);
     });
     elements.downloadCss.addEventListener('click', downloadCSS);
+    elements.downloadZip.addEventListener('click', downloadZip);
 
     elements.copyShare.addEventListener('click', function () {
       var share = shareUrl();
@@ -2461,6 +2780,7 @@
       pairSample: $('pair-sample'),
       pairVerdict: $('pair-verdict'),
       downloadCss: $('download-css'),
+      downloadZip: $('download-zip'),
       shareUrl: $('share-url'),
       shareHint: $('share-hint'),
       copyShare: $('copy-share'),

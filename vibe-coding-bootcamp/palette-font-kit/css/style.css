@@ -848,6 +848,13 @@ input[type="range"] {
   margin-bottom: 8px;
 }
 
+/* The export buttons sit in a row that has to wrap on a phone */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .export-label {
   font-family: var(--font-ui-heading);
   font-size: 0.85rem;
