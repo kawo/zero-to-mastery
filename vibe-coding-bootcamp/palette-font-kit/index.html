@@ -574,6 +574,10 @@ input[type="range"] {
   --preview-heading: #111111;
   --preview-accent: #4f46e5;
   --preview-accent-text: #ffffff;
+  --preview-secondary: #4f46e5;
+  --preview-link: #4f46e5;
+  --preview-surface: #f3f4f6;
+  --preview-surface-text: #111111;
 
   padding: clamp(20px, 1rem + 3vw, 40px);
   border: 1px solid var(--border-strong);
@@ -630,9 +634,25 @@ input[type="range"] {
   line-height: 1.65;
 }
 
+/* Text inside the body copy, in a palette color that passes AA on white */
+.preview-link {
+  color: var(--preview-link);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
 .preview-button {
   display: inline-block;
-  margin-top: 22px;
   padding: 13px 26px;
   border-radius: 10px;
   background-color: var(--preview-accent);
@@ -640,6 +660,61 @@ input[type="range"] {
   font-family: var(--font-body);
   font-size: 1rem;
   font-weight: 600;
+}
+
+/* The same call to action as an outline, in a second palette color */
+.preview-button-secondary {
+  display: inline-block;
+  padding: 11px 24px;
+  border: 2px solid var(--preview-secondary);
+  border-radius: 10px;
+  color: var(--preview-secondary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* A panel: the lightest color of the palette as a surface, with the darkest
+   color that stays readable on it as text. */
+.preview-panel {
+  margin-top: 24px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background-color: var(--preview-surface);
+  color: var(--preview-surface-text);
+}
+
+.preview-panel-label {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.preview-panel-text {
+  margin-top: 6px;
+  font-family: var(--font-body);
+  font-size: 0.975rem;
+  line-height: 1.55;
+}
+
+/* Every color in the palette, each carrying the black or white text that
+   reads best on it. */
+.preview-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.preview-chip {
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
 }
 
 .preview-note {
@@ -975,15 +1050,29 @@ pre {
         <p class="preview-eyebrow">Live preview</p>
         <h3 class="preview-headline">Type sets the tone before a word is read</h3>
         <p class="preview-subhead">
-          A heading face, a body face, and one color from the palette carrying the call to action.
+          A heading face, a body face, and the whole palette put to work around them.
         </p>
         <p class="preview-body">
           Good pairings agree on rhythm and disagree on everything else: one face with character
           for headlines, one built for long reading underneath. This paragraph is here to show the
           body face at a real measure, with descenders, numerals like 2026, and punctuation —
-          the details that decide whether a pairing survives past the mood board.
+          <span class="preview-link">the details</span> that decide whether a pairing survives past the mood board.
         </p>
-        <span class="preview-button">Sample button<span class="sr-only"> (sample only, not interactive)</span></span>
+
+        <div class="preview-actions">
+          <span class="preview-button">Sample button<span class="sr-only"> (sample only, not interactive)</span></span>
+          <span class="preview-button-secondary">Secondary<span class="sr-only"> (sample only, not interactive)</span></span>
+        </div>
+
+        <div class="preview-panel">
+          <p class="preview-panel-label">Panel</p>
+          <p class="preview-panel-text" id="preview-panel-text"></p>
+        </div>
+
+        <!-- One chip per color. The swatch list above already announces every
+             HEX with its contrast, so this row is a visual demonstration. -->
+        <ul class="preview-chips" id="preview-chips" aria-hidden="true"></ul>
+
         <p class="preview-note" id="preview-note"></p>
       </div>
     </section>
@@ -1360,22 +1449,42 @@ pre {
    * The preview can therefore never render an unreadable sample.
    */
   function previewColors(palette) {
+    /* Only colors that pass AA on white may be used for text. */
     var onWhite = palette.filter(function (hex) { return contrastRatio(hex, '#FFFFFF') >= AA_NORMAL; });
     var byDarkness = onWhite.slice().sort(function (a, b) { return relativeLuminance(a) - relativeLuminance(b); });
+    var byChroma = palette.slice().sort(function (a, b) { return chroma(b) - chroma(a); });
     var heading = byDarkness[0] || '#111111';
 
-    var accentCandidates = palette.slice().sort(function (a, b) { return chroma(b) - chroma(a); });
-    var accent = accentCandidates[0] || heading;
+    var accent = byChroma[0] || heading;                       // the button's fill
     var accentText = bestTextOn(accent);
 
-    var eyebrow = onWhite.filter(function (hex) { return hex !== heading; })[0] || heading;
+    /* Different colors for the smaller roles where the palette allows it, so
+       the preview shows range rather than one color five times. */
+    var others = onWhite.filter(function (hex) { return hex !== heading; });
+    var eyebrow = others[0] || heading;
+    var link = others[1] || others[0] || heading;
+    var secondary = onWhite.slice().sort(function (a, b) { return chroma(b) - chroma(a); })
+      .filter(function (hex) { return hex !== heading; })[0] || heading;
+
+    /* Panel: the lightest color as a surface, and the darkest palette color
+       that is readable on it (otherwise plain black or white). */
+    var surface = palette.slice().sort(function (a, b) { return relativeLuminance(b) - relativeLuminance(a); })[0] || '#F3F4F6';
+    var surfaceText = palette
+      .slice()
+      .sort(function (a, b) { return relativeLuminance(a) - relativeLuminance(b); })
+      .filter(function (hex) { return contrastRatio(hex, surface) >= AA_NORMAL; })[0] || bestTextOn(surface);
 
     return {
       heading: heading,
       accent: accent,
       accentText: accentText,
       eyebrow: eyebrow,
-      buttonRatio: contrastRatio(accent, accentText)
+      link: link,
+      secondary: secondary,
+      surface: surface,
+      surfaceText: surfaceText,
+      buttonRatio: contrastRatio(accent, accentText),
+      panelRatio: contrastRatio(surface, surfaceText)
     };
   }
 
@@ -1529,13 +1638,35 @@ pre {
     preview.style.setProperty('--preview-heading', colors.heading);
     preview.style.setProperty('--preview-accent', colors.accent);
     preview.style.setProperty('--preview-accent-text', colors.accentText);
+    preview.style.setProperty('--preview-secondary', colors.secondary);
+    preview.style.setProperty('--preview-link', colors.link);
+    preview.style.setProperty('--preview-surface', colors.surface);
+    preview.style.setProperty('--preview-surface-text', colors.surfaceText);
     elements.eyebrow.style.color = colors.eyebrow;
 
+    elements.previewPanelText.textContent =
+      'The lightest color of the palette as a surface, with ' + colors.surfaceText +
+      ' on top: the pairing you would reach for on a card.';
+
+    /* One chip per color, each with the black or white text that reads best
+       on it — the contrast badges above, shown in use. */
+    elements.previewChips.textContent = '';
+    combo.palette.forEach(function (hex) {
+      var chip = document.createElement('li');
+      chip.className = 'preview-chip';
+      chip.style.backgroundColor = hex;
+      chip.style.color = bestTextOn(hex);
+      chip.textContent = hex;
+      elements.previewChips.appendChild(chip);
+    });
+
     var ratio = (Math.floor(colors.buttonRatio * 100) / 100).toFixed(2);
+    var panelRatio = (Math.floor(colors.panelRatio * 100) / 100).toFixed(2);
     elements.previewNote.textContent =
-      'Preview colors are picked from the palette with a contrast check: the button is ' +
-      colors.accent + ' with ' + (colors.accentText === '#FFFFFF' ? 'white' : 'near-black') +
-      ' text, ' + ratio + ':1 (AA ' + (colors.buttonRatio >= AA_NORMAL ? 'pass' : 'fail') + ').';
+      'Every color here is checked first: the button is ' + colors.accent + ' with ' +
+      (colors.accentText === '#FFFFFF' ? 'white' : 'near-black') + ' text (' + ratio + ':1), ' +
+      'the panel is ' + colors.surface + ' with ' + colors.surfaceText + ' text (' + panelRatio + ':1), ' +
+      'and headings, links and the outline button only use colors that pass AA on white.';
 
     /* Restart the animation: drop the class, force a reflow, add it back.
        Skipped while a control is being dragged, or it would flicker. */
@@ -2057,6 +2188,8 @@ pre {
       preview: $('preview'),
       eyebrow: document.querySelector('.preview-eyebrow'),
       previewNote: $('preview-note'),
+      previewPanelText: $('preview-panel-text'),
+      previewChips: $('preview-chips'),
       headingName: $('heading-name'),
       bodyName: $('body-name'),
       headingLink: $('heading-link'),

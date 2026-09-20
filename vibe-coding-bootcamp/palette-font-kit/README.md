@@ -25,7 +25,19 @@ python -m http.server 8000
   - **Keep on shuffle:** off by default — shuffle picks a fresh base each time and the controls show what came out. Tick it and shuffle keeps your color and saturation while changing everything else.
 - **Contrast built in.** Each swatch shows its contrast ratio *used as text* on white and on black, with a pass/fail badge for WCAG 2.1 AA at normal text size (4.5:1). Ratios are floored rather than rounded, so "4.50:1" never appears next to a FAIL badge.
 - **Font pairings from a curated list.** 20 Google Fonts families in 14 hand-checked pairings. Only the two families in play are downloaded, and only in the weights actually used, so the whole set is never loaded upfront.
-- **Live preview.** The pairing applied to a headline, a subhead, a paragraph at a readable measure, and a sample button. The preview's colors are picked from the palette with a contrast check: the headline takes the darkest color that genuinely passes on white, and the button takes the most saturated color with black or white text chosen by ratio. The caption states the button's ratio, so the sample is never unreadable.
+- **Live preview.** The pairing applied to a headline, a subhead, a paragraph at a readable measure, a link, two buttons, a tinted panel and a row of chips — so most of the palette is on screen doing a job, not just sitting in swatches.
+
+  Every one of those colors is picked with a contrast check first:
+
+  | Element | Color it takes |
+  |---------|----------------|
+  | Headline | the darkest color that passes AA on white |
+  | Eyebrow, link, outline button | other colors that pass AA on white, kept distinct where the palette allows |
+  | Filled button | the most saturated color, with black or white text by ratio |
+  | Panel | the lightest color, with the darkest color that stays readable on it |
+  | Chips | every color, each carrying the text color that reads best on it |
+
+  The caption under the preview states the ratios it used, so the sample is never an unreadable mush.
 - **Shuffle** changes palette and pairing together, from the button or the keyboard.
 - **Three curated starting points** — Minimal, Playful and Bold — so the page is never empty. It opens on Minimal.
 - **Favorites.** Save a combination, re-apply it, or delete it. Stored in `localStorage`, so they survive a reload.
