@@ -550,9 +550,73 @@ input[type="range"] {
 
 .pairing-link:hover { color: var(--accent); }
 
-/* The preview keeps the same neutral surface in both UI themes, on purpose:
-   generated colors and type are judged against a constant ground, so dark
-   mode never changes how a palette reads. */
+/* ---------- Live preview controls ---------- */
+.specimen-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 24px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+}
+
+.control-wide { flex: 1 1 280px; min-width: 200px; }
+
+/* Matches .control > label, for groups labelled by a span instead */
+.control-label {
+  color: var(--text-muted);
+  font-family: var(--font-ui-heading);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.specimen-controls textarea,
+.specimen-controls select {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui-body);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.specimen-controls textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.specimen-controls select {
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.specimen-controls .btn-sm { align-self: flex-end; }
+
+/* The size slider needs less room than the saturation one */
+#specimen-size, #specimen-leading { min-width: 96px; max-width: 150px; }
+
+/* A family that failed to load: the preview falls back, and says so */
+.preview-warning {
+  margin-bottom: 12px;
+  color: var(--preview-ink-muted);
+  font-family: var(--font-ui-body);
+  font-size: 0.85rem;
+}
+
+.preview-warning[hidden] { display: none; }
+
+/* Typed text can be one very long word: never let it push the card wider */
+.preview-headline,
+.preview-body { overflow-wrap: anywhere; }
+
 .preview {
   /* The preview's own neutrals. They follow the UI theme (see below), while
      staying plain grey: the palette supplies every other color here, and the

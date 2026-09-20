@@ -41,6 +41,13 @@ python -m http.server 8000
 
   The caption under the preview states the ratios it used, so the sample is never an unreadable mush.
 
+- **Type your own words.** Above the preview: a text box, an *Apply to* switch (Heading or Body), and size, weight and line-height controls. Everything updates as you type or drag — one style write per change, measured at well under a millisecond.
+  - **Each role keeps its own settings,** so a 96px headline and a 17px paragraph can be tuned separately without fighting each other.
+  - **The weight list is the family's own weights.** Asking for a weight a font doesn't publish makes the browser synthesise one, so only the real ones are offered; switching to a family with fewer weights snaps to the nearest published one.
+  - **Empty text brings the sample copy back,** link and all.
+  - **Untouched controls leave the stylesheet alone.** Inline sizes are only written once you actually change something, so a size picked on a desktop doesn't wreck the phone layout. **Reset** puts a role back to the sample copy and the responsive sizes.
+  - **Edge cases:** the text box is capped at 300 characters and long strings wrap rather than stretching the page; out-of-range or non-numeric values are clamped to the control's range; and if a family can't be fetched (offline, or Google Fonts blocked) the preview falls back to the stack declared with it and says which family is missing.
+
   **The sample controls are real controls.** The two buttons and the link are `<button>` and `<a>` elements, not dressed-up spans: they take keyboard focus, show hover, press and focus states in the palette's own colors, and do something rather than nothing — each button copies the color it is wearing (as the swatches do), and the link opens the body face's specimen on Google Fonts. That way the states you are judging are the states a browser really renders.
 - **Shuffle All** changes palette and pairing together, from the button or the keyboard. **Shuffle Fonts Only**, next to it, changes the pairing and leaves the colors exactly as they are — useful once a palette is right and the type isn't. The swatches don't replay their entrance animation when only the fonts move.
 - **Three curated starting points** — Minimal, Playful and Bold — so the page is never empty. It opens on Minimal.

@@ -416,6 +416,22 @@
   var elements = {};
   var loadedFamilies = new Set();
 
+  /* The live preview controls. Each role keeps its own settings, because a
+     headline and a paragraph want very different sizes. `custom` stays false
+     until something is actually changed: while it is false the preview keeps
+     the responsive clamp() sizes from the stylesheet. */
+  var WEIGHT_NAMES = { 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semibold', 700: 'Bold', 800: 'Extrabold', 900: 'Black' };
+  var SPECIMEN_LIMITS = {
+    heading: { min: 16, max: 120, leadMin: 0.8, leadMax: 2.2 },
+    body: { min: 12, max: 48, leadMin: 1, leadMax: 2.2 }
+  };
+  var specimen = {
+    role: 'heading',
+    heading: { text: '', size: 48, weight: 700, leading: 1.1, custom: false },
+    body: { text: '', size: 16, weight: 400, leading: 1.65, custom: false }
+  };
+  var stockCopy = { heading: '', body: null };   // filled in at init
+
   /** Injects one Google Fonts stylesheet per family, only when first used. */
   function ensureFamilyLoaded(family) {
     if (loadedFamilies.has(family)) return;
@@ -449,7 +465,11 @@
     /* Dim the preview until the faces are ready, but never wait forever:
        an offline or blocked CDN just falls back to the stack above. */
     preview.classList.add('is-loading');
-    var done = function () { preview.classList.remove('is-loading'); };
+    var done = function () {
+      preview.classList.remove('is-loading');
+      checkFontsArrived(fonts);
+      syncSpecimenToFonts();   // the new family may not publish the old weight
+    };
     if (document.fonts && document.fonts.load) {
       Promise.race([
         Promise.all([
@@ -559,8 +579,7 @@
     elements.previewButton.dataset.hex = colors.accent;
     elements.previewSecondary.title = 'Copy ' + colors.secondary;
     elements.previewSecondary.dataset.hex = colors.secondary;
-    elements.previewLink.href = 'https://fonts.google.com/specimen/' + combo.fonts.body.replace(/ /g, '+');
-    elements.previewLink.title = combo.fonts.body + ' on Google Fonts (opens in a new tab)';
+    dressPreviewLink();
 
     elements.previewPanelText.textContent =
       colors.surface + ' as a surface, with ' + colors.surfaceText +
@@ -721,6 +740,206 @@
       paletteStill: true
     });
     toast('New pairing: ' + state.fonts.heading + ' with ' + state.fonts.body);
+  }
+
+  /* ---------- Live preview controls ---------- */
+
+  /** Keeps a number inside its range; falls back if it isn't a number at all. */
+  function clampNumber(value, min, max, fallback) {
+    var number = typeof value === 'number' ? value : parseFloat(value);
+    if (!isFinite(number)) return fallback;
+    return Math.min(max, Math.max(min, number));
+  }
+
+  function specimenTarget(role) {
+    return role === 'heading' ? elements.previewHeadline : elements.previewBody;
+  }
+
+  /** Puts the stock sample back, links and all (the body holds an <a>). */
+  function restoreStock(role) {
+    if (role === 'heading') {
+      elements.previewHeadline.textContent = stockCopy.heading;
+      return;
+    }
+    elements.previewBody.replaceChildren.apply(elements.previewBody, stockCopy.body.map(function (node) {
+      return node.cloneNode(true);
+    }));
+    /* The link is a fresh node now, so take hold of it again and re-dress it. */
+    elements.previewLink = $('preview-link');
+    dressPreviewLink();
+  }
+
+  function dressPreviewLink() {
+    if (!elements.previewLink) return;
+    elements.previewLink.href = 'https://fonts.google.com/specimen/' + state.fonts.body.replace(/ /g, '+');
+    elements.previewLink.title = state.fonts.body + ' on Google Fonts (opens in a new tab)';
+  }
+
+  /** Writes both roles' text and type settings into the preview. */
+  function applySpecimen() {
+    ['heading', 'body'].forEach(function (role) {
+      var settings = specimen[role];
+      var target = specimenTarget(role);
+      if (settings.text) target.textContent = settings.text;
+      else if (target.textContent !== stockCopy[role] || role === 'body') restoreStock(role);
+
+      if (settings.custom) {
+        target.style.fontSize = settings.size + 'px';
+        target.style.fontWeight = String(settings.weight);
+        target.style.lineHeight = String(settings.leading);
+      } else {
+        /* Nothing set by hand: let the stylesheet's responsive sizes stand. */
+        target.style.fontSize = '';
+        target.style.fontWeight = '';
+        target.style.lineHeight = '';
+      }
+    });
+  }
+
+  /** The weights this role's family really publishes. */
+  function weightsForRole(role) {
+    var family = role === 'heading' ? state.fonts.heading : state.fonts.body;
+    return (FONTS[family] || DEFAULT_FONT).weights;
+  }
+
+  /** Fills the controls from the settings of the role being edited. */
+  function renderSpecimenControls() {
+    var role = specimen.role;
+    var settings = specimen[role];
+    var limits = SPECIMEN_LIMITS[role];
+    var weights = weightsForRole(role);
+
+    [].forEach.call(elements.specimenRole.querySelectorAll('[data-role]'), function (option) {
+      var checked = option.dataset.role === role;
+      option.setAttribute('aria-checked', String(checked));
+      option.tabIndex = checked ? 0 : -1;
+    });
+
+    elements.specimenText.value = settings.text;
+
+    elements.specimenSize.min = String(limits.min);
+    elements.specimenSize.max = String(limits.max);
+    elements.specimenSize.value = String(Math.round(settings.size));
+    elements.specimenSizeValue.textContent = Math.round(settings.size) + 'px';
+
+    elements.specimenLeading.min = String(limits.leadMin);
+    elements.specimenLeading.max = String(limits.leadMax);
+    elements.specimenLeading.value = String(settings.leading);
+    elements.specimenLeadingValue.textContent = Number(settings.leading).toFixed(2);
+
+    /* Only the weights the family publishes: asking for one it doesn't have
+       would silently render a synthesised face. */
+    elements.specimenWeight.replaceChildren.apply(elements.specimenWeight, weights.map(function (weight) {
+      var option = document.createElement('option');
+      option.value = String(weight);
+      option.textContent = weight + (WEIGHT_NAMES[weight] ? ' · ' + WEIGHT_NAMES[weight] : '');
+      option.selected = weight === settings.weight;
+      return option;
+    }));
+    elements.specimenWeight.disabled = weights.length < 2;
+    elements.specimenReset.disabled = !settings.custom && !settings.text;
+  }
+
+  /**
+   * Reads whatever the stylesheet is currently rendering, so the controls
+   * start from the real values instead of guesses, and clamps the chosen
+   * weight to what the new family actually has.
+   */
+  function syncSpecimenToFonts() {
+    ['heading', 'body'].forEach(function (role) {
+      var settings = specimen[role];
+      var weights = weightsForRole(role);
+      if (weights.indexOf(settings.weight) === -1) {
+        /* Nearest published weight, so switching families never asks for one
+           the font doesn't have. */
+        settings.weight = weights.reduce(function (best, weight) {
+          return Math.abs(weight - settings.weight) < Math.abs(best - settings.weight) ? weight : best;
+        }, weights[0]);
+      }
+      if (settings.custom) return;
+      var computed = getComputedStyle(specimenTarget(role));
+      var size = parseFloat(computed.fontSize);
+      var limits = SPECIMEN_LIMITS[role];
+      if (isFinite(size)) settings.size = clampNumber(Math.round(size), limits.min, limits.max, settings.size);
+      var leading = parseFloat(computed.lineHeight) / (size || 1);
+      if (isFinite(leading)) settings.leading = clampNumber(Math.round(leading * 20) / 20, limits.leadMin, limits.leadMax, settings.leading);
+    });
+    renderSpecimenControls();
+  }
+
+  /** One control moved: store it, apply it, update the readouts. */
+  function updateSpecimen(which) {
+    var role = specimen.role;
+    var settings = specimen[role];
+    var limits = SPECIMEN_LIMITS[role];
+
+    if (which === 'text') {
+      settings.text = elements.specimenText.value.slice(0, 300);
+    } else {
+      settings.custom = true;
+      settings.size = clampNumber(elements.specimenSize.value, limits.min, limits.max, settings.size);
+      settings.leading = clampNumber(elements.specimenLeading.value, limits.leadMin, limits.leadMax, settings.leading);
+      var weights = weightsForRole(role);
+      var chosen = clampNumber(elements.specimenWeight.value, 100, 900, settings.weight);
+      settings.weight = weights.indexOf(chosen) === -1 ? weights[0] : chosen;
+      elements.specimenSizeValue.textContent = Math.round(settings.size) + 'px';
+      elements.specimenLeadingValue.textContent = Number(settings.leading).toFixed(2);
+    }
+    elements.specimenReset.disabled = !settings.custom && !settings.text;
+    applySpecimen();
+  }
+
+  /** Back to the sample copy and the stylesheet's own sizes, for this role. */
+  function resetSpecimen() {
+    var role = specimen.role;
+    specimen[role] = { text: '', size: specimen[role].size, weight: weightsForRole(role)[0], leading: specimen[role].leading, custom: false };
+    applySpecimen();
+    syncSpecimenToFonts();
+    toast(role === 'heading' ? 'Heading reset to the sample' : 'Body reset to the sample');
+  }
+
+  /**
+   * Says so when a family didn't arrive (offline, or Google Fonts blocked):
+   * the preview falls back to the stack declared with the family, and the
+   * message names what happened rather than leaving it a mystery.
+   */
+  /**
+   * True when a family is really there to render with.
+   *
+   * Not document.fonts.check(): that answers "can this font string be
+   * rendered", and an unknown family quietly falls back to a system face, so
+   * it returns true for a family that never arrived. Measuring is what tells
+   * the truth — the same text is measured with two very different fallbacks,
+   * and if the family loaded, both measurements are of the family itself and
+   * match; if it didn't, monospace and cursive give different widths.
+   */
+  function familyIsAvailable(family, weight) {
+    try {
+      var canvas = familyIsAvailable.canvas || (familyIsAvailable.canvas = document.createElement('canvas'));
+      var context = canvas.getContext('2d');
+      var sample = 'MMMWWWiiilll0123gjpqy';
+      context.font = weight + ' 48px "' + family + '", monospace';
+      var withMono = context.measureText(sample).width;
+      context.font = weight + ' 48px "' + family + '", cursive';
+      var withCursive = context.measureText(sample).width;
+      return Math.abs(withMono - withCursive) < 0.5;
+    } catch (error) {
+      return true;   // can't tell: say nothing rather than warn wrongly
+    }
+  }
+
+  function checkFontsArrived(fonts) {
+    var missing = [fonts.heading, fonts.body].filter(function (family, index) {
+      return !familyIsAvailable(family, index === 0 ? headingWeight(family) : 400);
+    });
+    /* Both roles can use the same family; don't name it twice. */
+    missing = missing.filter(function (family, index) { return missing.indexOf(family) === index; });
+    elements.previewWarning.hidden = missing.length === 0;
+    if (missing.length) {
+      elements.previewWarning.textContent = missing.join(' and ') +
+        (missing.length > 1 ? ' could not be loaded' : ' could not be loaded') +
+        ' from Google Fonts — showing ' + stackOf(missing[0]).split(',')[0] + ' instead.';
+    }
   }
 
   /* ======================================================================
@@ -1111,6 +1330,28 @@
       toast(state.settings.shortcuts ? 'Keyboard shortcuts on' : 'Keyboard shortcuts off');
     });
 
+    /* Live preview controls. "input" fires on every keystroke and every drag
+       step, and the work is one style write, so the preview keeps up. */
+    elements.specimenText.addEventListener('input', function () { updateSpecimen('text'); });
+    [elements.specimenSize, elements.specimenLeading].forEach(function (control) {
+      control.addEventListener('input', function () { updateSpecimen('type'); });
+    });
+    elements.specimenWeight.addEventListener('change', function () { updateSpecimen('type'); });
+    elements.specimenReset.addEventListener('click', resetSpecimen);
+
+    function chooseRole(option) {
+      specimen.role = option.dataset.role;
+      renderSpecimenControls();
+    }
+    elements.specimenRole.addEventListener('click', function (event) {
+      var option = event.target.closest('[data-role]');
+      if (option) chooseRole(option);
+    });
+    elements.specimenRole.addEventListener('keydown', function (event) {
+      var option = moveInGroup(event, elements.specimenRole, '[data-role]');
+      if (option) chooseRole(option);
+    });
+
     document.addEventListener('keydown', onKeydown);
   }
 
@@ -1133,6 +1374,17 @@
       eyebrow: document.querySelector('.preview-eyebrow'),
       previewNote: $('preview-note'),
       previewPanelText: $('preview-panel-text'),
+      previewHeadline: document.querySelector('.preview-headline'),
+      previewBody: document.querySelector('.preview-body'),
+      previewWarning: $('preview-warning'),
+      specimenText: $('specimen-text'),
+      specimenRole: $('specimen-role'),
+      specimenSize: $('specimen-size'),
+      specimenSizeValue: $('specimen-size-value'),
+      specimenWeight: $('specimen-weight'),
+      specimenLeading: $('specimen-leading'),
+      specimenLeadingValue: $('specimen-leading-value'),
+      specimenReset: $('specimen-reset'),
       previewButton: $('preview-button'),
       previewSecondary: $('preview-secondary'),
       previewLink: $('preview-link'),
@@ -1162,9 +1414,14 @@
     renderFavorites();
     if (!state.storageWorks) persistFavorites();   // shows the blocked-storage note
 
+    /* Keep the sample copy, so an emptied text box can put it back. */
+    stockCopy.heading = elements.previewHeadline.textContent.trim();
+    stockCopy.body = [].map.call(elements.previewBody.childNodes, function (node) { return node.cloneNode(true); });
+
     /* The page opens on "Minimal" rather than something random, so the first
        impression is a designed combination. */
     applyCombo(PRESETS.minimal, { preset: 'minimal' });
+    syncSpecimenToFonts();
 
     wireEvents();
   }

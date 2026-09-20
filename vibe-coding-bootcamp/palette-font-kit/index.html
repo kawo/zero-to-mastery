@@ -156,12 +156,55 @@
         </div>
       </div>
 
+      <!-- Type your own words and shape them: the controls below drive the
+           preview's headline or its body paragraph, live. -->
+      <div class="specimen-controls" role="group" aria-label="Preview text controls">
+        <div class="control control-wide">
+          <label for="specimen-text">Preview text</label>
+          <textarea id="specimen-text" rows="2" maxlength="300" spellcheck="false"
+                    placeholder="Type your own words, or leave empty for the sample"></textarea>
+        </div>
+
+        <div class="control">
+          <span class="control-label" id="specimen-role-label">Apply to</span>
+          <div class="type-filter" role="radiogroup" aria-labelledby="specimen-role-label" id="specimen-role">
+            <button type="button" class="type-option" role="radio" data-role="heading" aria-checked="true">Heading</button>
+            <button type="button" class="type-option" role="radio" data-role="body" aria-checked="false" tabindex="-1">Body</button>
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="specimen-size">Size</label>
+          <div class="range-field">
+            <input type="range" id="specimen-size" min="16" max="120" step="1" value="48" />
+            <output id="specimen-size-value" for="specimen-size">48px</output>
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="specimen-weight">Weight</label>
+          <select id="specimen-weight"></select>
+        </div>
+
+        <div class="control">
+          <label for="specimen-leading">Line height</label>
+          <div class="range-field">
+            <input type="range" id="specimen-leading" min="0.8" max="2.2" step="0.05" value="1.1" />
+            <output id="specimen-leading-value" for="specimen-leading">1.10</output>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-sm" id="specimen-reset">Reset</button>
+      </div>
+
       <!-- Live preview. Its ground follows the UI theme but stays a plain
            neutral; every other color here comes from the palette, re-picked
            against whichever ground it is on. The sample controls are real:
            they copy the color they are wearing. -->
       <div class="preview" id="preview">
         <p class="preview-eyebrow">Live preview</p>
+        <!-- Shown only when a family really failed to arrive -->
+        <p class="preview-warning" id="preview-warning" hidden></p>
         <h3 class="preview-headline">Type sets the tone before a word is read</h3>
         <p class="preview-subhead">
           A heading face, a body face, and the whole palette put to work around them.
