@@ -223,9 +223,16 @@
           </div>
         </div>
 
-        <div class="control">
+        <div class="control" id="weight-control">
           <label for="specimen-weight">Weight</label>
           <select id="specimen-weight"></select>
+        </div>
+
+        <!-- Sliders for the axes of a variable font. Built by the script:
+             empty, and hidden, for a font that has none. -->
+        <div class="control control-wide axes-control" id="axes-control" hidden>
+          <span class="control-label" id="axes-label">Variable axes</span>
+          <div class="axes-list" id="axes-list" role="group" aria-labelledby="axes-label"></div>
         </div>
 
         <div class="control">

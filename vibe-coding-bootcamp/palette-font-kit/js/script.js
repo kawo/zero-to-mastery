@@ -24,27 +24,32 @@
      real fallback stack (so a blocked CDN degrades to something sensible).
      Only the weights listed are requested: asking for a weight a family
      doesn't publish makes the whole request fail. */
+  /* `axes` is what makes a family variable: one entry per axis, with the
+     range the font really supports (taken from Google's own metadata). A
+     family listed with axes is requested as a variable file — see
+     ensureFamilyLoaded — so the sliders have something to move. */
+  var ax = function (tag, min, max, def) { return { tag: tag, min: min, max: max, def: def }; };
   var FONTS = {
-    'Space Grotesk':      { weights: [400, 700], stack: 'system-ui, sans-serif' },
-    'IBM Plex Sans':      { weights: [400, 600], stack: 'system-ui, sans-serif' },
-    'Playfair Display':   { weights: [400, 700], stack: 'Georgia, "Times New Roman", serif' },
-    'Source Sans 3':      { weights: [400, 600], stack: 'system-ui, sans-serif' },
-    'Fraunces':           { weights: [400, 700], stack: 'Georgia, serif' },
-    'Karla':              { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Space Grotesk':      { weights: [400, 700], stack: 'system-ui, sans-serif', axes: [ax('wght', 300, 700, 400)] },
+    'IBM Plex Sans':      { weights: [400, 600], stack: 'system-ui, sans-serif', axes: [ax('wdth', 75, 100, 100), ax('wght', 100, 700, 400)] },
+    'Playfair Display':   { weights: [400, 700], stack: 'Georgia, "Times New Roman", serif', axes: [ax('wght', 400, 900, 400)] },
+    'Source Sans 3':      { weights: [400, 600], stack: 'system-ui, sans-serif', axes: [ax('wght', 200, 900, 400)] },
+    'Fraunces':           { weights: [400, 700], stack: 'Georgia, serif', axes: [ax('opsz', 9, 144, 14), ax('wght', 100, 900, 400), ax('SOFT', 0, 100, 0), ax('WONK', 0, 1, 0)] },
+    'Karla':              { weights: [400, 600], stack: 'system-ui, sans-serif', axes: [ax('wght', 200, 800, 400)] },
     'DM Serif Display':   { weights: [400],      stack: 'Georgia, serif' },
-    'DM Sans':            { weights: [400, 500], stack: 'system-ui, sans-serif' },
+    'DM Sans':            { weights: [400, 500], stack: 'system-ui, sans-serif', axes: [ax('opsz', 9, 40, 14), ax('wght', 100, 1000, 400)] },
     'Bebas Neue':         { weights: [400],      stack: 'Impact, system-ui, sans-serif' },
-    'Work Sans':          { weights: [400, 600], stack: 'system-ui, sans-serif' },
-    'Syne':               { weights: [600, 800], stack: 'system-ui, sans-serif' },
-    'Manrope':            { weights: [400, 600], stack: 'system-ui, sans-serif' },
-    'Lora':               { weights: [400, 700], stack: 'Georgia, serif' },
+    'Work Sans':          { weights: [400, 600], stack: 'system-ui, sans-serif', axes: [ax('wght', 100, 900, 400)] },
+    'Syne':               { weights: [600, 800], stack: 'system-ui, sans-serif', axes: [ax('wght', 400, 800, 400)] },
+    'Manrope':            { weights: [400, 600], stack: 'system-ui, sans-serif', axes: [ax('wght', 200, 800, 400)] },
+    'Lora':               { weights: [400, 700], stack: 'Georgia, serif', axes: [ax('wght', 400, 700, 400)] },
     'Lato':               { weights: [400, 700], stack: 'system-ui, sans-serif' },
-    'Outfit':             { weights: [400, 700], stack: 'system-ui, sans-serif' },
-    'Nunito Sans':        { weights: [400, 600], stack: 'system-ui, sans-serif' },
-    'Libre Baskerville':  { weights: [400, 700], stack: 'Georgia, serif' },
-    'Oswald':             { weights: [400, 600], stack: 'Impact, system-ui, sans-serif' },
-    'Merriweather':       { weights: [400, 700], stack: 'Georgia, serif' },
-    'Rubik':              { weights: [400, 500], stack: 'system-ui, sans-serif' }
+    'Outfit':             { weights: [400, 700], stack: 'system-ui, sans-serif', axes: [ax('wght', 100, 900, 400)] },
+    'Nunito Sans':        { weights: [400, 600], stack: 'system-ui, sans-serif', axes: [ax('opsz', 6, 12, 12), ax('wdth', 75, 125, 100), ax('wght', 200, 1000, 400), ax('YTLC', 440, 540, 500)] },
+    'Libre Baskerville':  { weights: [400, 700], stack: 'Georgia, serif', axes: [ax('wght', 400, 700, 400)] },
+    'Oswald':             { weights: [400, 600], stack: 'Impact, system-ui, sans-serif', axes: [ax('wght', 200, 700, 400)] },
+    'Merriweather':       { weights: [400, 700], stack: 'Georgia, serif', axes: [ax('opsz', 18, 144, 18), ax('wdth', 87, 112, 100), ax('wght', 300, 900, 400)] },
+    'Rubik':              { weights: [400, 500], stack: 'system-ui, sans-serif', axes: [ax('wght', 300, 900, 400)] }
   };
 
   var DEFAULT_FONT = { weights: [400, 700], stack: 'system-ui, sans-serif' };
@@ -415,6 +420,7 @@
 
   var elements = {};
   var loadedFamilies = new Set();
+  var familyReady = {};       // family → promise that settles when its CSS is in the page
 
   /* The live preview controls. Each role keeps its own settings, because a
      headline and a paragraph want very different sizes. `custom` stays false
@@ -427,28 +433,68 @@
   };
   var specimen = {
     role: 'heading',
-    heading: { text: '', size: 48, weight: 700, leading: 1.1, custom: false },
-    body: { text: '', size: 16, weight: 400, leading: 1.65, custom: false }
+    heading: { text: '', size: 48, weight: 700, leading: 1.1, custom: false, axes: {} },
+    body: { text: '', size: 16, weight: 400, leading: 1.65, custom: false, axes: {} }
   };
   var stockCopy = { heading: '', body: null };   // filled in at init
 
   /** Injects one Google Fonts stylesheet per family, only when first used. */
+  /**
+   * The css2 address for a family.
+   *
+   * With axes, the whole range of each is asked for, which is what makes
+   * Google serve the variable file instead of a couple of static cuts — the
+   * sliders need that file. Google wants the tags sorted, lowercase ones
+   * first, then the uppercase custom ones.
+   */
+  function fontHref(family, config) {
+    var base = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(family).replace(/%20/g, '+');
+    if (config.axes && config.axes.length) {
+      var sorted = config.axes.slice().sort(function (a, b) {
+        var aUpper = a.tag === a.tag.toUpperCase();
+        var bUpper = b.tag === b.tag.toUpperCase();
+        if (aUpper !== bUpper) return aUpper ? 1 : -1;
+        return a.tag < b.tag ? -1 : 1;
+      });
+      return base + ':' + sorted.map(function (axis) { return axis.tag; }).join(',') +
+        '@' + sorted.map(function (axis) { return axis.min + '..' + axis.max; }).join(',') + '&display=swap';
+    }
+    return base + ':wght@' + config.weights.join(';') + '&display=swap';
+  }
+
+  /**
+   * Makes sure a family's stylesheet is in the page. Returns a promise that
+   * settles once it is there: a variable family is fetched rather than
+   * linked, so asking "has this font arrived?" before that fetch comes back
+   * would always answer no.
+   */
   function ensureFamilyLoaded(family) {
-    if (loadedFamilies.has(family)) return;
+    if (familyReady[family]) return familyReady[family];
+
     var config = FONTS[family] || DEFAULT_FONT;
-    var link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=' +
-      encodeURIComponent(family).replace(/%20/g, '+') +
-      ':wght@' + config.weights.join(';') + '&display=swap';
-    document.head.appendChild(link);
+    var href = fontHref(family, config);
+    var ready;
+    if (config.axes && config.axes.length) {
+      /* A range request fails outright if an axis is wrong, so check it and
+         fall back to the plain weights rather than losing the font. */
+      ready = loadFontStylesheet(href).then(function (sheet) {
+        if (!sheet.ok) linkStylesheet(fontHref(family, { weights: config.weights }));
+      });
+    } else {
+      linkStylesheet(href);
+      ready = Promise.resolve();
+    }
     loadedFamilies.add(family);
+    familyReady[family] = ready;
+    return ready;
   }
 
   /** Loads the pair and points the preview's font variables at it. */
   function applyFonts(fonts) {
-    ensureFamilyLoaded(fonts.heading);
-    ensureFamilyLoaded(fonts.body);
+    var stylesheetsReady = Promise.all([
+      ensureFamilyLoaded(fonts.heading),
+      ensureFamilyLoaded(fonts.body)
+    ]);
 
     var preview = elements.preview;
     preview.style.setProperty('--font-heading', '"' + fonts.heading + '", ' + stackOf(fonts.heading));
@@ -480,14 +526,19 @@
     };
     if (document.fonts && document.fonts.load) {
       Promise.race([
-        Promise.all([
-          document.fonts.load(headingWeight(fonts.heading) + ' 1rem "' + fonts.heading + '"'),
-          document.fonts.load('400 1rem "' + fonts.body + '"')
-        ]),
-        new Promise(function (resolve) { setTimeout(resolve, 2500); })
+        /* First the stylesheet has to be in the page, then the faces it
+           declares have to resolve — either way, arrived or not. */
+        stylesheetsReady.then(function () {
+          return Promise.all([
+            document.fonts.load(headingWeight(fonts.heading) + ' 1rem "' + fonts.heading + '"'),
+            document.fonts.load('400 1rem "' + fonts.body + '"')
+          ]);
+        }).catch(function () {}),
+        /* Safety net, in case a promise never settles at all. */
+        new Promise(function (resolve) { setTimeout(resolve, 8000); })
       ]).then(done, done);
     } else {
-      setTimeout(done, 400);
+      stylesheetsReady.then(function () { setTimeout(done, 400); }, function () { setTimeout(done, 400); });
     }
   }
 
@@ -815,9 +866,17 @@
       if (settings.text) target.textContent = settings.text;
       else if (target.textContent !== stockCopy[role] || role === 'body') restoreStock(role);
 
+      /* Axis values stand on their own: they apply whether or not the size
+         and weight have been touched. */
+      target.style.fontVariationSettings = variationSettings(role);
+
       if (settings.custom) {
         target.style.fontSize = settings.size + 'px';
-        target.style.fontWeight = String(settings.weight);
+        /* font-variation-settings "wght" wins over font-weight, so the weight
+           is only written when the font has no weight axis. */
+        var axes = role === specimen.role ? axesForRole(role) : (FONTS[role === 'heading' ? state.fonts.heading : state.fonts.body] || {}).axes || [];
+        var hasWeightAxis = axes.some(function (axis) { return axis.tag === 'wght'; });
+        target.style.fontWeight = hasWeightAxis ? '' : String(settings.weight);
         target.style.lineHeight = String(settings.leading);
       } else {
         /* Nothing set by hand: let the stylesheet's responsive sizes stand. */
@@ -869,7 +928,8 @@
       return option;
     }));
     elements.specimenWeight.disabled = weights.length < 2;
-    elements.specimenReset.disabled = !settings.custom && !settings.text;
+    renderAxes();
+    elements.specimenReset.disabled = !settings.custom && !settings.text && !Object.keys(settings.axes || {}).length;
   }
 
   /**
@@ -880,6 +940,15 @@
   function syncSpecimenToFonts() {
     ['heading', 'body'].forEach(function (role) {
       var settings = specimen[role];
+      /* A new family has its own axes: drop values for ones it doesn't have,
+         and any that now fall outside its range. */
+      var axes = axesForRole(role);
+      settings.axes = settings.axes || {};
+      Object.keys(settings.axes).forEach(function (tag) {
+        var axis = axes.filter(function (item) { return item.tag === tag; })[0];
+        if (!axis) delete settings.axes[tag];
+        else settings.axes[tag] = clampNumber(settings.axes[tag], axis.min, axis.max, axis.def);
+      });
       var weights = weightsForRole(role);
       if (weights.indexOf(settings.weight) === -1) {
         /* Nearest published weight, so switching families never asks for one
@@ -897,6 +966,9 @@
       if (isFinite(leading)) settings.leading = clampNumber(Math.round(leading * 20) / 20, limits.leadMin, limits.leadMax, settings.leading);
     });
     renderSpecimenControls();
+    /* The values just cleaned have to reach the preview too, or a static
+       family keeps the last variable one’s settings. */
+    applySpecimen();
   }
 
   /** One control moved: store it, apply it, update the readouts. */
@@ -924,9 +996,10 @@
   /** Back to the sample copy and the stylesheet's own sizes, for this role. */
   function resetSpecimen() {
     var role = specimen.role;
-    specimen[role] = { text: '', size: specimen[role].size, weight: weightsForRole(role)[0], leading: specimen[role].leading, custom: false };
+    specimen[role] = { text: '', size: specimen[role].size, weight: weightsForRole(role)[0], leading: specimen[role].leading, custom: false, axes: {} };
     applySpecimen();
     syncSpecimenToFonts();
+    renderExports(state);
     toast(role === 'heading' ? 'Heading reset to the sample' : 'Body reset to the sample');
   }
 
@@ -1001,6 +1074,135 @@
     }
   }
 
+  /* ---------- Variable font axes ---------- */
+
+  var AXIS_NAMES = {
+    wght: 'Weight', wdth: 'Width', opsz: 'Optical size', slnt: 'Slant', ital: 'Italic',
+    GRAD: 'Grade', SOFT: 'Softness', WONK: 'Wonky', YTLC: 'Lowercase height', CASL: 'Casual', MONO: 'Monospace'
+  };
+
+  /* Ranges used when a font's axes have to be guessed (a file from this
+     computer carries no metadata we can read). These are the usual ones. */
+  var COMMON_AXES = [
+    { tag: 'wght', min: 100, max: 900, def: 400 },
+    { tag: 'wdth', min: 50, max: 200, def: 100 },
+    { tag: 'opsz', min: 8, max: 144, def: 14 },
+    { tag: 'slnt', min: -15, max: 0, def: 0 },
+    { tag: 'GRAD', min: -200, max: 150, def: 0 }
+  ];
+
+  /**
+   * Which axes a font really responds to, when nothing tells us: the same
+   * text is measured with each axis at its lowest and highest, and an axis
+   * that changes the measurement is an axis the font has.
+   *
+   * Measured in the page, not on a canvas: a font added from a file isn't
+   * available to canvas at all (see familyIsAvailable).
+   */
+  function probeAxes(family) {
+    var probe = document.createElement('span');
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText = 'position:absolute;left:-9999px;top:0;white-space:pre;font-size:72px;' +
+      'font-family:"' + family + '", monospace;';
+    probe.textContent = 'Handgloves 123';
+    document.body.appendChild(probe);
+    var found = COMMON_AXES.filter(function (axis) {
+      probe.style.fontVariationSettings = '"' + axis.tag + '" ' + axis.min;
+      var low = probe.getBoundingClientRect().width + 'x' + probe.getBoundingClientRect().height;
+      probe.style.fontVariationSettings = '"' + axis.tag + '" ' + axis.max;
+      var high = probe.getBoundingClientRect().width + 'x' + probe.getBoundingClientRect().height;
+      return low !== high;
+    });
+    probe.remove();
+    return found;
+  }
+
+  /** The axes of the family a role is using: known ones, or measured ones. */
+  function axesForRole(role) {
+    var family = role === 'heading' ? state.fonts.heading : state.fonts.body;
+    var config = FONTS[family];
+    if (!config) return [];
+    if (config.axes) return config.axes;
+    if (config.probedAxes) return config.probedAxes;
+    config.probedAxes = probeAxes(family);   // measured once per family
+    return config.probedAxes;
+  }
+
+  /** "wght" 523, "opsz" 32 — or '' when nothing has been moved. */
+  function variationSettings(role) {
+    var values = specimen[role].axes || {};
+    var parts = Object.keys(values).map(function (tag) {
+      return '"' + tag + '" ' + values[tag];
+    });
+    return parts.join(', ');
+  }
+
+  /** One slider per axis, for the role being edited. */
+  function renderAxes() {
+    var role = specimen.role;
+    var axes = axesForRole(role);
+    var values = specimen[role].axes || (specimen[role].axes = {});
+
+    elements.axesControl.hidden = axes.length === 0;
+    /* A weight axis is a better weight control than the list of cuts, so the
+       list steps aside when there is one. */
+    var hasWeightAxis = axes.some(function (axis) { return axis.tag === 'wght'; });
+    elements.weightControl.hidden = hasWeightAxis;
+    if (!axes.length) {
+      elements.axesList.replaceChildren();
+      return;
+    }
+
+    elements.axesList.replaceChildren.apply(elements.axesList, axes.map(function (axis) {
+      var row = document.createElement('div');
+      row.className = 'axis-row';
+
+      var id = 'axis-' + axis.tag;
+      var label = document.createElement('label');
+      label.setAttribute('for', id);
+      var tag = document.createElement('span');
+      tag.className = 'axis-tag';
+      tag.textContent = axis.tag;
+      var name = document.createElement('span');
+      name.className = 'axis-name';
+      name.textContent = AXIS_NAMES[axis.tag] || '';
+      label.append(tag, name);
+
+      var slider = document.createElement('input');
+      slider.type = 'range';
+      slider.id = id;
+      slider.min = String(axis.min);
+      slider.max = String(axis.max);
+      /* Whole numbers, except for the tiny ranges (WONK is 0 to 1). */
+      slider.step = axis.max - axis.min <= 2 ? '0.01' : '1';
+      /* An untouched weight axis starts where the preview already is (the
+         heading renders bold), not at the font's default of 400. */
+      var startsAt = axis.def;
+      if (axis.tag === 'wght') {
+        var family = role === 'heading' ? state.fonts.heading : state.fonts.body;
+        startsAt = clampNumber(role === 'heading' ? headingWeight(family) : 400, axis.min, axis.max, axis.def);
+      }
+      slider.value = String(values[axis.tag] !== undefined ? values[axis.tag] : startsAt);
+
+      var output = document.createElement('output');
+      output.setAttribute('for', id);
+      output.textContent = slider.value;
+
+      slider.addEventListener('input', function () {
+        var value = clampNumber(slider.value, axis.min, axis.max, axis.def);
+        values[axis.tag] = value;
+        output.textContent = String(value);
+        specimen[role].custom = true;
+        elements.specimenReset.disabled = false;
+        applySpecimen();
+        renderExports(state);   // the settings are part of the CSS export
+      });
+
+      row.append(label, slider, output);
+      return row;
+    }));
+  }
+
   /* ---------- Adding fonts: Google Fonts, a URL, or a file ---------- */
 
   var MAX_FONT_BYTES = 5 * 1024 * 1024;        // 5 MB: a generous woff2 is ~100 KB
@@ -1050,6 +1252,7 @@
   function registerFont(name, config) {
     FONTS[name] = config;
     loadedFamilies.add(name);   // never ask Google for it
+    familyReady[name] = Promise.resolve();
     addedFonts.push({ name: name, source: config.source });
     renderAddedFonts();
   }
@@ -1156,6 +1359,9 @@
         catalogue = (data.familyMetadataList || []).map(function (item) {
           return {
             family: item.family,
+            axes: (item.axes || []).map(function (axis) {
+              return { tag: axis.tag, min: axis.min, max: axis.max, def: axis.defaultValue };
+            }),
             weights: Object.keys(item.fonts || {})
               .filter(function (key) { return /^\d+$/.test(key); })
               .map(Number)
@@ -1216,9 +1422,8 @@
     }
 
     var weights = weightsToLoad(known && known.weights);
-    var href = 'https://fonts.googleapis.com/css2?family=' +
-      encodeURIComponent(family).replace(/%20/g, '+') +
-      ':wght@' + weights.join(';') + '&display=swap';
+    var axes = known && known.axes && known.axes.length ? known.axes : null;
+    var href = fontHref(family, axes ? { axes: axes, weights: weights } : { weights: weights });
 
     elements.fontSearchAdd.disabled = true;
     loadFontStylesheet(href).then(function (sheet) {
@@ -1239,7 +1444,7 @@
         }
         return;
       }
-      registerFont(family, { weights: weights, stack: 'system-ui, sans-serif', source: 'Google Fonts', specimen: true });
+      registerFont(family, { weights: weights, stack: 'system-ui, sans-serif', source: 'Google Fonts', specimen: true, axes: axes || undefined });
       elements.fontSearch.value = '';
       useFont(family, specimen.role);
     });
@@ -1557,6 +1762,11 @@
     });
     lines.push('  --font-heading: "' + combo.fonts.heading + '", ' + stackOf(combo.fonts.heading) + ';');
     lines.push('  --font-body: "' + combo.fonts.body + '", ' + stackOf(combo.fonts.body) + ';');
+    /* Axis settings only appear once something has been moved. */
+    ['heading', 'body'].forEach(function (role) {
+      var settings = variationSettings(role);
+      if (settings) lines.push('  --font-' + role + '-variation: ' + settings + ';');
+    });
 
     var families = encodeURIComponent(combo.fonts.heading).replace(/%20/g, '+') +
       ':wght@' + (FONTS[combo.fonts.heading] || DEFAULT_FONT).weights.join(';') +
@@ -1569,10 +1779,13 @@
 
   /** The exact shape promised in the docs: { palette, fonts }. */
   function exportJSON(combo) {
-    return JSON.stringify({
-      palette: combo.palette,
-      fonts: { heading: combo.fonts.heading, body: combo.fonts.body }
-    }, null, 2);
+    var fonts = { heading: combo.fonts.heading, body: combo.fonts.body };
+    ['heading', 'body'].forEach(function (role) {
+      if (Object.keys(specimen[role].axes || {}).length) {
+        fonts[role + 'Axes'] = specimen[role].axes;
+      }
+    });
+    return JSON.stringify({ palette: combo.palette, fonts: fonts }, null, 2);
   }
 
   function downloadJSON() {
@@ -1815,6 +2028,9 @@
       specimenLeading: $('specimen-leading'),
       specimenLeadingValue: $('specimen-leading-value'),
       specimenReset: $('specimen-reset'),
+      weightControl: $('weight-control'),
+      axesControl: $('axes-control'),
+      axesList: $('axes-list'),
       addFont: $('add-font'),
       fontSearch: $('font-search'),
       fontCatalogue: $('font-catalogue'),

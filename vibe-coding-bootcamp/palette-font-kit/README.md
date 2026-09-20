@@ -49,6 +49,14 @@ python -m http.server 8000
 
   **Checks before anything is used:** the extension must be one of the four; the type the browser reports must be a font type; the file must be under 5 MB; and then the browser itself has to parse the bytes, which is the real test — a text file renamed `.woff2` is refused. Links must be `https` (or `http` on localhost), and anything that could break out of a CSS `url("…")` is rejected. Family names are reduced to letters, digits and spaces before they reach the stylesheet.
 
+- **Variable font axes.** Most Google families are variable, and when the selected one is, a slider appears for each axis it really has — `wght`, `wdth`, `opsz`, and the odder ones like Fraunces's `SOFT` and `WONK` — each with the font's own range. Moving one writes `font-variation-settings` straight onto the preview.
+  - **The ranges are the font's, not a guess.** They're taken from Google's own metadata, and a test re-checks the built-in ones against the live catalogue so they can't quietly drift.
+  - **A family with axes is fetched as a variable file** (`wght@100..900` rather than two static cuts), because static instances don't move. If a range request is refused, it falls back to the plain weights instead of losing the font.
+  - **The weight list steps aside** when a font has a `wght` axis: the slider is strictly more capable, and `font-variation-settings` would override `font-weight` anyway. An untouched weight slider starts where the preview already is, not at the font's default.
+  - **Static fonts, and missing axes:** no sliders, and the weight list comes back. Switching families drops values for axes the new font doesn't have and clamps the rest into its range.
+  - **A font from a file** carries no metadata we can read, so its axes are measured instead: the same text is rendered with each common axis at its lowest and highest, and an axis that changes the rendering is one the font has.
+  - **Exports carry them:** `--font-heading-variation: "wght" 800, "opsz" 120;` in the CSS, and a `headingAxes` / `bodyAxes` object in the JSON, both only when something has been moved.
+
 - **Type your own words.** Above the preview: a text box, an *Apply to* switch (Heading or Body), and size, weight and line-height controls. Everything updates as you type or drag — one style write per change, measured at well under a millisecond.
   - **Each role keeps its own settings,** so a 96px headline and a 17px paragraph can be tuned separately without fighting each other.
   - **The weight list is the family's own weights.** Asking for a weight a font doesn't publish makes the browser synthesise one, so only the real ones are offered; switching to a family with fewer weights snaps to the nearest published one.
