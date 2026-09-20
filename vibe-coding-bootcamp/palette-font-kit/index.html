@@ -169,13 +169,14 @@ a { color: inherit; }
   padding-block: 28px 8px;
 }
 
+/* This element is the .wrap itself, so it keeps .wrap's side padding:
+   zeroing it here would push the title and tagline against the screen edge. */
 .header-inner {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding-inline: 0;
 }
 
 .site-title {
@@ -680,13 +681,33 @@ pre {
   font-size: 0.875rem;
 }
 
+/* Also the .wrap itself: keep its gutter (see .header-inner). */
 .footer-inner {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px 24px;
-  padding-inline: 0;
+}
+
+/* ---------- Shortcut bar (top of the page) ---------- */
+/* Hidden below 640px: shortcuts need a physical keyboard, so on a phone the
+   strip is noise. The shortcuts themselves stay wired up, in case a keyboard
+   is attached to a small screen. */
+.shortcut-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+  margin-bottom: 20px;
+  padding: 9px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background-color: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .shortcut-list {
@@ -725,6 +746,12 @@ pre {
 }
 
 .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- Phones: no keyboard, so no shortcut hints ---------- */
+@media (max-width: 640px) {
+  .shortcut-bar { display: none; }
+  .btn kbd { display: none; }      /* the hints inside Shuffle / Save / Copy CSS */
+}
 
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
@@ -777,6 +804,20 @@ pre {
 </header>
 
 <main id="main" class="wrap">
+  <!-- ---------- Keyboard shortcuts (hidden on phones, see the media query) ---------- -->
+  <div class="shortcut-bar" role="group" aria-labelledby="shortcut-bar-title">
+    <ul class="shortcut-list">
+      <li id="shortcut-bar-title" class="sr-only">Keyboard shortcuts</li>
+      <li><kbd>Space</kbd> shuffle</li>
+      <li><kbd>S</kbd> save</li>
+      <li><kbd>C</kbd> copy CSS</li>
+    </ul>
+    <label class="switch" for="shortcuts-toggle">
+      <input type="checkbox" id="shortcuts-toggle" checked />
+      Keyboard shortcuts
+    </label>
+  </div>
+
   <!-- ---------- Controls ---------- -->
   <section class="card" aria-labelledby="controls-title">
     <h2 id="controls-title" class="sr-only">Controls</h2>
@@ -896,7 +937,7 @@ pre {
       <p class="card-note" id="favorites-note">Saved in this browser only, with localStorage.</p>
       <ul class="fav-list" id="favorites-list"></ul>
       <p class="empty" id="favorites-empty">
-        Nothing saved yet. Shuffle until something clicks, then press <kbd>S</kbd>.
+        Nothing saved yet. Shuffle until something clicks, then hit Save.
       </p>
     </section>
   </div>
@@ -904,15 +945,6 @@ pre {
 
 <footer class="site-footer">
   <div class="wrap footer-inner">
-    <ul class="shortcut-list">
-      <li><kbd>Space</kbd> shuffle</li>
-      <li><kbd>S</kbd> save</li>
-      <li><kbd>C</kbd> copy CSS</li>
-    </ul>
-    <label class="switch" for="shortcuts-toggle">
-      <input type="checkbox" id="shortcuts-toggle" checked />
-      Keyboard shortcuts
-    </label>
     <p>
       MIT licensed. Fonts served by Google Fonts under the SIL Open Font License.
       Nothing leaves your browser.

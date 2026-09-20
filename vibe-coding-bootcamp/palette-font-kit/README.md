@@ -32,7 +32,7 @@ python -m http.server 8000
   ```
 
 - **Light and dark UI,** remembered across visits. It follows the system setting until you choose.
-- **Keyboard shortcuts:** `Space` shuffle, `S` save, `C` copy CSS.
+- **Keyboard shortcuts:** `Space` shuffle, `S` save, `C` copy CSS. They're listed in a bar at the top of the page, which is hidden below 640 px along with the hints inside the buttons, since a phone has no keyboard to press.
 
 ## Design
 
@@ -56,7 +56,7 @@ The interface is deliberately quiet, so the generated colors and type are the on
 - **Swatches are buttons:** keyboard reachable, with a 3 px focus ring. Copying shows a "Copied" mark without ever renaming the button under a screen reader.
 - **Status messages** (copied, saved, applied) go to a `role="status"` region, so they're announced as well as shown.
 - **Deleting a favorite** moves focus to the next entry rather than dropping it to the top of the page.
-- **Single-key shortcuts follow WCAG 2.1.4.** They're ignored while typing in a field, `Space` is ignored when a button already has focus (otherwise one press would both activate the button and shuffle), and they can be switched off in the footer.
+- **Single-key shortcuts follow WCAG 2.1.4.** They're ignored while typing in a field, `Space` is ignored when a button already has focus (otherwise one press would both activate the button and shuffle), and they can be switched off in the bar at the top of the page.
 - **Responsive down to 320 px,** with no horizontal scrolling.
 
 ## Project structure
