@@ -1,0 +1,1149 @@
+/* ==========================================================================
+   Random Aesthetic Generator — behaviour
+   --------------------------------------------------------------------------
+   No dependencies, no build step. Sections:
+     1. Curated data (fonts, pairings, presets)
+     2. Small helpers
+     3. Color maths and the WCAG contrast check
+     4. Generators (palette, font pair)
+     5. Applying and rendering
+     6. Storage (favorites, settings)
+     7. Exports and clipboard
+     8. Events, shortcuts, init
+   Loaded with `defer` from index.html, so it never blocks parsing and runs
+   once the document is ready.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  /* ======================================================================
+     1. Curated data
+     ====================================================================== */
+
+  /* Twenty Google Fonts families, each with the weights actually loaded and a
+     real fallback stack (so a blocked CDN degrades to something sensible).
+     Only the weights listed are requested: asking for a weight a family
+     doesn't publish makes the whole request fail. */
+  var FONTS = {
+    'Space Grotesk':      { weights: [400, 700], stack: 'system-ui, sans-serif' },
+    'IBM Plex Sans':      { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Playfair Display':   { weights: [400, 700], stack: 'Georgia, "Times New Roman", serif' },
+    'Source Sans 3':      { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Fraunces':           { weights: [400, 700], stack: 'Georgia, serif' },
+    'Karla':              { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'DM Serif Display':   { weights: [400],      stack: 'Georgia, serif' },
+    'DM Sans':            { weights: [400, 500], stack: 'system-ui, sans-serif' },
+    'Bebas Neue':         { weights: [400],      stack: 'Impact, system-ui, sans-serif' },
+    'Work Sans':          { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Syne':               { weights: [600, 800], stack: 'system-ui, sans-serif' },
+    'Manrope':            { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Lora':               { weights: [400, 700], stack: 'Georgia, serif' },
+    'Lato':               { weights: [400, 700], stack: 'system-ui, sans-serif' },
+    'Outfit':             { weights: [400, 700], stack: 'system-ui, sans-serif' },
+    'Nunito Sans':        { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Libre Baskerville':  { weights: [400, 700], stack: 'Georgia, serif' },
+    'Oswald':             { weights: [400, 600], stack: 'Impact, system-ui, sans-serif' },
+    'Merriweather':       { weights: [400, 700], stack: 'Georgia, serif' },
+    'Rubik':              { weights: [400, 500], stack: 'system-ui, sans-serif' }
+  };
+
+  var DEFAULT_FONT = { weights: [400, 700], stack: 'system-ui, sans-serif' };
+
+  /* Hand-checked pairings. Randomising from a curated list (rather than
+     pairing any two families) is what keeps the results usable. */
+  var PAIRS = [
+    { heading: 'Space Grotesk',     body: 'IBM Plex Sans' },
+    { heading: 'Playfair Display',  body: 'Source Sans 3' },
+    { heading: 'Fraunces',          body: 'Karla' },
+    { heading: 'DM Serif Display',  body: 'DM Sans' },
+    { heading: 'Bebas Neue',        body: 'Work Sans' },
+    { heading: 'Syne',              body: 'Manrope' },
+    { heading: 'Lora',              body: 'Lato' },
+    { heading: 'Outfit',            body: 'Nunito Sans' },
+    { heading: 'Libre Baskerville', body: 'Work Sans' },
+    { heading: 'Oswald',            body: 'Lato' },
+    { heading: 'Merriweather',      body: 'Rubik' },
+    { heading: 'Playfair Display',  body: 'Karla' },
+    { heading: 'Fraunces',          body: 'Manrope' },
+    { heading: 'Outfit',            body: 'IBM Plex Sans' }
+  ];
+
+  /* Three curated starting points, so the page is never empty on load. */
+  var PRESETS = {
+    minimal: {
+      label: 'Minimal',
+      scheme: 'Curated · neutral ramp',
+      palette: ['#0F172A', '#334155', '#94A3B8', '#E2E8F0', '#F8FAFC'],
+      fonts: { heading: 'Space Grotesk', body: 'IBM Plex Sans' }
+    },
+    playful: {
+      label: 'Playful',
+      scheme: 'Curated · warm to cool',
+      palette: ['#073B4C', '#118AB2', '#06D6A0', '#FFD166', '#FF6B6B'],
+      fonts: { heading: 'Outfit', body: 'Nunito Sans' }
+    },
+    bold: {
+      label: 'Bold',
+      scheme: 'Curated · high contrast',
+      palette: ['#0A0A0A', '#1D3557', '#E63946', '#F4A261', '#F1FAEE'],
+      fonts: { heading: 'Bebas Neue', body: 'Work Sans' }
+    }
+  };
+
+  var STORAGE = { favorites: 'aesthetic.favorites', settings: 'aesthetic.settings' };
+  var MAX_FAVORITES = 60;          // keeps localStorage small and the list scannable
+  var AA_NORMAL = 4.5;             // WCAG 2.1 AA, normal text
+  var AA_LARGE = 3;                // WCAG 2.1 AA, large text (18.66px bold / 24px)
+  var HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+  var FAMILY_RE = /^[A-Za-z0-9 ]{2,40}$/;   // Google family names are plain words
+
+  /* ======================================================================
+     2. Small helpers
+     ====================================================================== */
+  var $ = function (id) { return document.getElementById(id); };
+  var randInt = function (min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; };
+  var pick = function (list) { return list[Math.floor(Math.random() * list.length)]; };
+
+  function makeId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function stackOf(family) {
+    return (FONTS[family] || DEFAULT_FONT).stack;
+  }
+
+  function headingWeight(family) {
+    var weights = (FONTS[family] || DEFAULT_FONT).weights;
+    return Math.max.apply(null, weights);
+  }
+
+  /* ======================================================================
+     3. Color maths and contrast
+     ====================================================================== */
+  function hslToHex(h, s, l) {
+    h = ((h % 360) + 360) % 360;
+    s /= 100; l /= 100;
+    var a = s * Math.min(l, 1 - l);
+    var f = function (n) {
+      var k = (n + h / 30) % 12;
+      return l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+    };
+    var toHex = function (x) { return Math.round(x * 255).toString(16).padStart(2, '0'); };
+    return ('#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4))).toUpperCase();
+  }
+
+  function hexToRgb(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  /** The reverse of hslToHex: used to read a hue and saturation out of a picked color. */
+  function hexToHsl(hex) {
+    var rgb = hexToRgb(hex).map(function (value) { return value / 255; });
+    var max = Math.max.apply(null, rgb);
+    var min = Math.min.apply(null, rgb);
+    var delta = max - min;
+    var lightness = (max + min) / 2;
+    var hue = 0;
+    var saturation = 0;
+    if (delta) {
+      saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+      if (max === rgb[0]) hue = (rgb[1] - rgb[2]) / delta + (rgb[1] < rgb[2] ? 6 : 0);
+      else if (max === rgb[1]) hue = (rgb[2] - rgb[0]) / delta + 2;
+      else hue = (rgb[0] - rgb[1]) / delta + 4;
+      hue *= 60;
+    }
+    return { h: Math.round(hue), s: Math.round(saturation * 100), l: Math.round(lightness * 100) };
+  }
+
+  /* WCAG 2.1 relative luminance (sRGB) */
+  function relativeLuminance(hex) {
+    var channels = hexToRgb(hex).map(function (value) {
+      var c = value / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  }
+
+  /* WCAG 2.1 contrast ratio: (lighter + 0.05) / (darker + 0.05) */
+  function contrastRatio(hexA, hexB) {
+    var a = relativeLuminance(hexA);
+    var b = relativeLuminance(hexB);
+    var lighter = Math.max(a, b);
+    var darker = Math.min(a, b);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  /* Contrast of one color used as text on white and on black.
+     The displayed number is floored, not rounded: rounding 4.49 up to "4.5"
+     next to a FAIL badge looks like a bug. */
+  function checkContrast(hex) {
+    var build = function (against) {
+      var ratio = contrastRatio(hex, against);
+      return {
+        ratio: ratio,
+        display: (Math.floor(ratio * 100) / 100).toFixed(2),
+        passAA: ratio >= AA_NORMAL,
+        passAALarge: ratio >= AA_LARGE
+      };
+    };
+    return { white: build('#FFFFFF'), black: build('#000000') };
+  }
+
+  /* Whichever of black/white is more readable on a given color. Pure black,
+     not a softer near-black: at the luminance where the two are equally
+     readable (around #767676) black is exactly 4.5:1, while #111111 only
+     reaches 3.9:1 — which would leave mid-tone chips and buttons under AA. */
+  function bestTextOn(hex) {
+    return contrastRatio(hex, '#FFFFFF') >= contrastRatio(hex, '#000000') ? '#FFFFFF' : '#000000';
+  }
+
+  /* Rough chroma (0–255): how far a color is from grey. Used to find the one
+     color in a palette that can carry a call to action. */
+  function chroma(hex) {
+    var rgb = hexToRgb(hex);
+    return Math.max.apply(null, rgb) - Math.min.apply(null, rgb);
+  }
+
+  /* ======================================================================
+     4. Generators (pure: same input shape in, new combination out)
+     ====================================================================== */
+
+  /* Hue relationships that reliably look intentional. Each returns enough
+     hues for a six-color palette. */
+  var SCHEMES = {
+    'Analogous':          function (h) { return [h, h + 18, h + 36, h - 18, h - 36, h + 54]; },
+    'Complementary':      function (h) { return [h, h + 180, h + 12, h + 192, h - 12, h + 168]; },
+    'Triadic':            function (h) { return [h, h + 120, h + 240, h + 12, h + 132, h + 252]; },
+    'Split complementary':function (h) { return [h, h + 150, h + 210, h + 15, h + 165, h + 195]; },
+    'Monochrome':         function (h) { return [h, h + 4, h - 4, h + 8, h - 8, h]; }
+  };
+
+  /**
+   * A cohesive palette of 4–6 colors.
+   * Lightness runs from a dark anchor to a light anchor so every palette is
+   * usable as a real UI scale (and so the contrast badges are never all-fail).
+   * Saturation eases off at the extremes, which is what keeps the darks from
+   * going muddy and the lights from going neon.
+   */
+  /**
+   * A "recipe" is everything a palette is built from. Keeping it around is
+   * what lets the base-color and saturation controls morph a palette
+   * smoothly: only the hue or the saturation changes, while the scheme, the
+   * number of colors and the lightness ramp stay put. Shuffle rolls a new one.
+   */
+  function randomRecipe(options) {
+    options = options || {};
+    var count = options.count || randInt(4, 6);
+    var jitter = [];
+    for (var i = 0; i < count; i++) {
+      jitter.push(i === 0 || i === count - 1 ? 0 : randInt(-4, 4));  // the anchors stay put
+    }
+    return {
+      scheme: options.scheme || pick(Object.keys(SCHEMES)),
+      hue: typeof options.hue === 'number' ? options.hue : randInt(0, 359),
+      saturation: typeof options.saturation === 'number' ? options.saturation : randInt(38, 82),
+      count: count,
+      darkest: typeof options.darkest === 'number' ? options.darkest : randInt(8, 18),
+      lightest: typeof options.lightest === 'number' ? options.lightest : randInt(88, 96),
+      jitter: jitter,
+      exact: options.exact || null
+    };
+  }
+
+  /**
+   * Builds the colors of a recipe. Lightness runs from a dark anchor to a
+   * light one so every palette works as a real UI scale, and saturation eases
+   * off at both ends, which keeps the darks from going muddy and the lights
+   * from going neon. A picked base color is dropped into the slot closest to
+   * its own lightness, so the color you chose is really in the palette.
+   */
+  function buildPalette(recipe) {
+    var hues = SCHEMES[recipe.scheme](recipe.hue);
+    var step = (recipe.lightest - recipe.darkest) / Math.max(1, recipe.count - 1);
+    var palette = [];
+    for (var i = 0; i < recipe.count; i++) {
+      var lightness = recipe.darkest + step * i + (recipe.jitter[i] || 0);
+      var edge = Math.abs(lightness - 50) / 50;                       // 0 mid, 1 at the extremes
+      var saturation = Math.round(recipe.saturation * (1 - edge * 0.45));
+      palette.push(hslToHex(hues[i % hues.length], Math.max(6, saturation), lightness));
+    }
+    if (recipe.exact && HEX_RE.test(recipe.exact)) {
+      var target = hexToHsl(recipe.exact).l;
+      var nearest = 0;
+      var smallest = Infinity;
+      palette.forEach(function (hex, index) {
+        var distance = Math.abs(hexToHsl(hex).l - target);
+        if (distance < smallest) { smallest = distance; nearest = index; }
+      });
+      palette[nearest] = recipe.exact.toUpperCase();
+    }
+    return palette;
+  }
+
+  /** A fresh random palette. `options` can pin the hue, saturation or count. */
+  function getRandomPalette(options) {
+    var recipe = randomRecipe(options);
+    return {
+      palette: buildPalette(recipe),
+      recipe: recipe,
+      scheme: recipe.scheme + ' · ' + recipe.count + ' colors'
+    };
+  }
+
+  /** The most colorful swatch: what the base-color control shows for a palette
+      that didn't come from a recipe (a preset or a saved favorite). */
+  function baseFromPalette(palette) {
+    var main = palette.slice().sort(function (a, b) { return chroma(b) - chroma(a); })[0] || palette[0];
+    var hsl = hexToHsl(main);
+    return { hex: main, hue: hsl.h, saturation: hsl.s };
+  }
+
+  /** A heading/body pair from the curated list, never the one already shown. */
+  function pickFontPair(current) {
+    var options = PAIRS.filter(function (pair) {
+      return !current || pair.heading !== current.heading || pair.body !== current.body;
+    });
+    var chosen = pick(options);
+    return { heading: chosen.heading, body: chosen.body };
+  }
+
+  /**
+   * Colors for the preview, chosen from the palette with contrast in mind:
+   * the headline takes the darkest color that is genuinely readable, and the
+   * button takes the most saturated color that can carry black or white text.
+   * The preview can therefore never render an unreadable sample.
+   */
+  /**
+   * Colors for the preview, chosen against the background the preview is
+   * actually on: white in light mode, near-black in dark mode. The same
+   * palette therefore takes different roles in each theme — the colors that
+   * read on white are rarely the ones that read on black.
+   */
+  function previewColors(palette, background) {
+    background = background || '#FFFFFF';
+
+    /* Text may only use colors that pass AA against that background, best
+       contrast first. */
+    var readable = palette
+      .filter(function (hex) { return contrastRatio(hex, background) >= AA_NORMAL; })
+      .sort(function (a, b) { return contrastRatio(b, background) - contrastRatio(a, background); });
+    var fallbackInk = bestTextOn(background);
+    var heading = readable[0] || fallbackInk;
+
+    /* The filled button doesn't carry text of its own color, so it only has
+       to stand apart from the background: 3:1, as WCAG asks of UI components. */
+    var byChroma = palette.slice().sort(function (a, b) { return chroma(b) - chroma(a); });
+    var accent = byChroma.filter(function (hex) { return contrastRatio(hex, background) >= 3; })[0] ||
+      byChroma.sort(function (a, b) { return contrastRatio(b, background) - contrastRatio(a, background); })[0] ||
+      heading;
+    var accentText = bestTextOn(accent);
+
+    /* Different colors for the smaller roles where the palette allows it, so
+       the preview shows range rather than one color five times. */
+    var others = readable.filter(function (hex) { return hex !== heading; });
+    var eyebrow = others[0] || heading;
+    var link = others[1] || others[0] || heading;
+    var secondary = readable.slice().sort(function (a, b) { return chroma(b) - chroma(a); })
+      .filter(function (hex) { return hex !== heading; })[0] || heading;
+
+    /* Panel: the palette color closest in tone to the background (the lightest
+       on white, the darkest on black), kept different enough to be visible,
+       with the most readable palette color on top. */
+    var backgroundLuminance = relativeLuminance(background);
+    var byTone = palette.slice().sort(function (a, b) {
+      return Math.abs(relativeLuminance(a) - backgroundLuminance) - Math.abs(relativeLuminance(b) - backgroundLuminance);
+    });
+    var surface = byTone.filter(function (hex) { return contrastRatio(hex, background) >= 1.12; })[0] || byTone[0] || background;
+    var surfaceText = palette
+      .slice()
+      .sort(function (a, b) { return contrastRatio(b, surface) - contrastRatio(a, surface); })
+      .filter(function (hex) { return contrastRatio(hex, surface) >= AA_NORMAL; })[0] || bestTextOn(surface);
+
+    return {
+      background: background,
+      heading: heading,
+      accent: accent,
+      accentText: accentText,
+      eyebrow: eyebrow,
+      link: link,
+      secondary: secondary,
+      surface: surface,
+      surfaceText: surfaceText,
+      buttonRatio: contrastRatio(accent, accentText),
+      panelRatio: contrastRatio(surface, surfaceText)
+    };
+  }
+
+  /**
+   * The preview's background. Read from the --preview-bg custom property
+   * rather than the computed background-color: that property is in the middle
+   * of a transition right after a theme switch, and would hand back the color
+   * it is fading *from*. Custom properties jump straight to their new value.
+   */
+  function previewBackground() {
+    var declared = getComputedStyle(elements.preview).getPropertyValue('--preview-bg').trim();
+    if (HEX_RE.test(declared)) return declared.toUpperCase();
+    var parts = (getComputedStyle(elements.preview).backgroundColor || '').match(/\d+/g);
+    if (!parts || parts.length < 3) return '#FFFFFF';
+    return ('#' + parts.slice(0, 3).map(function (channel) {
+      return Number(channel).toString(16).padStart(2, '0');
+    }).join('')).toUpperCase();
+  }
+
+  /* ======================================================================
+     5. Applying and rendering
+     ====================================================================== */
+  var state = {
+    palette: [],
+    recipe: null,                 // how the current palette was built (null for presets/favorites)
+    base: { hex: '#0F172A', hue: 222, saturation: 47 },
+    keepBase: false,              // keep the base color and saturation when shuffling
+    scheme: '',
+    fonts: { heading: '', body: '' },
+    favorites: [],
+    settings: { theme: 'light', shortcuts: true },
+    preset: null,
+    storageWorks: true
+  };
+
+  var elements = {};
+  var loadedFamilies = new Set();
+
+  /** Injects one Google Fonts stylesheet per family, only when first used. */
+  function ensureFamilyLoaded(family) {
+    if (loadedFamilies.has(family)) return;
+    var config = FONTS[family] || DEFAULT_FONT;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' +
+      encodeURIComponent(family).replace(/%20/g, '+') +
+      ':wght@' + config.weights.join(';') + '&display=swap';
+    document.head.appendChild(link);
+    loadedFamilies.add(family);
+  }
+
+  /** Loads the pair and points the preview's font variables at it. */
+  function applyFonts(fonts) {
+    ensureFamilyLoaded(fonts.heading);
+    ensureFamilyLoaded(fonts.body);
+
+    var preview = elements.preview;
+    preview.style.setProperty('--font-heading', '"' + fonts.heading + '", ' + stackOf(fonts.heading));
+    preview.style.setProperty('--font-body', '"' + fonts.body + '", ' + stackOf(fonts.body));
+    preview.style.setProperty('--weight-heading', String(headingWeight(fonts.heading)));
+
+    elements.headingName.textContent = fonts.heading + ' · ' + headingWeight(fonts.heading);
+    elements.bodyName.textContent = fonts.body + ' · 400';
+    elements.headingLink.href = 'https://fonts.google.com/specimen/' + fonts.heading.replace(/ /g, '+');
+    elements.bodyLink.href = 'https://fonts.google.com/specimen/' + fonts.body.replace(/ /g, '+');
+    elements.headingLink.setAttribute('aria-label', fonts.heading + ' on Google Fonts (opens in a new tab)');
+    elements.bodyLink.setAttribute('aria-label', fonts.body + ' on Google Fonts (opens in a new tab)');
+
+    /* Dim the preview until the faces are ready, but never wait forever:
+       an offline or blocked CDN just falls back to the stack above. */
+    preview.classList.add('is-loading');
+    var done = function () { preview.classList.remove('is-loading'); };
+    if (document.fonts && document.fonts.load) {
+      Promise.race([
+        Promise.all([
+          document.fonts.load(headingWeight(fonts.heading) + ' 1rem "' + fonts.heading + '"'),
+          document.fonts.load('400 1rem "' + fonts.body + '"')
+        ]),
+        new Promise(function (resolve) { setTimeout(resolve, 2500); })
+      ]).then(done, done);
+    } else {
+      setTimeout(done, 400);
+    }
+  }
+
+  /** One contrast badge ("On white 8.59:1 ✓"), readable by screen readers. */
+  function renderBadge(against, result) {
+    var li = document.createElement('li');
+    li.className = 'badge ' + (result.passAA ? 'is-pass' : 'is-fail');
+
+    var mark = document.createElement('span');
+    mark.className = 'badge-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = result.passAA ? '✓' : '✕';
+
+    var text = document.createElement('span');
+    text.textContent = 'On ' + against + ' ' + result.display + ':1';
+
+    /* Spelled out for screen readers: the tick alone carries no meaning. */
+    var sr = document.createElement('span');
+    sr.className = 'sr-only';
+    sr.textContent = result.passAA
+      ? ', passes WCAG AA for normal text'
+      : (result.passAALarge
+        ? ', fails WCAG AA for normal text, passes for large text'
+        : ', fails WCAG AA');
+
+    li.appendChild(mark);
+    li.appendChild(text);
+    li.appendChild(sr);
+    return li;
+  }
+
+  /** Swatches with HEX labels, copy buttons and contrast badges. */
+  function renderPalette(palette, scheme, live) {
+    var list = elements.paletteList;
+    list.classList.toggle('is-live', Boolean(live));   // no entrance animation while dragging
+    list.textContent = '';
+
+    palette.forEach(function (hex, index) {
+      var item = document.createElement('li');
+      item.className = 'swatch';
+      item.style.setProperty('--i', String(index));
+
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'swatch-btn';
+      button.dataset.hex = hex;
+      button.setAttribute('aria-label', 'Copy ' + hex + ' to clipboard');
+
+      var chip = document.createElement('span');
+      chip.className = 'swatch-chip';
+      chip.style.backgroundColor = hex;
+      chip.setAttribute('aria-hidden', 'true');
+
+      var label = document.createElement('span');
+      label.className = 'swatch-hex';
+      label.textContent = hex;
+
+      var hint = document.createElement('span');
+      hint.className = 'swatch-hint';
+      hint.setAttribute('aria-hidden', 'true');
+      hint.textContent = 'Copy';
+
+      button.appendChild(chip);
+      button.appendChild(label);
+      button.appendChild(hint);
+
+      var badges = document.createElement('ul');
+      badges.className = 'badges';
+      var contrast = checkContrast(hex);
+      badges.appendChild(renderBadge('white', contrast.white));
+      badges.appendChild(renderBadge('black', contrast.black));
+
+      item.appendChild(button);
+      item.appendChild(badges);
+      list.appendChild(item);
+    });
+
+    elements.schemeTag.textContent = scheme;
+  }
+
+  /** Applies the palette's colors to the preview and replays its entrance. */
+  function renderPreview(combo, live) {
+    var preview = elements.preview;
+    var colors = previewColors(combo.palette, previewBackground());
+    preview.style.setProperty('--preview-heading', colors.heading);
+    preview.style.setProperty('--preview-accent', colors.accent);
+    preview.style.setProperty('--preview-accent-text', colors.accentText);
+    preview.style.setProperty('--preview-secondary', colors.secondary);
+    preview.style.setProperty('--preview-link', colors.link);
+    preview.style.setProperty('--preview-surface', colors.surface);
+    preview.style.setProperty('--preview-surface-text', colors.surfaceText);
+    elements.eyebrow.style.color = colors.eyebrow;
+
+    elements.previewPanelText.textContent =
+      colors.surface + ' as a surface, with ' + colors.surfaceText +
+      ' on top: the pairing you would reach for on a card.';
+
+    /* One chip per color, each with the black or white text that reads best
+       on it — the contrast badges above, shown in use. */
+    elements.previewChips.textContent = '';
+    combo.palette.forEach(function (hex) {
+      var chip = document.createElement('li');
+      chip.className = 'preview-chip';
+      chip.style.backgroundColor = hex;
+      chip.style.color = bestTextOn(hex);
+      chip.textContent = hex;
+      elements.previewChips.appendChild(chip);
+    });
+
+    var ratio = (Math.floor(colors.buttonRatio * 100) / 100).toFixed(2);
+    var panelRatio = (Math.floor(colors.panelRatio * 100) / 100).toFixed(2);
+    elements.previewNote.textContent =
+      'Every color here is checked first: the button is ' + colors.accent + ' with ' +
+      (colors.accentText === '#FFFFFF' ? 'white' : 'black') + ' text (' + ratio + ':1), ' +
+      'the panel is ' + colors.surface + ' with ' + colors.surfaceText + ' text (' + panelRatio + ':1), ' +
+      'and headings, links and the outline button only use colors that pass AA on ' + colors.background + ', ' +
+      'the background this preview is on.';
+
+    /* Restart the animation: drop the class, force a reflow, add it back.
+       Skipped while a control is being dragged, or it would flicker. */
+    if (!live) {
+      preview.classList.remove('is-in');
+      void preview.offsetWidth;
+      preview.classList.add('is-in');
+    }
+  }
+
+  function renderExports(combo) {
+    elements.cssOutput.textContent = exportCSSVars(combo);
+    elements.jsonOutput.textContent = exportJSON(combo);
+  }
+
+  /** Marks which curated preset (if any) is showing. */
+  function renderPresets() {
+    Array.prototype.forEach.call(document.querySelectorAll('.chip[data-preset]'), function (chip) {
+      chip.setAttribute('aria-pressed', String(chip.dataset.preset === state.preset));
+    });
+  }
+
+  /** The single entry point for showing a combination. */
+  function applyCombo(combo, options) {
+    options = options || {};
+    state.palette = combo.palette.slice();
+    state.scheme = combo.scheme || '';
+    state.fonts = { heading: combo.fonts.heading, body: combo.fonts.body };
+    state.preset = options.preset || null;
+    state.recipe = options.recipe || null;
+    /* The base control follows whatever is on screen: the seed it was built
+       from, or the most colorful swatch of a preset or saved combination. */
+    state.base = options.base || baseFromPalette(state.palette);
+
+    applyFonts(state.fonts);
+    renderPalette(state.palette, state.scheme, options.live || options.paletteStill);
+    renderPreview(state, options.live);
+    renderExports(state);
+    renderPresets();
+    renderBaseControls();
+  }
+
+  /** Puts the current base color and saturation into the two controls. */
+  function renderBaseControls() {
+    elements.baseColor.value = state.base.hex.toLowerCase();
+    elements.baseColorValue.textContent = state.base.hex.toUpperCase();
+    elements.saturation.value = String(state.base.saturation);
+    elements.saturationValue.textContent = state.base.saturation + '%';
+  }
+
+  /* A preset or a favorite has no recipe, so the first tweak makes one from
+     what's on screen: same number of colors, the chosen hue and saturation. */
+  function ensureRecipe() {
+    if (!state.recipe) {
+      state.recipe = randomRecipe({
+        count: state.palette.length,
+        hue: state.base.hue,
+        saturation: state.base.saturation
+      });
+    }
+    return state.recipe;
+  }
+
+  /**
+   * Rebuilds the palette from the two controls, keeping the scheme, the
+   * number of colors, the lightness ramp and the fonts. `live` is true while
+   * a control is being dragged.
+   */
+  function updateFromControls(source, live) {
+    var hex = elements.baseColor.value.toUpperCase();
+    var hsl = hexToHsl(hex);
+    var saturation;
+
+    if (source === 'color') {
+      /* Picking a color moves the slider to that color's own saturation, so
+         the chosen color and the palette around it agree. */
+      saturation = hsl.s;
+      elements.saturation.value = String(saturation);
+    } else {
+      /* Dragging the slider carries the base color with it: its hue and
+         lightness stay, its saturation follows the slider. */
+      saturation = Number(elements.saturation.value);
+      hex = hslToHex(hsl.h, saturation, hsl.l);
+      hsl = hexToHsl(hex);
+    }
+
+    var recipe = Object.assign({}, ensureRecipe(), { hue: hsl.h, saturation: saturation, exact: hex });
+    applyCombo(
+      { palette: buildPalette(recipe), scheme: recipe.scheme + ' · ' + recipe.count + ' colors', fonts: state.fonts },
+      { recipe: recipe, base: { hex: hex, hue: hsl.h, saturation: saturation }, live: live }
+    );
+  }
+
+  /* Dragging fires many events a second: rebuild at most once per frame. */
+  var controlFrame = 0;
+  function scheduleControlUpdate(source) {
+    if (controlFrame) cancelAnimationFrame(controlFrame);
+    controlFrame = requestAnimationFrame(function () {
+      controlFrame = 0;
+      updateFromControls(source, true);
+    });
+  }
+
+  function shuffle() {
+    /* With "Keep on shuffle" ticked, the base color and saturation carry over
+       and only the scheme, the number of colors and the fonts change. */
+    var seed = state.keepBase
+      ? { hue: state.base.hue, saturation: state.base.saturation, exact: state.base.hex }
+      : {};
+    var generated = getRandomPalette(seed);
+    applyCombo({
+      palette: generated.palette,
+      scheme: generated.scheme,
+      fonts: pickFontPair(state.fonts)
+    }, {
+      recipe: generated.recipe,
+      base: state.keepBase ? state.base : undefined   // undefined: read it back off the new palette
+    });
+    toast('New palette and pairing: ' + state.fonts.heading + ' with ' + state.fonts.body);
+  }
+
+  /** A new pairing for the palette already on screen. */
+  function shuffleFonts() {
+    applyCombo({
+      palette: state.palette,
+      scheme: state.scheme,
+      fonts: pickFontPair(state.fonts)
+    }, {
+      recipe: state.recipe,
+      base: state.base,
+      /* The swatches haven't changed, so they shouldn't replay their
+         entrance animation; the preview still does. */
+      paletteStill: true
+    });
+    toast('New pairing: ' + state.fonts.heading + ' with ' + state.fonts.body);
+  }
+
+  /* ======================================================================
+     6. Storage
+     ====================================================================== */
+  function readStorage(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (error) {
+      state.storageWorks = false;   // private mode, or storage switched off
+      return fallback;
+    }
+  }
+
+  function writeStorage(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (error) {
+      state.storageWorks = false;
+      return false;
+    }
+  }
+
+  /* Anything hand-edited, corrupted or from an older version is dropped
+     rather than trusted: family names go straight into a CSS value. */
+  function isValidCombo(combo) {
+    return combo &&
+      Array.isArray(combo.palette) &&
+      combo.palette.length >= 3 && combo.palette.length <= 8 &&
+      combo.palette.every(function (hex) { return typeof hex === 'string' && HEX_RE.test(hex); }) &&
+      combo.fonts &&
+      FAMILY_RE.test(String(combo.fonts.heading)) &&
+      FAMILY_RE.test(String(combo.fonts.body));
+  }
+
+  function loadFavorites() {
+    var stored = readStorage(STORAGE.favorites, []);
+    if (!Array.isArray(stored)) return [];
+    return stored.filter(isValidCombo).slice(0, MAX_FAVORITES).map(function (combo) {
+      return {
+        id: typeof combo.id === 'string' ? combo.id : makeId(),
+        palette: combo.palette.map(function (hex) { return hex.toUpperCase(); }),
+        fonts: { heading: combo.fonts.heading, body: combo.fonts.body },
+        savedAt: typeof combo.savedAt === 'string' ? combo.savedAt : new Date().toISOString()
+      };
+    });
+  }
+
+  function persistFavorites() {
+    var saved = writeStorage(STORAGE.favorites, state.favorites);
+    elements.favoritesNote.textContent = saved
+      ? 'Saved in this browser only, with localStorage.'
+      : 'This browser is blocking storage, so favorites will be lost when the page closes.';
+  }
+
+  function saveFavorite() {
+    var duplicate = state.favorites.some(function (combo) {
+      return combo.palette.join() === state.palette.join() &&
+        combo.fonts.heading === state.fonts.heading &&
+        combo.fonts.body === state.fonts.body;
+    });
+    if (duplicate) {
+      toast('Already in your favorites');
+      return;
+    }
+    state.favorites.unshift({
+      id: makeId(),
+      palette: state.palette.slice(),
+      fonts: { heading: state.fonts.heading, body: state.fonts.body },
+      savedAt: new Date().toISOString()
+    });
+    if (state.favorites.length > MAX_FAVORITES) state.favorites.length = MAX_FAVORITES;
+    persistFavorites();
+    renderFavorites();
+    toast('Saved to favorites');
+  }
+
+  function applyFavorite(id) {
+    var combo = state.favorites.find(function (item) { return item.id === id; });
+    if (!combo) return;
+    applyCombo({ palette: combo.palette, scheme: 'Saved combination', fonts: combo.fonts });
+    toast('Applied ' + combo.fonts.heading + ' with ' + combo.fonts.body);
+  }
+
+  function deleteFavorite(id) {
+    var index = state.favorites.findIndex(function (item) { return item.id === id; });
+    if (index < 0) return;
+    state.favorites.splice(index, 1);
+    persistFavorites();
+    renderFavorites();
+    toast('Removed from favorites');
+
+    /* Keep focus somewhere sensible: the next entry, or the Save button. */
+    var buttons = elements.favoritesList.querySelectorAll('[data-delete]');
+    var next = buttons[Math.min(index, buttons.length - 1)];
+    (next || elements.save).focus();
+  }
+
+  function formatDate(iso) {
+    try {
+      return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(iso));
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function renderFavorites() {
+    var list = elements.favoritesList;
+    list.textContent = '';
+    elements.favoritesCount.textContent = String(state.favorites.length);
+    elements.favoritesEmpty.hidden = state.favorites.length > 0;
+
+    state.favorites.forEach(function (combo) {
+      var item = document.createElement('li');
+      item.className = 'fav';
+
+      var strip = document.createElement('div');
+      strip.className = 'fav-swatches';
+      strip.setAttribute('aria-hidden', 'true');
+      combo.palette.forEach(function (hex) {
+        var cell = document.createElement('span');
+        cell.className = 'fav-swatch';
+        cell.style.backgroundColor = hex;
+        strip.appendChild(cell);
+      });
+
+      var meta = document.createElement('div');
+      var fonts = document.createElement('p');
+      fonts.className = 'fav-fonts';
+      fonts.textContent = combo.fonts.heading + ' + ' + combo.fonts.body;
+      var date = document.createElement('p');
+      date.className = 'fav-date';
+      date.textContent = combo.palette.length + ' colors · saved ' + formatDate(combo.savedAt);
+      /* The strip is decorative, so the HEX values are read out here instead. */
+      var hexes = document.createElement('span');
+      hexes.className = 'sr-only';
+      hexes.textContent = 'Palette: ' + combo.palette.join(', ');
+      meta.appendChild(fonts);
+      meta.appendChild(date);
+      meta.appendChild(hexes);
+
+      var actions = document.createElement('div');
+      actions.className = 'fav-actions';
+
+      var apply = document.createElement('button');
+      apply.type = 'button';
+      apply.className = 'btn btn-sm';
+      apply.dataset.apply = combo.id;
+      apply.textContent = 'Apply';
+      apply.setAttribute('aria-label', 'Apply ' + combo.fonts.heading + ' with ' + combo.fonts.body);
+
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'btn btn-sm btn-danger';
+      remove.dataset.delete = combo.id;
+      remove.textContent = 'Delete';
+      remove.setAttribute('aria-label', 'Delete saved combination ' + combo.fonts.heading + ' with ' + combo.fonts.body);
+
+      actions.appendChild(apply);
+      actions.appendChild(remove);
+
+      item.appendChild(strip);
+      item.appendChild(meta);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+  }
+
+  function loadSettings() {
+    var stored = readStorage(STORAGE.settings, {});
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return {
+      theme: stored.theme === 'dark' || stored.theme === 'light' ? stored.theme : (prefersDark ? 'dark' : 'light'),
+      shortcuts: stored.shortcuts !== false
+    };
+  }
+
+  function applyTheme(theme) {
+    var root = document.documentElement;
+    var dark = theme === 'dark';
+    root.classList.toggle('theme-dark', dark);
+    root.classList.toggle('theme-light', !dark);
+    elements.themeToggle.setAttribute('aria-pressed', String(dark));
+    elements.themeIcon.textContent = dark ? '☀' : '☾';
+    elements.metaThemeColor.setAttribute('content', dark ? '#1e1e1e' : '#f9fafb');
+    /* The preview's background changed, so its colors have to be picked again
+       against it. (Not on the first call: nothing is rendered yet.) */
+    if (state.palette.length) renderPreview(state);
+  }
+
+  /* ======================================================================
+     7. Exports and clipboard
+     ====================================================================== */
+
+  /** CSS custom properties for the current combination. */
+  function exportCSSVars(combo) {
+    var lines = combo.palette.map(function (hex, index) {
+      return '  --color-' + (index + 1) + ': ' + hex + ';';
+    });
+    lines.push('  --font-heading: "' + combo.fonts.heading + '", ' + stackOf(combo.fonts.heading) + ';');
+    lines.push('  --font-body: "' + combo.fonts.body + '", ' + stackOf(combo.fonts.body) + ';');
+
+    var families = encodeURIComponent(combo.fonts.heading).replace(/%20/g, '+') +
+      ':wght@' + (FONTS[combo.fonts.heading] || DEFAULT_FONT).weights.join(';') +
+      '&family=' + encodeURIComponent(combo.fonts.body).replace(/%20/g, '+') +
+      ':wght@' + (FONTS[combo.fonts.body] || DEFAULT_FONT).weights.join(';');
+
+    return '/* Fonts: <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=' +
+      families + '&display=swap"> */\n:root {\n' + lines.join('\n') + '\n}';
+  }
+
+  /** The exact shape promised in the docs: { palette, fonts }. */
+  function exportJSON(combo) {
+    return JSON.stringify({
+      palette: combo.palette,
+      fonts: { heading: combo.fonts.heading, body: combo.fonts.body }
+    }, null, 2);
+  }
+
+  function downloadJSON() {
+    var stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    var blob = new Blob([exportJSON(state)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'aesthetic-' + stamp + '.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast('Downloaded ' + link.download);
+  }
+
+  /* Older browsers, and any page not in a secure context, fall back to a
+     hidden textarea and execCommand. */
+  function legacyCopy(text) {
+    var field = document.createElement('textarea');
+    field.value = text;
+    field.setAttribute('readonly', '');
+    field.style.cssText = 'position:fixed;top:-1000px;left:0;opacity:0;';
+    document.body.appendChild(field);
+    field.select();
+    var copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch (error) {
+      copied = false;
+    }
+    field.remove();
+    return copied;
+  }
+
+  function copyText(text, message) {
+    var finish = function (copied) {
+      toast(copied ? message : 'Copy failed — select the text and copy it by hand');
+      return copied;
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).then(function () {
+        return finish(true);
+      }, function () {
+        return finish(legacyCopy(text));
+      });
+    }
+    return Promise.resolve(finish(legacyCopy(text)));
+  }
+
+  var toastTimer = 0;
+  function toast(message) {
+    var node = elements.toast;
+    node.textContent = message;         /* role="status" announces the change */
+    node.classList.add('is-visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { node.classList.remove('is-visible'); }, 2600);
+  }
+
+  function copyCSS() { copyText(exportCSSVars(state), 'CSS variables copied'); }
+  function copyJSON() { copyText(exportJSON(state), 'JSON copied'); }
+
+  /* ======================================================================
+     8. Events, shortcuts, init
+     ====================================================================== */
+  function onSwatchClick(event) {
+    var button = event.target.closest('.swatch-btn');
+    if (!button) return;
+    var hex = button.dataset.hex;
+    copyText(hex, hex + ' copied').then(function (copied) {
+      if (!copied) return;
+      /* Visual confirmation on the swatch itself; the accessible name stays
+         the same so the button never renames itself under a screen reader. */
+      var hint = button.querySelector('.swatch-hint');
+      button.classList.add('is-copied');
+      hint.textContent = 'Copied';
+      setTimeout(function () {
+        button.classList.remove('is-copied');
+        hint.textContent = 'Copy';
+      }, 1400);
+    });
+  }
+
+  function onFavoritesClick(event) {
+    var apply = event.target.closest('[data-apply]');
+    var remove = event.target.closest('[data-delete]');
+    if (apply) applyFavorite(apply.dataset.apply);
+    else if (remove) deleteFavorite(remove.dataset.delete);
+  }
+
+  /**
+   * Single-key shortcuts. Two rules keep them out of the way:
+   *   - never while typing in a field;
+   *   - Space is ignored when a button has focus, because Space already
+   *     activates the focused button (otherwise one press would do both).
+   * They can be switched off entirely, which is also what WCAG 2.1.4 asks of
+   * single-character shortcuts.
+   */
+  function onKeydown(event) {
+    if (!state.settings.shortcuts) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+    var target = event.target;
+    if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+
+    var key = event.key.toLowerCase();
+    if (event.key === ' ' || event.code === 'Space') {
+      if (target.closest('button, a, summary, [role="button"]')) return;
+      event.preventDefault();               // no page scroll
+      shuffle();
+    } else if (key === 'f') {
+      event.preventDefault();
+      shuffleFonts();
+    } else if (key === 's') {
+      event.preventDefault();
+      saveFavorite();
+    } else if (key === 'c') {
+      event.preventDefault();
+      copyCSS();
+    }
+  }
+
+  function wireEvents() {
+    elements.shuffle.addEventListener('click', shuffle);
+    elements.shuffleFonts.addEventListener('click', shuffleFonts);
+    elements.save.addEventListener('click', saveFavorite);
+    elements.copyCss.addEventListener('click', copyCSS);
+    elements.copyJson.addEventListener('click', copyJSON);
+    elements.downloadJson.addEventListener('click', downloadJSON);
+
+    elements.paletteList.addEventListener('click', onSwatchClick);
+
+    /* Base color and saturation: live while dragging ("input"), then one
+       final, animated update when the control is released ("change"). */
+    elements.baseColor.addEventListener('input', function () { scheduleControlUpdate('color'); });
+    elements.baseColor.addEventListener('change', function () { updateFromControls('color', false); });
+    elements.saturation.addEventListener('input', function () { scheduleControlUpdate('saturation'); });
+    elements.saturation.addEventListener('change', function () { updateFromControls('saturation', false); });
+    elements.keepBase.addEventListener('change', function () {
+      state.keepBase = elements.keepBase.checked;
+      toast(state.keepBase ? 'Shuffle will keep this base color' : 'Shuffle will pick a new base color');
+    });
+    elements.favoritesList.addEventListener('click', onFavoritesClick);
+
+    Array.prototype.forEach.call(document.querySelectorAll('.chip[data-preset]'), function (chip) {
+      chip.addEventListener('click', function () {
+        var preset = PRESETS[chip.dataset.preset];
+        applyCombo(preset, { preset: chip.dataset.preset });
+        toast(preset.label + ' applied');
+      });
+    });
+
+    elements.themeToggle.addEventListener('click', function () {
+      state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(state.settings.theme);
+      writeStorage(STORAGE.settings, state.settings);
+    });
+
+    elements.shortcutsToggle.addEventListener('change', function () {
+      state.settings.shortcuts = elements.shortcutsToggle.checked;
+      writeStorage(STORAGE.settings, state.settings);
+      toast(state.settings.shortcuts ? 'Keyboard shortcuts on' : 'Keyboard shortcuts off');
+    });
+
+    document.addEventListener('keydown', onKeydown);
+  }
+
+  function init() {
+    elements = {
+      shuffle: $('shuffle'),
+      shuffleFonts: $('shuffle-fonts'),
+      save: $('save'),
+      copyCss: $('copy-css'),
+      copyJson: $('copy-json'),
+      downloadJson: $('download-json'),
+      paletteList: $('palette-list'),
+      baseColor: $('base-color'),
+      baseColorValue: $('base-color-value'),
+      saturation: $('saturation'),
+      saturationValue: $('saturation-value'),
+      keepBase: $('keep-base'),
+      schemeTag: $('scheme-tag'),
+      preview: $('preview'),
+      eyebrow: document.querySelector('.preview-eyebrow'),
+      previewNote: $('preview-note'),
+      previewPanelText: $('preview-panel-text'),
+      previewChips: $('preview-chips'),
+      headingName: $('heading-name'),
+      bodyName: $('body-name'),
+      headingLink: $('heading-link'),
+      bodyLink: $('body-link'),
+      cssOutput: $('css-output'),
+      jsonOutput: $('json-output'),
+      favoritesList: $('favorites-list'),
+      favoritesEmpty: $('favorites-empty'),
+      favoritesCount: $('favorites-count'),
+      favoritesNote: $('favorites-note'),
+      themeToggle: $('theme-toggle'),
+      themeIcon: $('theme-icon'),
+      shortcutsToggle: $('shortcuts-toggle'),
+      metaThemeColor: $('meta-theme-color'),
+      toast: $('toast')
+    };
+
+    state.settings = loadSettings();
+    applyTheme(state.settings.theme);
+    elements.shortcutsToggle.checked = state.settings.shortcuts;
+
+    state.favorites = loadFavorites();
+    renderFavorites();
+    if (!state.storageWorks) persistFavorites();   // shows the blocked-storage note
+
+    /* The page opens on "Minimal" rather than something random, so the first
+       impression is a designed combination. */
+    applyCombo(PRESETS.minimal, { preset: 'minimal' });
+
+    wireEvents();
+  }
+
+  init();
+})();

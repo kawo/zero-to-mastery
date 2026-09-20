@@ -1,0 +1,919 @@
+/* ==========================================================================
+   Random Aesthetic Generator — app shell styles
+   --------------------------------------------------------------------------
+   Everything here styles the *chrome*: background, cards, controls, type of
+   the app itself. The generated palette and font pairing are applied through
+   inline custom properties (set by the script) and are never normalized or
+   overridden here beyond layout, so the results stay the focus.
+   ========================================================================== */
+
+/* ---------- Design tokens: light (default) ---------- */
+:root {
+  --bg: #f9fafb;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --text: #111827;
+  --text-muted: #4b5563;      /* 7.5:1 on --surface: fine for small print */
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+
+  /* One accent for controls. Indigo 600 rather than the lighter 500 (#6366f1):
+     white text on #6366f1 is only 3.6:1, below the AA 4.5:1 for normal text.
+     #6366f1 still appears as the soft tint and the dark-mode ring. */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-text: #ffffff;
+  --accent-soft: #eef2ff;
+  --accent-soft-text: #3730a3;
+  --ring: #4f46e5;
+
+  --ok: #047857;              /* contrast badge: pass */
+  --ok-soft: #ecfdf5;
+  --fail: #b91c1c;            /* contrast badge: fail */
+  --fail-soft: #fef2f2;
+
+  --shadow: 0 1px 2px rgba(17, 24, 39, 0.06), 0 10px 28px rgba(17, 24, 39, 0.07);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.08);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+
+  --font-ui-heading: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-ui-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --dur: 200ms;               /* 150–250ms range used everywhere */
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --wrap: 1120px;
+}
+
+/* ---------- Design tokens: dark ---------- */
+.theme-dark {
+  --bg: #1e1e1e;
+  --surface: #262626;
+  --surface-2: #2e2e2e;
+  --text: #f3f4f6;
+  --text-muted: #b5b7bd;      /* 7:1 on --surface */
+  --border: #3a3a3a;
+  --border-strong: #4a4a4a;
+
+  --accent: #818cf8;          /* lighter indigo carries dark text on a dark UI */
+  --accent-hover: #a5b4fc;
+  --accent-text: #16162b;
+  --accent-soft: #2c2c46;
+  --accent-soft-text: #c7d2fe;
+  --ring: #a5b4fc;
+
+  --ok: #34d399;
+  --ok-soft: #123029;
+  --fail: #f87171;
+  --fail-soft: #3a1d1d;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  /* Only the theme swap animates, so switching modes doesn't feel abrupt. */
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-ui-heading);
+  line-height: 1.2;
+  margin: 0;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+p { margin: 0; }
+
+ul { margin: 0; padding: 0; list-style: none; }
+
+a { color: inherit; }
+
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px; top: -60px;
+  z-index: 20;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: none;
+  transition: top var(--dur) var(--ease);
+}
+
+.skip-link:focus { top: 12px; }
+
+.wrap {
+  width: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+
+/* ---------- Header ---------- */
+.site-header {
+  padding-block: 28px 8px;
+}
+
+/* This element is the .wrap itself, so it keeps .wrap's side padding:
+   zeroing it here would push the title and tagline against the screen edge. */
+.header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.site-title {
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2rem);
+  font-weight: 700;
+}
+
+.tagline {
+  margin-top: 6px;
+  max-width: 60ch;
+  color: var(--text-muted);
+  font-size: 0.975rem;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui-heading);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease),
+              transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.btn:hover { background-color: var(--surface-2); border-color: var(--text-muted); }
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  border-color: transparent;
+  background-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn-primary:hover { background-color: var(--accent-hover); border-color: transparent; }
+
+.btn-ghost {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.btn-sm {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+}
+
+.btn-danger { color: var(--fail); }
+.btn-danger:hover { border-color: var(--fail); background-color: var(--fail-soft); }
+
+/* Shortcut hints inside buttons: shown, but left out of the accessible name
+   (aria-hidden), because the button also carries aria-keyshortcuts. */
+kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background-color: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.btn-primary kbd {
+  border-color: rgba(255, 255, 255, 0.45);
+  background-color: rgba(255, 255, 255, 0.16);
+  color: inherit;
+}
+
+.theme-dark .btn-primary kbd {
+  border-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.16);
+}
+
+/* ---------- Cards and layout ---------- */
+main { padding-bottom: 56px; }
+
+.card {
+  min-width: 0;   /* lets cards shrink inside grid tracks (see .grid) */
+  padding: clamp(18px, 1.2rem + 1vw, 26px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.card + .card, .grid { margin-top: 20px; }
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 4px;
+}
+
+.card-title { font-size: 1.125rem; font-weight: 600; }
+
+.card-note {
+  margin-bottom: 18px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+  /* minmax(0, 1fr), not 1fr: a grid track sized to auto refuses to shrink
+     below its content, and the long font URL in the CSS export would then
+     stretch the whole page sideways on a phone. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 900px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid > .span-2 { grid-column: 1 / -1; }
+}
+
+/* ---------- Controls ---------- */
+.controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.presets-label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.chip {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background-color: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.chip:hover { background-color: var(--accent-soft); border-color: var(--accent); }
+
+/* The preset that is currently applied */
+.chip[aria-pressed="true"] {
+  background-color: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-soft-text);
+}
+
+/* ---------- Palette ---------- */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 14px;
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: swatch-in 220ms var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+@keyframes swatch-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.swatch-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.swatch-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+.swatch-chip {
+  display: block;
+  height: 86px;
+  /* A hairline inside the chip keeps near-white swatches visible on white… */
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.12);
+}
+
+/* …and a light one keeps near-black swatches visible on the dark card */
+.theme-dark .swatch-chip,
+.theme-dark .fav-swatches {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.swatch-hex {
+  display: block;
+  padding: 9px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+/* "Copy" on hover/focus, "Copied" for a moment after a successful copy */
+.swatch-hint {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-family: var(--font-ui-heading);
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.swatch-btn:hover .swatch-hint,
+.swatch-btn:focus-visible .swatch-hint,
+.swatch-btn.is-copied .swatch-hint { opacity: 1; transform: none; }
+
+.swatch-btn.is-copied .swatch-hint { background-color: var(--ok); color: #ffffff; }
+
+.badges { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pass/fail is carried by the mark and the text, not by color alone */
+.badge.is-pass { border-color: var(--ok); background-color: var(--ok-soft); color: var(--ok); }
+.badge.is-fail { border-color: var(--fail); background-color: var(--fail-soft); color: var(--fail); }
+.theme-dark .badge.is-pass { color: #6ee7b7; }
+.theme-dark .badge.is-fail { color: #fca5a5; }
+
+.badge-mark { font-weight: 700; }
+
+.scheme-tag {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+/* ---------- Palette controls (base color + saturation) ---------- */
+.palette-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 24px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-grow { flex: 1 1 220px; min-width: 170px; }
+
+.control > label {
+  color: var(--text-muted);
+  font-family: var(--font-ui-heading);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.color-field,
+.range-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+input[type="color"] {
+  width: 58px;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  cursor: pointer;
+}
+
+input[type="range"] {
+  flex: 1;
+  min-width: 110px;
+  height: 40px;              /* a comfortable target without changing the track */
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.control output {
+  min-width: 8ch;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* While a control is being dragged the swatches are rebuilt every frame, so
+   the entrance animation is suppressed: otherwise they would flicker. */
+.swatches.is-live .swatch { animation: none; }
+
+/* ---------- Font pairing + preview ---------- */
+.pairing {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  margin-bottom: 18px;
+}
+
+.pairing-item {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+}
+
+.pairing-role {
+  display: block;
+  color: var(--text-muted);
+  font-family: var(--font-ui-heading);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pairing-name {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-ui-heading);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.pairing-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.pairing-link:hover { color: var(--accent); }
+
+/* The preview keeps the same neutral surface in both UI themes, on purpose:
+   generated colors and type are judged against a constant ground, so dark
+   mode never changes how a palette reads. */
+.preview {
+  /* The preview's own neutrals. They follow the UI theme (see below), while
+     staying plain grey: the palette supplies every other color here, and the
+     contrast checks in the script run against --preview-bg, whatever it is. */
+  --preview-bg: #ffffff;
+  --preview-ink: #1a1a1a;
+  --preview-ink-soft: #333333;
+  --preview-ink-body: #2b2b2b;
+  --preview-ink-muted: #5a5a5a;
+
+  --font-heading: var(--font-ui-heading);
+  --font-body: var(--font-ui-body);
+  --weight-heading: 700;
+  --preview-heading: #111111;
+  --preview-accent: #4f46e5;
+  --preview-accent-text: #ffffff;
+  --preview-secondary: #4f46e5;
+  --preview-link: #4f46e5;
+  --preview-surface: #f3f4f6;
+  --preview-surface-text: #111111;
+
+  padding: clamp(20px, 1rem + 3vw, 40px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--preview-bg);
+  color: var(--preview-ink);
+  transition: opacity var(--dur) var(--ease),
+              background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+/* Dark mode: a neutral dark ground, a touch lighter than the card behind it. */
+.theme-dark .preview {
+  --preview-bg: #171717;
+  --preview-ink: #ededed;
+  --preview-ink-soft: #d6d6d6;
+  --preview-ink-body: #dcdcdc;
+  --preview-ink-muted: #a3a3a3;
+}
+
+/* While a newly picked family is still downloading */
+.preview.is-loading { opacity: 0.55; }
+
+.preview.is-in { animation: preview-in 240ms var(--ease) both; }
+
+@keyframes preview-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.preview-eyebrow {
+  color: var(--preview-accent);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.preview-headline {
+  margin-top: 10px;
+  color: var(--preview-heading);
+  font-family: var(--font-heading);
+  font-weight: var(--weight-heading);
+  font-size: clamp(1.75rem, 1.2rem + 3.4vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.preview-subhead {
+  margin-top: 12px;
+  max-width: 48ch;
+  color: var(--preview-ink-soft);
+  font-family: var(--font-body);
+  font-size: clamp(1.05rem, 1rem + 0.5vw, 1.25rem);
+  line-height: 1.45;
+}
+
+.preview-body {
+  margin-top: 16px;
+  max-width: 65ch;   /* comfortable measure for running text */
+  color: var(--preview-ink-body);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+/* Text inside the body copy, in a palette color that passes AA on white */
+.preview-link {
+  color: var(--preview-link);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.preview-button {
+  display: inline-block;
+  padding: 13px 26px;
+  border-radius: 10px;
+  background-color: var(--preview-accent);
+  color: var(--preview-accent-text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* The same call to action as an outline, in a second palette color */
+.preview-button-secondary {
+  display: inline-block;
+  padding: 11px 24px;
+  border: 2px solid var(--preview-secondary);
+  border-radius: 10px;
+  color: var(--preview-secondary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* A panel: the lightest color of the palette as a surface, with the darkest
+   color that stays readable on it as text. */
+.preview-panel {
+  margin-top: 24px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background-color: var(--preview-surface);
+  color: var(--preview-surface-text);
+}
+
+.preview-panel-label {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.preview-panel-text {
+  margin-top: 6px;
+  font-family: var(--font-body);
+  font-size: 0.975rem;
+  line-height: 1.55;
+}
+
+/* Every color in the palette, each carrying the black or white text that
+   reads best on it. */
+.preview-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.preview-chip {
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+}
+
+.preview-note {
+  margin-top: 16px;
+  color: var(--preview-ink-muted);
+  font-family: var(--font-ui-body);
+  font-size: 0.85rem;
+}
+
+/* ---------- Export ---------- */
+.export-block + .export-block { margin-top: 18px; }
+
+.export-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.export-label {
+  font-family: var(--font-ui-heading);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+pre {
+  margin: 0;
+  max-width: 100%;
+  max-height: 260px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  overflow: auto;              /* long values scroll instead of stretching the page */
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+/* ---------- Favorites ---------- */
+.fav-list { display: grid; gap: 12px; }
+
+.fav {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  animation: swatch-in 200ms var(--ease) both;
+}
+
+.fav-swatches {
+  display: flex;
+  border-radius: 7px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.14);
+}
+
+.fav-swatch { width: 22px; height: 44px; }
+
+.fav-fonts { font-family: var(--font-ui-heading); font-weight: 600; font-size: 0.95rem; }
+
+.fav-date { color: var(--text-muted); font-size: 0.8rem; }
+
+.fav-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+@media (min-width: 520px) {
+  .fav { grid-template-columns: auto 1fr auto; }
+  .fav-actions { grid-column: auto; }
+}
+
+.empty {
+  padding: 22px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.925rem;
+  text-align: center;
+}
+
+.count-pill {
+  padding: 1px 9px;
+  border-radius: var(--radius-pill);
+  background-color: var(--accent-soft);
+  color: var(--accent-soft-text);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+/* ---------- Footer ---------- */
+.site-footer {
+  padding-block: 24px 40px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* Also the .wrap itself: keep its gutter (see .header-inner). */
+.footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+/* ---------- Shortcut bar (top of the page) ---------- */
+/* Hidden below 640px: shortcuts need a physical keyboard, so on a phone the
+   strip is noise. The shortcuts themselves stay wired up, in case a keyboard
+   is attached to a small screen. */
+.shortcut-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+  margin-bottom: 20px;
+  padding: 9px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background-color: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.shortcut-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+/* In the palette controls the fields sit under their own labels, so the
+   checkbox is given the same height as a field and pinned to the bottom of
+   the row: that lines it up with the saturation slider, not with the labels. */
+.palette-controls .switch {
+  min-height: 40px;
+  align-self: flex-end;
+}
+
+.switch input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 30;
+  max-width: calc(100% - 32px);
+  padding: 12px 18px;
+  border-radius: var(--radius-pill);
+  background-color: var(--text);
+  color: var(--bg);
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- Phones: no keyboard, so no shortcut hints ---------- */
+@media (max-width: 640px) {
+  .shortcut-bar { display: none; }
+  .btn kbd { display: none; }      /* the hints inside the control buttons */
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .btn:active, .swatch-btn:hover { transform: none; }
+}

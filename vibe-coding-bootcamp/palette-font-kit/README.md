@@ -2,7 +2,7 @@
 
 A random aesthetic generator: it produces cohesive color palettes and Google Font pairings, checks every color against WCAG AA, and exports the result as CSS variables or JSON.
 
-Built with vanilla HTML, CSS and JavaScript in a single file: no framework, no library, no build step.
+Built with vanilla HTML, CSS and JavaScript: no framework, no library, no build step.
 
 ## Run
 
@@ -40,7 +40,7 @@ python -m http.server 8000
   **The preview follows the UI theme,** and the whole table is recomputed when it does: on white the headline takes the darkest color and the panel the lightest, and on the dark ground both flip. A palette therefore shows you how it behaves in both modes, rather than only on paper.
 
   The caption under the preview states the ratios it used, so the sample is never an unreadable mush.
-- **Shuffle** changes palette and pairing together, from the button or the keyboard.
+- **Shuffle All** changes palette and pairing together, from the button or the keyboard. **Shuffle Fonts Only**, next to it, changes the pairing and leaves the colors exactly as they are — useful once a palette is right and the type isn't. The swatches don't replay their entrance animation when only the fonts move.
 - **Three curated starting points** — Minimal, Playful and Bold — so the page is never empty. It opens on Minimal.
 - **Favorites.** Save a combination, re-apply it, or delete it. Stored in `localStorage`, so they survive a reload.
 - **Export** the current combination as CSS custom properties (with the matching Google Fonts `<link>` as a comment) or as JSON, copied to the clipboard or downloaded:
@@ -50,7 +50,7 @@ python -m http.server 8000
   ```
 
 - **Light and dark UI,** remembered across visits. It follows the system setting until you choose.
-- **Keyboard shortcuts:** `Space` shuffle, `S` save, `C` copy CSS. They're listed in a bar at the top of the page, which is hidden below 640 px along with the hints inside the buttons, since a phone has no keyboard to press.
+- **Keyboard shortcuts:** `Space` shuffle, `F` fonts only, `S` save, `C` copy CSS. They're listed in a bar at the top of the page, which is hidden below 640 px along with the hints inside the buttons, since a phone has no keyboard to press.
 
 ## Design
 
@@ -81,12 +81,18 @@ The interface is deliberately quiet, so the generated colors and type are the on
 
 ```
 palette-font-kit/
-├── index.html     the whole app: markup, <style>, <script>
+├── index.html     markup, plus a six-line inline script (see below)
+├── css/
+│   └── style.css  tokens, both themes, layout, focus states, transitions
+├── js/
+│   └── script.js  everything the app does
 ├── favicon.png    tab icon
 └── README.md
 ```
 
-Inside `index.html`, the script is split into commented sections: curated data, helpers, color maths and the contrast check, generators, rendering, storage, exports and clipboard, then events and init. The main functions are `getRandomPalette`, `pickFontPair`, `applyFonts`, `renderPalette`, `renderPreview`, `saveFavorite`, `loadFavorites`, `exportCSSVars`, `exportJSON` and `checkContrast`.
+`js/script.js` is loaded with `defer`, so it never blocks parsing and runs with the DOM ready. It's split into commented sections: curated data, helpers, color maths and the contrast check, generators, rendering, storage, exports and clipboard, then events and init. The main functions are `getRandomPalette`, `pickFontPair`, `applyFonts`, `renderPalette`, `renderPreview`, `saveFavorite`, `loadFavorites`, `exportCSSVars`, `exportJSON` and `checkContrast`.
+
+**The one inline script**, in `<head>`, reads the saved theme and sets a class on `<html>`. It stays inline on purpose: it has to run before the first paint, or a saved dark preference would flash light first.
 
 ## Customize
 
