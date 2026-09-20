@@ -393,8 +393,14 @@ main { padding-bottom: 56px; }
 .swatch-chip {
   display: block;
   height: 86px;
-  /* A hairline inside the chip keeps near-white swatches visible on white */
+  /* A hairline inside the chip keeps near-white swatches visible on white… */
   box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.12);
+}
+
+/* …and a light one keeps near-black swatches visible on the dark card */
+.theme-dark .swatch-chip,
+.theme-dark .fav-swatches {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
 .swatch-hex {
@@ -568,6 +574,15 @@ input[type="range"] {
    generated colors and type are judged against a constant ground, so dark
    mode never changes how a palette reads. */
 .preview {
+  /* The preview's own neutrals. They follow the UI theme (see below), while
+     staying plain grey: the palette supplies every other color here, and the
+     contrast checks in the script run against --preview-bg, whatever it is. */
+  --preview-bg: #ffffff;
+  --preview-ink: #1a1a1a;
+  --preview-ink-soft: #333333;
+  --preview-ink-body: #2b2b2b;
+  --preview-ink-muted: #5a5a5a;
+
   --font-heading: var(--font-ui-heading);
   --font-body: var(--font-ui-body);
   --weight-heading: 700;
@@ -582,9 +597,20 @@ input[type="range"] {
   padding: clamp(20px, 1rem + 3vw, 40px);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background-color: #ffffff;
-  color: #1a1a1a;
-  transition: opacity var(--dur) var(--ease);
+  background-color: var(--preview-bg);
+  color: var(--preview-ink);
+  transition: opacity var(--dur) var(--ease),
+              background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+/* Dark mode: a neutral dark ground, a touch lighter than the card behind it. */
+.theme-dark .preview {
+  --preview-bg: #171717;
+  --preview-ink: #ededed;
+  --preview-ink-soft: #d6d6d6;
+  --preview-ink-body: #dcdcdc;
+  --preview-ink-muted: #a3a3a3;
 }
 
 /* While a newly picked family is still downloading */
@@ -619,7 +645,7 @@ input[type="range"] {
 .preview-subhead {
   margin-top: 12px;
   max-width: 48ch;
-  color: #333333;
+  color: var(--preview-ink-soft);
   font-family: var(--font-body);
   font-size: clamp(1.05rem, 1rem + 0.5vw, 1.25rem);
   line-height: 1.45;
@@ -628,7 +654,7 @@ input[type="range"] {
 .preview-body {
   margin-top: 16px;
   max-width: 65ch;   /* comfortable measure for running text */
-  color: #2b2b2b;
+  color: var(--preview-ink-body);
   font-family: var(--font-body);
   font-size: 1rem;
   line-height: 1.65;
@@ -719,7 +745,7 @@ input[type="range"] {
 
 .preview-note {
   margin-top: 16px;
-  color: #5a5a5a;
+  color: var(--preview-ink-muted);
   font-family: var(--font-ui-body);
   font-size: 0.85rem;
 }
@@ -1327,9 +1353,12 @@ pre {
     return { white: build('#FFFFFF'), black: build('#000000') };
   }
 
-  /* Whichever of black/white is more readable on a given color. */
+  /* Whichever of black/white is more readable on a given color. Pure black,
+     not a softer near-black: at the luminance where the two are equally
+     readable (around #767676) black is exactly 4.5:1, while #111111 only
+     reaches 3.9:1 — which would leave mid-tone chips and buttons under AA. */
   function bestTextOn(hex) {
-    return contrastRatio(hex, '#FFFFFF') >= contrastRatio(hex, '#000000') ? '#FFFFFF' : '#111111';
+    return contrastRatio(hex, '#FFFFFF') >= contrastRatio(hex, '#000000') ? '#FFFFFF' : '#000000';
   }
 
   /* Rough chroma (0–255): how far a color is from grey. Used to find the one
@@ -1448,33 +1477,54 @@ pre {
    * button takes the most saturated color that can carry black or white text.
    * The preview can therefore never render an unreadable sample.
    */
-  function previewColors(palette) {
-    /* Only colors that pass AA on white may be used for text. */
-    var onWhite = palette.filter(function (hex) { return contrastRatio(hex, '#FFFFFF') >= AA_NORMAL; });
-    var byDarkness = onWhite.slice().sort(function (a, b) { return relativeLuminance(a) - relativeLuminance(b); });
-    var byChroma = palette.slice().sort(function (a, b) { return chroma(b) - chroma(a); });
-    var heading = byDarkness[0] || '#111111';
+  /**
+   * Colors for the preview, chosen against the background the preview is
+   * actually on: white in light mode, near-black in dark mode. The same
+   * palette therefore takes different roles in each theme — the colors that
+   * read on white are rarely the ones that read on black.
+   */
+  function previewColors(palette, background) {
+    background = background || '#FFFFFF';
 
-    var accent = byChroma[0] || heading;                       // the button's fill
+    /* Text may only use colors that pass AA against that background, best
+       contrast first. */
+    var readable = palette
+      .filter(function (hex) { return contrastRatio(hex, background) >= AA_NORMAL; })
+      .sort(function (a, b) { return contrastRatio(b, background) - contrastRatio(a, background); });
+    var fallbackInk = bestTextOn(background);
+    var heading = readable[0] || fallbackInk;
+
+    /* The filled button doesn't carry text of its own color, so it only has
+       to stand apart from the background: 3:1, as WCAG asks of UI components. */
+    var byChroma = palette.slice().sort(function (a, b) { return chroma(b) - chroma(a); });
+    var accent = byChroma.filter(function (hex) { return contrastRatio(hex, background) >= 3; })[0] ||
+      byChroma.sort(function (a, b) { return contrastRatio(b, background) - contrastRatio(a, background); })[0] ||
+      heading;
     var accentText = bestTextOn(accent);
 
     /* Different colors for the smaller roles where the palette allows it, so
        the preview shows range rather than one color five times. */
-    var others = onWhite.filter(function (hex) { return hex !== heading; });
+    var others = readable.filter(function (hex) { return hex !== heading; });
     var eyebrow = others[0] || heading;
     var link = others[1] || others[0] || heading;
-    var secondary = onWhite.slice().sort(function (a, b) { return chroma(b) - chroma(a); })
+    var secondary = readable.slice().sort(function (a, b) { return chroma(b) - chroma(a); })
       .filter(function (hex) { return hex !== heading; })[0] || heading;
 
-    /* Panel: the lightest color as a surface, and the darkest palette color
-       that is readable on it (otherwise plain black or white). */
-    var surface = palette.slice().sort(function (a, b) { return relativeLuminance(b) - relativeLuminance(a); })[0] || '#F3F4F6';
+    /* Panel: the palette color closest in tone to the background (the lightest
+       on white, the darkest on black), kept different enough to be visible,
+       with the most readable palette color on top. */
+    var backgroundLuminance = relativeLuminance(background);
+    var byTone = palette.slice().sort(function (a, b) {
+      return Math.abs(relativeLuminance(a) - backgroundLuminance) - Math.abs(relativeLuminance(b) - backgroundLuminance);
+    });
+    var surface = byTone.filter(function (hex) { return contrastRatio(hex, background) >= 1.12; })[0] || byTone[0] || background;
     var surfaceText = palette
       .slice()
-      .sort(function (a, b) { return relativeLuminance(a) - relativeLuminance(b); })
+      .sort(function (a, b) { return contrastRatio(b, surface) - contrastRatio(a, surface); })
       .filter(function (hex) { return contrastRatio(hex, surface) >= AA_NORMAL; })[0] || bestTextOn(surface);
 
     return {
+      background: background,
       heading: heading,
       accent: accent,
       accentText: accentText,
@@ -1486,6 +1536,22 @@ pre {
       buttonRatio: contrastRatio(accent, accentText),
       panelRatio: contrastRatio(surface, surfaceText)
     };
+  }
+
+  /**
+   * The preview's background. Read from the --preview-bg custom property
+   * rather than the computed background-color: that property is in the middle
+   * of a transition right after a theme switch, and would hand back the color
+   * it is fading *from*. Custom properties jump straight to their new value.
+   */
+  function previewBackground() {
+    var declared = getComputedStyle(elements.preview).getPropertyValue('--preview-bg').trim();
+    if (HEX_RE.test(declared)) return declared.toUpperCase();
+    var parts = (getComputedStyle(elements.preview).backgroundColor || '').match(/\d+/g);
+    if (!parts || parts.length < 3) return '#FFFFFF';
+    return ('#' + parts.slice(0, 3).map(function (channel) {
+      return Number(channel).toString(16).padStart(2, '0');
+    }).join('')).toUpperCase();
   }
 
   /* ======================================================================
@@ -1633,8 +1699,8 @@ pre {
 
   /** Applies the palette's colors to the preview and replays its entrance. */
   function renderPreview(combo, live) {
-    var colors = previewColors(combo.palette);
     var preview = elements.preview;
+    var colors = previewColors(combo.palette, previewBackground());
     preview.style.setProperty('--preview-heading', colors.heading);
     preview.style.setProperty('--preview-accent', colors.accent);
     preview.style.setProperty('--preview-accent-text', colors.accentText);
@@ -1645,7 +1711,7 @@ pre {
     elements.eyebrow.style.color = colors.eyebrow;
 
     elements.previewPanelText.textContent =
-      'The lightest color of the palette as a surface, with ' + colors.surfaceText +
+      colors.surface + ' as a surface, with ' + colors.surfaceText +
       ' on top: the pairing you would reach for on a card.';
 
     /* One chip per color, each with the black or white text that reads best
@@ -1664,9 +1730,10 @@ pre {
     var panelRatio = (Math.floor(colors.panelRatio * 100) / 100).toFixed(2);
     elements.previewNote.textContent =
       'Every color here is checked first: the button is ' + colors.accent + ' with ' +
-      (colors.accentText === '#FFFFFF' ? 'white' : 'near-black') + ' text (' + ratio + ':1), ' +
+      (colors.accentText === '#FFFFFF' ? 'white' : 'black') + ' text (' + ratio + ':1), ' +
       'the panel is ' + colors.surface + ' with ' + colors.surfaceText + ' text (' + panelRatio + ':1), ' +
-      'and headings, links and the outline button only use colors that pass AA on white.';
+      'and headings, links and the outline button only use colors that pass AA on ' + colors.background + ', ' +
+      'the background this preview is on.';
 
     /* Restart the animation: drop the class, force a reflow, add it back.
        Skipped while a control is being dragged, or it would flicker. */
@@ -1973,6 +2040,9 @@ pre {
     elements.themeToggle.setAttribute('aria-pressed', String(dark));
     elements.themeIcon.textContent = dark ? '☀' : '☾';
     elements.metaThemeColor.setAttribute('content', dark ? '#1e1e1e' : '#f9fafb');
+    /* The preview's background changed, so its colors have to be picked again
+       against it. (Not on the first call: nothing is rendered yet.) */
+    if (state.palette.length) renderPreview(state);
   }
 
   /* ======================================================================

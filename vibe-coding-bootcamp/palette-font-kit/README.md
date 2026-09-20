@@ -31,11 +31,13 @@ python -m http.server 8000
 
   | Element | Color it takes |
   |---------|----------------|
-  | Headline | the darkest color that passes AA on white |
-  | Eyebrow, link, outline button | other colors that pass AA on white, kept distinct where the palette allows |
-  | Filled button | the most saturated color, with black or white text by ratio |
-  | Panel | the lightest color, with the darkest color that stays readable on it |
+  | Headline | the color with the most contrast against the preview's background |
+  | Eyebrow, link, outline button | other colors that pass AA on that background, kept distinct where the palette allows |
+  | Filled button | the most saturated color that clears 3:1 against the background (WCAG's bar for UI components), with black or white text by ratio |
+  | Panel | the color closest in tone to the background, with the most readable color on top |
   | Chips | every color, each carrying the text color that reads best on it |
+
+  **The preview follows the UI theme,** and the whole table is recomputed when it does: on white the headline takes the darkest color and the panel the lightest, and on the dark ground both flip. A palette therefore shows you how it behaves in both modes, rather than only on paper.
 
   The caption under the preview states the ratios it used, so the sample is never an unreadable mush.
 - **Shuffle** changes palette and pairing together, from the button or the keyboard.
@@ -62,7 +64,7 @@ The interface is deliberately quiet, so the generated colors and type are the on
 
 - **Interface fonts:** Inter for headings, Source Sans 3 for body text. They're used for the app shell only, never for the generated preview.
 - **The accent is indigo 600 (`#4f46e5`), not the lighter `#6366f1`.** White text on `#6366f1` reaches only 3.6:1, below the AA minimum of 4.5:1 for normal text. The lighter indigo is still there as the soft tint and the dark-mode focus ring.
-- **The preview keeps the same neutral white surface in both themes,** on purpose: a palette reads the same way whichever mode you're in.
+- **The preview follows the theme** — white in light mode, `#171717` in dark — but its own neutrals stay plain grey. Every other color in it comes from the generated palette, re-picked against whichever background it sits on.
 - **Motion** is 150–250 ms throughout: swatches rise in with a small stagger, the preview fades up. All of it is switched off under `prefers-reduced-motion`.
 
 ## Accessibility
