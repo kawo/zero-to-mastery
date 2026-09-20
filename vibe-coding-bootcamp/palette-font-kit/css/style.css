@@ -647,6 +647,21 @@ input[type="range"] {
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
+  border-radius: 3px;
+  transition: text-decoration-color var(--dur) var(--ease);
+}
+
+.preview-link:hover {
+  text-decoration-thickness: 3px;
+}
+
+/* The focus ring uses the preview's own ink, so it is always visible on the
+   preview's background whichever theme is on. */
+.preview-link:focus-visible,
+.preview-button:focus-visible,
+.preview-button-secondary:focus-visible {
+  outline: 3px solid var(--preview-ink);
+  outline-offset: 2px;
 }
 
 .preview-actions {
@@ -658,27 +673,50 @@ input[type="range"] {
 }
 
 .preview-button {
+  appearance: none;
   display: inline-block;
   padding: 13px 26px;
+  border: 0;
   border-radius: 10px;
   background-color: var(--preview-accent);
   color: var(--preview-accent-text);
   font-family: var(--font-body);
   font-size: 1rem;
   font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
+
+/* Brightness rather than another palette color: the pair was contrast-checked,
+   and a hover state shouldn't quietly undo that. */
+.preview-button:hover { filter: brightness(0.93); }
+.preview-button:active { transform: translateY(1px); }
 
 /* The same call to action as an outline, in a second palette color */
 .preview-button-secondary {
+  appearance: none;
   display: inline-block;
   padding: 11px 24px;
   border: 2px solid var(--preview-secondary);
   border-radius: 10px;
+  background-color: transparent;
   color: var(--preview-secondary);
   font-family: var(--font-body);
   font-size: 1rem;
   font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease),
+              transform var(--dur) var(--ease);
 }
+
+/* Filling with its own color keeps the contrast: this color was picked because
+   it passes AA against the preview background, so the background reads on it. */
+.preview-button-secondary:hover {
+  background-color: var(--preview-secondary);
+  color: var(--preview-bg);
+}
+
+.preview-button-secondary:active { transform: translateY(1px); }
 
 /* A panel: the lightest color of the palette as a surface, with the darkest
    color that stays readable on it as text. */
@@ -915,5 +953,6 @@ pre {
     animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
-  .btn:active, .swatch-btn:hover { transform: none; }
+  .btn:active, .swatch-btn:hover,
+  .preview-button:active, .preview-button-secondary:active { transform: none; }
 }

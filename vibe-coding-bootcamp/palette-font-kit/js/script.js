@@ -345,8 +345,13 @@
     var others = readable.filter(function (hex) { return hex !== heading; });
     var eyebrow = others[0] || heading;
     var link = others[1] || others[0] || heading;
-    var secondary = readable.slice().sort(function (a, b) { return chroma(b) - chroma(a); })
-      .filter(function (hex) { return hex !== heading; })[0] || heading;
+    /* The outline button avoids the filled button's color as well as the
+       headline's: two identical buttons side by side show nothing. */
+    var byChromaReadable = readable.slice().sort(function (a, b) { return chroma(b) - chroma(a); });
+    var secondary = byChromaReadable.filter(function (hex) { return hex !== heading && hex !== accent; })[0] ||
+      byChromaReadable.filter(function (hex) { return hex !== accent; })[0] ||
+      byChromaReadable.filter(function (hex) { return hex !== heading; })[0] ||
+      heading;
 
     /* Panel: the palette color closest in tone to the background (the lightest
        on white, the darkest on black), kept different enough to be visible,
@@ -547,6 +552,15 @@
     preview.style.setProperty('--preview-surface', colors.surface);
     preview.style.setProperty('--preview-surface-text', colors.surfaceText);
     elements.eyebrow.style.color = colors.eyebrow;
+
+    /* The sample controls are real: each copies the color it is showing, the
+       way the swatches do, and the link opens the body face's specimen. */
+    elements.previewButton.title = 'Copy ' + colors.accent;
+    elements.previewButton.dataset.hex = colors.accent;
+    elements.previewSecondary.title = 'Copy ' + colors.secondary;
+    elements.previewSecondary.dataset.hex = colors.secondary;
+    elements.previewLink.href = 'https://fonts.google.com/specimen/' + combo.fonts.body.replace(/ /g, '+');
+    elements.previewLink.title = combo.fonts.body + ' on Google Fonts (opens in a new tab)';
 
     elements.previewPanelText.textContent =
       colors.surface + ' as a surface, with ' + colors.surfaceText +
@@ -1058,6 +1072,13 @@
 
     elements.paletteList.addEventListener('click', onSwatchClick);
 
+    /* The preview's sample controls copy the color they are wearing. */
+    [elements.previewButton, elements.previewSecondary].forEach(function (button) {
+      button.addEventListener('click', function () {
+        copyText(button.dataset.hex, button.dataset.hex + ' copied');
+      });
+    });
+
     /* Base color and saturation: live while dragging ("input"), then one
        final, animated update when the control is released ("change"). */
     elements.baseColor.addEventListener('input', function () { scheduleControlUpdate('color'); });
@@ -1112,6 +1133,9 @@
       eyebrow: document.querySelector('.preview-eyebrow'),
       previewNote: $('preview-note'),
       previewPanelText: $('preview-panel-text'),
+      previewButton: $('preview-button'),
+      previewSecondary: $('preview-secondary'),
+      previewLink: $('preview-link'),
       previewChips: $('preview-chips'),
       headingName: $('heading-name'),
       bodyName: $('body-name'),

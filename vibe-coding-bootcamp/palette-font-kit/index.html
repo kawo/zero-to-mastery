@@ -156,8 +156,10 @@
         </div>
       </div>
 
-      <!-- Live preview. Its surface stays neutral in both UI themes so the
-           generated colors always read the same way. -->
+      <!-- Live preview. Its ground follows the UI theme but stays a plain
+           neutral; every other color here comes from the palette, re-picked
+           against whichever ground it is on. The sample controls are real:
+           they copy the color they are wearing. -->
       <div class="preview" id="preview">
         <p class="preview-eyebrow">Live preview</p>
         <h3 class="preview-headline">Type sets the tone before a word is read</h3>
@@ -168,12 +170,13 @@
           Good pairings agree on rhythm and disagree on everything else: one face with character
           for headlines, one built for long reading underneath. This paragraph is here to show the
           body face at a real measure, with descenders, numerals like 2026, and punctuation —
-          <span class="preview-link">the details</span> that decide whether a pairing survives past the mood board.
+          <a class="preview-link" id="preview-link" href="https://fonts.google.com/" target="_blank" rel="noopener noreferrer">the details</a>
+          that decide whether a pairing survives past the mood board.
         </p>
 
         <div class="preview-actions">
-          <span class="preview-button">Sample button<span class="sr-only"> (sample only, not interactive)</span></span>
-          <span class="preview-button-secondary">Secondary<span class="sr-only"> (sample only, not interactive)</span></span>
+          <button type="button" class="preview-button" id="preview-button">Sample button</button>
+          <button type="button" class="preview-button-secondary" id="preview-secondary">Secondary</button>
         </div>
 
         <div class="preview-panel">

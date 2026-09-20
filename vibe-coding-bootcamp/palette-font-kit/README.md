@@ -40,6 +40,8 @@ python -m http.server 8000
   **The preview follows the UI theme,** and the whole table is recomputed when it does: on white the headline takes the darkest color and the panel the lightest, and on the dark ground both flip. A palette therefore shows you how it behaves in both modes, rather than only on paper.
 
   The caption under the preview states the ratios it used, so the sample is never an unreadable mush.
+
+  **The sample controls are real controls.** The two buttons and the link are `<button>` and `<a>` elements, not dressed-up spans: they take keyboard focus, show hover, press and focus states in the palette's own colors, and do something rather than nothing — each button copies the color it is wearing (as the swatches do), and the link opens the body face's specimen on Google Fonts. That way the states you are judging are the states a browser really renders.
 - **Shuffle All** changes palette and pairing together, from the button or the keyboard. **Shuffle Fonts Only**, next to it, changes the pairing and leaves the colors exactly as they are — useful once a palette is right and the type isn't. The swatches don't replay their entrance animation when only the fonts move.
 - **Three curated starting points** — Minimal, Playful and Bold — so the page is never empty. It opens on Minimal.
 - **Favorites.** Save a combination, re-apply it, or delete it. Stored in `localStorage`, so they survive a reload.
