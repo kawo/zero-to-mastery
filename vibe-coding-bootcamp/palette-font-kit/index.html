@@ -1,0 +1,1807 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Random Aesthetic Generator</title>
+<meta name="description" content="Generate cohesive color palettes and Google Font pairings, check WCAG AA contrast, and export them as CSS variables or JSON. Static, no build step." />
+<meta name="theme-color" content="#f9fafb" id="meta-theme-color" />
+
+<!-- Tab icon -->
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png" />
+
+<!-- UI shell fonts only: Inter for headings, Source Sans 3 for body text.
+     The fonts of the *generated* pairing are injected at runtime, one family
+     at a time, so the curated list is never downloaded upfront. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap" />
+
+<style>
+/* ==========================================================================
+   Random Aesthetic Generator — app shell styles
+   --------------------------------------------------------------------------
+   Everything here styles the *chrome*: background, cards, controls, type of
+   the app itself. The generated palette and font pairing are applied through
+   inline custom properties (set by the script) and are never normalized or
+   overridden here beyond layout, so the results stay the focus.
+   ========================================================================== */
+
+/* ---------- Design tokens: light (default) ---------- */
+:root {
+  --bg: #f9fafb;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --text: #111827;
+  --text-muted: #4b5563;      /* 7.5:1 on --surface: fine for small print */
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+
+  /* One accent for controls. Indigo 600 rather than the lighter 500 (#6366f1):
+     white text on #6366f1 is only 3.6:1, below the AA 4.5:1 for normal text.
+     #6366f1 still appears as the soft tint and the dark-mode ring. */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-text: #ffffff;
+  --accent-soft: #eef2ff;
+  --accent-soft-text: #3730a3;
+  --ring: #4f46e5;
+
+  --ok: #047857;              /* contrast badge: pass */
+  --ok-soft: #ecfdf5;
+  --fail: #b91c1c;            /* contrast badge: fail */
+  --fail-soft: #fef2f2;
+
+  --shadow: 0 1px 2px rgba(17, 24, 39, 0.06), 0 10px 28px rgba(17, 24, 39, 0.07);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.08);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+
+  --font-ui-heading: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-ui-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --dur: 200ms;               /* 150–250ms range used everywhere */
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --wrap: 1120px;
+}
+
+/* ---------- Design tokens: dark ---------- */
+.theme-dark {
+  --bg: #1e1e1e;
+  --surface: #262626;
+  --surface-2: #2e2e2e;
+  --text: #f3f4f6;
+  --text-muted: #b5b7bd;      /* 7:1 on --surface */
+  --border: #3a3a3a;
+  --border-strong: #4a4a4a;
+
+  --accent: #818cf8;          /* lighter indigo carries dark text on a dark UI */
+  --accent-hover: #a5b4fc;
+  --accent-text: #16162b;
+  --accent-soft: #2c2c46;
+  --accent-soft-text: #c7d2fe;
+  --ring: #a5b4fc;
+
+  --ok: #34d399;
+  --ok-soft: #123029;
+  --fail: #f87171;
+  --fail-soft: #3a1d1d;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  /* Only the theme swap animates, so switching modes doesn't feel abrupt. */
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-ui-heading);
+  line-height: 1.2;
+  margin: 0;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+p { margin: 0; }
+
+ul { margin: 0; padding: 0; list-style: none; }
+
+a { color: inherit; }
+
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px; top: -60px;
+  z-index: 20;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: none;
+  transition: top var(--dur) var(--ease);
+}
+
+.skip-link:focus { top: 12px; }
+
+.wrap {
+  width: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+
+/* ---------- Header ---------- */
+.site-header {
+  padding-block: 28px 8px;
+}
+
+.header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-inline: 0;
+}
+
+.site-title {
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2rem);
+  font-weight: 700;
+}
+
+.tagline {
+  margin-top: 6px;
+  max-width: 60ch;
+  color: var(--text-muted);
+  font-size: 0.975rem;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui-heading);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease),
+              transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.btn:hover { background-color: var(--surface-2); border-color: var(--text-muted); }
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  border-color: transparent;
+  background-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn-primary:hover { background-color: var(--accent-hover); border-color: transparent; }
+
+.btn-ghost {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.btn-sm {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+}
+
+.btn-danger { color: var(--fail); }
+.btn-danger:hover { border-color: var(--fail); background-color: var(--fail-soft); }
+
+/* Shortcut hints inside buttons: shown, but left out of the accessible name
+   (aria-hidden), because the button also carries aria-keyshortcuts. */
+kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background-color: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.btn-primary kbd {
+  border-color: rgba(255, 255, 255, 0.45);
+  background-color: rgba(255, 255, 255, 0.16);
+  color: inherit;
+}
+
+.theme-dark .btn-primary kbd {
+  border-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.16);
+}
+
+/* ---------- Cards and layout ---------- */
+main { padding-bottom: 56px; }
+
+.card {
+  min-width: 0;   /* lets cards shrink inside grid tracks (see .grid) */
+  padding: clamp(18px, 1.2rem + 1vw, 26px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.card + .card, .grid { margin-top: 20px; }
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 4px;
+}
+
+.card-title { font-size: 1.125rem; font-weight: 600; }
+
+.card-note {
+  margin-bottom: 18px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+  /* minmax(0, 1fr), not 1fr: a grid track sized to auto refuses to shrink
+     below its content, and the long font URL in the CSS export would then
+     stretch the whole page sideways on a phone. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 900px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid > .span-2 { grid-column: 1 / -1; }
+}
+
+/* ---------- Controls ---------- */
+.controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.presets-label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.chip {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background-color: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.chip:hover { background-color: var(--accent-soft); border-color: var(--accent); }
+
+/* The preset that is currently applied */
+.chip[aria-pressed="true"] {
+  background-color: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-soft-text);
+}
+
+/* ---------- Palette ---------- */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 14px;
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: swatch-in 220ms var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+@keyframes swatch-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.swatch-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.swatch-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+.swatch-chip {
+  display: block;
+  height: 86px;
+  /* A hairline inside the chip keeps near-white swatches visible on white */
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.12);
+}
+
+.swatch-hex {
+  display: block;
+  padding: 9px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+/* "Copy" on hover/focus, "Copied" for a moment after a successful copy */
+.swatch-hint {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-family: var(--font-ui-heading);
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.swatch-btn:hover .swatch-hint,
+.swatch-btn:focus-visible .swatch-hint,
+.swatch-btn.is-copied .swatch-hint { opacity: 1; transform: none; }
+
+.swatch-btn.is-copied .swatch-hint { background-color: var(--ok); color: #ffffff; }
+
+.badges { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pass/fail is carried by the mark and the text, not by color alone */
+.badge.is-pass { border-color: var(--ok); background-color: var(--ok-soft); color: var(--ok); }
+.badge.is-fail { border-color: var(--fail); background-color: var(--fail-soft); color: var(--fail); }
+.theme-dark .badge.is-pass { color: #6ee7b7; }
+.theme-dark .badge.is-fail { color: #fca5a5; }
+
+.badge-mark { font-weight: 700; }
+
+.scheme-tag {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+/* ---------- Font pairing + preview ---------- */
+.pairing {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  margin-bottom: 18px;
+}
+
+.pairing-item {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+}
+
+.pairing-role {
+  display: block;
+  color: var(--text-muted);
+  font-family: var(--font-ui-heading);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pairing-name {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-ui-heading);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.pairing-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.pairing-link:hover { color: var(--accent); }
+
+/* The preview keeps the same neutral surface in both UI themes, on purpose:
+   generated colors and type are judged against a constant ground, so dark
+   mode never changes how a palette reads. */
+.preview {
+  --font-heading: var(--font-ui-heading);
+  --font-body: var(--font-ui-body);
+  --weight-heading: 700;
+  --preview-heading: #111111;
+  --preview-accent: #4f46e5;
+  --preview-accent-text: #ffffff;
+
+  padding: clamp(20px, 1rem + 3vw, 40px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+  color: #1a1a1a;
+  transition: opacity var(--dur) var(--ease);
+}
+
+/* While a newly picked family is still downloading */
+.preview.is-loading { opacity: 0.55; }
+
+.preview.is-in { animation: preview-in 240ms var(--ease) both; }
+
+@keyframes preview-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.preview-eyebrow {
+  color: var(--preview-accent);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.preview-headline {
+  margin-top: 10px;
+  color: var(--preview-heading);
+  font-family: var(--font-heading);
+  font-weight: var(--weight-heading);
+  font-size: clamp(1.75rem, 1.2rem + 3.4vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.preview-subhead {
+  margin-top: 12px;
+  max-width: 48ch;
+  color: #333333;
+  font-family: var(--font-body);
+  font-size: clamp(1.05rem, 1rem + 0.5vw, 1.25rem);
+  line-height: 1.45;
+}
+
+.preview-body {
+  margin-top: 16px;
+  max-width: 65ch;   /* comfortable measure for running text */
+  color: #2b2b2b;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.preview-button {
+  display: inline-block;
+  margin-top: 22px;
+  padding: 13px 26px;
+  border-radius: 10px;
+  background-color: var(--preview-accent);
+  color: var(--preview-accent-text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.preview-note {
+  margin-top: 16px;
+  color: #5a5a5a;
+  font-family: var(--font-ui-body);
+  font-size: 0.85rem;
+}
+
+/* ---------- Export ---------- */
+.export-block + .export-block { margin-top: 18px; }
+
+.export-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.export-label {
+  font-family: var(--font-ui-heading);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+pre {
+  margin: 0;
+  max-width: 100%;
+  max-height: 260px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  overflow: auto;              /* long values scroll instead of stretching the page */
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+/* ---------- Favorites ---------- */
+.fav-list { display: grid; gap: 12px; }
+
+.fav {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  animation: swatch-in 200ms var(--ease) both;
+}
+
+.fav-swatches {
+  display: flex;
+  border-radius: 7px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.14);
+}
+
+.fav-swatch { width: 22px; height: 44px; }
+
+.fav-fonts { font-family: var(--font-ui-heading); font-weight: 600; font-size: 0.95rem; }
+
+.fav-date { color: var(--text-muted); font-size: 0.8rem; }
+
+.fav-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+@media (min-width: 520px) {
+  .fav { grid-template-columns: auto 1fr auto; }
+  .fav-actions { grid-column: auto; }
+}
+
+.empty {
+  padding: 22px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.925rem;
+  text-align: center;
+}
+
+.count-pill {
+  padding: 1px 9px;
+  border-radius: var(--radius-pill);
+  background-color: var(--accent-soft);
+  color: var(--accent-soft-text);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+/* ---------- Footer ---------- */
+.site-footer {
+  padding-block: 24px 40px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding-inline: 0;
+}
+
+.shortcut-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.switch input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 30;
+  max-width: calc(100% - 32px);
+  padding: 12px 18px;
+  border-radius: var(--radius-pill);
+  background-color: var(--text);
+  color: var(--bg);
+  font-size: 0.9rem;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .btn:active, .swatch-btn:hover { transform: none; }
+}
+</style>
+
+<script>
+  /* Theme bootstrap. Inline and tiny on purpose: it runs before the first
+     paint so a saved dark preference never flashes light first. Everything
+     else waits for the deferred script at the end of <body>. */
+  (function () {
+    try {
+      var saved = JSON.parse(localStorage.getItem('aesthetic.settings') || '{}');
+      var dark = saved && saved.theme
+        ? saved.theme === 'dark'
+        : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var root = document.documentElement;
+      root.classList.toggle('theme-dark', dark);
+      root.classList.toggle('theme-light', !dark);
+    } catch (error) {
+      /* Storage blocked: the light default in the markup stands. */
+    }
+  })();
+</script>
+</head>
+
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <div>
+      <h1 class="site-title">Random Aesthetic Generator</h1>
+      <p class="tagline">
+        Cohesive color palettes and Google Font pairings, generated in your browser.
+        Every color is checked against WCAG AA, and any combination exports as CSS variables or JSON.
+      </p>
+    </div>
+    <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false">
+      <span id="theme-icon" aria-hidden="true">☾</span>
+      <span>Dark mode</span>
+    </button>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+  <!-- ---------- Controls ---------- -->
+  <section class="card" aria-labelledby="controls-title">
+    <h2 id="controls-title" class="sr-only">Controls</h2>
+    <div class="controls-row">
+      <button type="button" class="btn btn-primary" id="shuffle" aria-keyshortcuts="Space">
+        Shuffle <kbd aria-hidden="true">Space</kbd>
+      </button>
+      <button type="button" class="btn" id="save" aria-keyshortcuts="S">
+        Save <kbd aria-hidden="true">S</kbd>
+      </button>
+      <button type="button" class="btn" id="copy-css" aria-keyshortcuts="C">
+        Copy CSS <kbd aria-hidden="true">C</kbd>
+      </button>
+      <button type="button" class="btn" id="download-json">Download JSON</button>
+    </div>
+
+    <div class="presets" role="group" aria-label="Curated starting points">
+      <span class="presets-label" id="presets-label">Start from</span>
+      <button type="button" class="chip" data-preset="minimal" aria-pressed="true">Minimal</button>
+      <button type="button" class="chip" data-preset="playful" aria-pressed="false">Playful</button>
+      <button type="button" class="chip" data-preset="bold" aria-pressed="false">Bold</button>
+    </div>
+  </section>
+
+  <div class="grid">
+    <!-- ---------- Palette ---------- -->
+    <section class="card span-2" aria-labelledby="palette-title">
+      <div class="card-head">
+        <h2 class="card-title" id="palette-title">Palette</h2>
+        <p class="scheme-tag" id="scheme-tag"></p>
+      </div>
+      <p class="card-note">
+        Click a color to copy its HEX. Badges give the contrast ratio of that color
+        <em>used as text</em> on white and on black, and whether it passes WCAG&nbsp;2.1 AA
+        for normal text (4.5:1).
+      </p>
+      <ul class="swatches" id="palette-list"></ul>
+    </section>
+
+    <!-- ---------- Font pairing + live preview ---------- -->
+    <section class="card span-2" aria-labelledby="fonts-title">
+      <div class="card-head">
+        <h2 class="card-title" id="fonts-title">Font pairing</h2>
+      </div>
+
+      <div class="pairing">
+        <div class="pairing-item">
+          <span class="pairing-role">Heading</span>
+          <span class="pairing-name" id="heading-name">—</span>
+          <a class="pairing-link" id="heading-link" href="https://fonts.google.com/" target="_blank" rel="noopener noreferrer">
+            View on Google Fonts<span aria-hidden="true"> ↗</span>
+          </a>
+        </div>
+        <div class="pairing-item">
+          <span class="pairing-role">Body</span>
+          <span class="pairing-name" id="body-name">—</span>
+          <a class="pairing-link" id="body-link" href="https://fonts.google.com/" target="_blank" rel="noopener noreferrer">
+            View on Google Fonts<span aria-hidden="true"> ↗</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Live preview. Its surface stays neutral in both UI themes so the
+           generated colors always read the same way. -->
+      <div class="preview" id="preview">
+        <p class="preview-eyebrow">Live preview</p>
+        <h3 class="preview-headline">Type sets the tone before a word is read</h3>
+        <p class="preview-subhead">
+          A heading face, a body face, and one color from the palette carrying the call to action.
+        </p>
+        <p class="preview-body">
+          Good pairings agree on rhythm and disagree on everything else: one face with character
+          for headlines, one built for long reading underneath. This paragraph is here to show the
+          body face at a real measure, with descenders, numerals like 2026, and punctuation —
+          the details that decide whether a pairing survives past the mood board.
+        </p>
+        <span class="preview-button">Sample button<span class="sr-only"> (sample only, not interactive)</span></span>
+        <p class="preview-note" id="preview-note"></p>
+      </div>
+    </section>
+
+    <!-- ---------- Export ---------- -->
+    <section class="card" aria-labelledby="export-title">
+      <div class="card-head">
+        <h2 class="card-title" id="export-title">Export</h2>
+      </div>
+      <p class="card-note">Take the current combination straight into a project.</p>
+
+      <div class="export-block">
+        <div class="export-head">
+          <span class="export-label" id="css-label">CSS variables</span>
+          <button type="button" class="btn btn-sm" id="copy-css-2">Copy CSS</button>
+        </div>
+        <pre tabindex="0" role="region" aria-labelledby="css-label"><code id="css-output"></code></pre>
+      </div>
+
+      <div class="export-block">
+        <div class="export-head">
+          <span class="export-label" id="json-label">JSON</span>
+          <span style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-sm" id="copy-json">Copy JSON</button>
+            <button type="button" class="btn btn-sm" id="download-json-2">Download</button>
+          </span>
+        </div>
+        <pre tabindex="0" role="region" aria-labelledby="json-label"><code id="json-output"></code></pre>
+      </div>
+    </section>
+
+    <!-- ---------- Favorites ---------- -->
+    <section class="card" aria-labelledby="favorites-title">
+      <div class="card-head">
+        <h2 class="card-title" id="favorites-title">
+          Favorites <span class="count-pill" id="favorites-count">0</span>
+        </h2>
+        <button type="button" class="btn btn-sm" id="save-2">Save current</button>
+      </div>
+      <p class="card-note" id="favorites-note">Saved in this browser only, with localStorage.</p>
+      <ul class="fav-list" id="favorites-list"></ul>
+      <p class="empty" id="favorites-empty">
+        Nothing saved yet. Shuffle until something clicks, then press <kbd>S</kbd>.
+      </p>
+    </section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <ul class="shortcut-list">
+      <li><kbd>Space</kbd> shuffle</li>
+      <li><kbd>S</kbd> save</li>
+      <li><kbd>C</kbd> copy CSS</li>
+    </ul>
+    <label class="switch" for="shortcuts-toggle">
+      <input type="checkbox" id="shortcuts-toggle" checked />
+      Keyboard shortcuts
+    </label>
+    <p>
+      MIT licensed. Fonts served by Google Fonts under the SIL Open Font License.
+      Nothing leaves your browser.
+    </p>
+  </div>
+</footer>
+
+<!-- Status messages: announced politely, and shown as a toast -->
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ==========================================================================
+   Random Aesthetic Generator — behaviour
+   --------------------------------------------------------------------------
+   No dependencies, no build step. Sections:
+     1. Curated data (fonts, pairings, presets)
+     2. Small helpers
+     3. Color maths and the WCAG contrast check
+     4. Generators (palette, font pair)
+     5. Applying and rendering
+     6. Storage (favorites, settings)
+     7. Exports and clipboard
+     8. Events, shortcuts, init
+   This script sits at the end of <body>, so parsing is never blocked (an
+   inline script can't use `defer`; position does the same job here).
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  /* ======================================================================
+     1. Curated data
+     ====================================================================== */
+
+  /* Twenty Google Fonts families, each with the weights actually loaded and a
+     real fallback stack (so a blocked CDN degrades to something sensible).
+     Only the weights listed are requested: asking for a weight a family
+     doesn't publish makes the whole request fail. */
+  var FONTS = {
+    'Space Grotesk':      { weights: [400, 700], stack: 'system-ui, sans-serif' },
+    'IBM Plex Sans':      { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Playfair Display':   { weights: [400, 700], stack: 'Georgia, "Times New Roman", serif' },
+    'Source Sans 3':      { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Fraunces':           { weights: [400, 700], stack: 'Georgia, serif' },
+    'Karla':              { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'DM Serif Display':   { weights: [400],      stack: 'Georgia, serif' },
+    'DM Sans':            { weights: [400, 500], stack: 'system-ui, sans-serif' },
+    'Bebas Neue':         { weights: [400],      stack: 'Impact, system-ui, sans-serif' },
+    'Work Sans':          { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Syne':               { weights: [600, 800], stack: 'system-ui, sans-serif' },
+    'Manrope':            { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Lora':               { weights: [400, 700], stack: 'Georgia, serif' },
+    'Lato':               { weights: [400, 700], stack: 'system-ui, sans-serif' },
+    'Outfit':             { weights: [400, 700], stack: 'system-ui, sans-serif' },
+    'Nunito Sans':        { weights: [400, 600], stack: 'system-ui, sans-serif' },
+    'Libre Baskerville':  { weights: [400, 700], stack: 'Georgia, serif' },
+    'Oswald':             { weights: [400, 600], stack: 'Impact, system-ui, sans-serif' },
+    'Merriweather':       { weights: [400, 700], stack: 'Georgia, serif' },
+    'Rubik':              { weights: [400, 500], stack: 'system-ui, sans-serif' }
+  };
+
+  var DEFAULT_FONT = { weights: [400, 700], stack: 'system-ui, sans-serif' };
+
+  /* Hand-checked pairings. Randomising from a curated list (rather than
+     pairing any two families) is what keeps the results usable. */
+  var PAIRS = [
+    { heading: 'Space Grotesk',     body: 'IBM Plex Sans' },
+    { heading: 'Playfair Display',  body: 'Source Sans 3' },
+    { heading: 'Fraunces',          body: 'Karla' },
+    { heading: 'DM Serif Display',  body: 'DM Sans' },
+    { heading: 'Bebas Neue',        body: 'Work Sans' },
+    { heading: 'Syne',              body: 'Manrope' },
+    { heading: 'Lora',              body: 'Lato' },
+    { heading: 'Outfit',            body: 'Nunito Sans' },
+    { heading: 'Libre Baskerville', body: 'Work Sans' },
+    { heading: 'Oswald',            body: 'Lato' },
+    { heading: 'Merriweather',      body: 'Rubik' },
+    { heading: 'Playfair Display',  body: 'Karla' },
+    { heading: 'Fraunces',          body: 'Manrope' },
+    { heading: 'Outfit',            body: 'IBM Plex Sans' }
+  ];
+
+  /* Three curated starting points, so the page is never empty on load. */
+  var PRESETS = {
+    minimal: {
+      label: 'Minimal',
+      scheme: 'Curated · neutral ramp',
+      palette: ['#0F172A', '#334155', '#94A3B8', '#E2E8F0', '#F8FAFC'],
+      fonts: { heading: 'Space Grotesk', body: 'IBM Plex Sans' }
+    },
+    playful: {
+      label: 'Playful',
+      scheme: 'Curated · warm to cool',
+      palette: ['#073B4C', '#118AB2', '#06D6A0', '#FFD166', '#FF6B6B'],
+      fonts: { heading: 'Outfit', body: 'Nunito Sans' }
+    },
+    bold: {
+      label: 'Bold',
+      scheme: 'Curated · high contrast',
+      palette: ['#0A0A0A', '#1D3557', '#E63946', '#F4A261', '#F1FAEE'],
+      fonts: { heading: 'Bebas Neue', body: 'Work Sans' }
+    }
+  };
+
+  var STORAGE = { favorites: 'aesthetic.favorites', settings: 'aesthetic.settings' };
+  var MAX_FAVORITES = 60;          // keeps localStorage small and the list scannable
+  var AA_NORMAL = 4.5;             // WCAG 2.1 AA, normal text
+  var AA_LARGE = 3;                // WCAG 2.1 AA, large text (18.66px bold / 24px)
+  var HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+  var FAMILY_RE = /^[A-Za-z0-9 ]{2,40}$/;   // Google family names are plain words
+
+  /* ======================================================================
+     2. Small helpers
+     ====================================================================== */
+  var $ = function (id) { return document.getElementById(id); };
+  var randInt = function (min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; };
+  var pick = function (list) { return list[Math.floor(Math.random() * list.length)]; };
+
+  function makeId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function stackOf(family) {
+    return (FONTS[family] || DEFAULT_FONT).stack;
+  }
+
+  function headingWeight(family) {
+    var weights = (FONTS[family] || DEFAULT_FONT).weights;
+    return Math.max.apply(null, weights);
+  }
+
+  /* ======================================================================
+     3. Color maths and contrast
+     ====================================================================== */
+  function hslToHex(h, s, l) {
+    h = ((h % 360) + 360) % 360;
+    s /= 100; l /= 100;
+    var a = s * Math.min(l, 1 - l);
+    var f = function (n) {
+      var k = (n + h / 30) % 12;
+      return l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+    };
+    var toHex = function (x) { return Math.round(x * 255).toString(16).padStart(2, '0'); };
+    return ('#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4))).toUpperCase();
+  }
+
+  function hexToRgb(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  /* WCAG 2.1 relative luminance (sRGB) */
+  function relativeLuminance(hex) {
+    var channels = hexToRgb(hex).map(function (value) {
+      var c = value / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  }
+
+  /* WCAG 2.1 contrast ratio: (lighter + 0.05) / (darker + 0.05) */
+  function contrastRatio(hexA, hexB) {
+    var a = relativeLuminance(hexA);
+    var b = relativeLuminance(hexB);
+    var lighter = Math.max(a, b);
+    var darker = Math.min(a, b);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  /* Contrast of one color used as text on white and on black.
+     The displayed number is floored, not rounded: rounding 4.49 up to "4.5"
+     next to a FAIL badge looks like a bug. */
+  function checkContrast(hex) {
+    var build = function (against) {
+      var ratio = contrastRatio(hex, against);
+      return {
+        ratio: ratio,
+        display: (Math.floor(ratio * 100) / 100).toFixed(2),
+        passAA: ratio >= AA_NORMAL,
+        passAALarge: ratio >= AA_LARGE
+      };
+    };
+    return { white: build('#FFFFFF'), black: build('#000000') };
+  }
+
+  /* Whichever of black/white is more readable on a given color. */
+  function bestTextOn(hex) {
+    return contrastRatio(hex, '#FFFFFF') >= contrastRatio(hex, '#000000') ? '#FFFFFF' : '#111111';
+  }
+
+  /* Rough chroma (0–255): how far a color is from grey. Used to find the one
+     color in a palette that can carry a call to action. */
+  function chroma(hex) {
+    var rgb = hexToRgb(hex);
+    return Math.max.apply(null, rgb) - Math.min.apply(null, rgb);
+  }
+
+  /* ======================================================================
+     4. Generators (pure: same input shape in, new combination out)
+     ====================================================================== */
+
+  /* Hue relationships that reliably look intentional. Each returns enough
+     hues for a six-color palette. */
+  var SCHEMES = {
+    'Analogous':          function (h) { return [h, h + 18, h + 36, h - 18, h - 36, h + 54]; },
+    'Complementary':      function (h) { return [h, h + 180, h + 12, h + 192, h - 12, h + 168]; },
+    'Triadic':            function (h) { return [h, h + 120, h + 240, h + 12, h + 132, h + 252]; },
+    'Split complementary':function (h) { return [h, h + 150, h + 210, h + 15, h + 165, h + 195]; },
+    'Monochrome':         function (h) { return [h, h + 4, h - 4, h + 8, h - 8, h]; }
+  };
+
+  /**
+   * A cohesive palette of 4–6 colors.
+   * Lightness runs from a dark anchor to a light anchor so every palette is
+   * usable as a real UI scale (and so the contrast badges are never all-fail).
+   * Saturation eases off at the extremes, which is what keeps the darks from
+   * going muddy and the lights from going neon.
+   */
+  function getRandomPalette(count) {
+    count = count || randInt(4, 6);
+    var schemeName = pick(Object.keys(SCHEMES));
+    var baseHue = randInt(0, 359);
+    var hues = SCHEMES[schemeName](baseHue);
+    var baseSat = randInt(38, 82);
+
+    var darkest = randInt(8, 18);
+    var lightest = randInt(88, 96);
+    var step = (lightest - darkest) / (count - 1);
+
+    var palette = [];
+    for (var i = 0; i < count; i++) {
+      var lightness = darkest + step * i + (i === 0 || i === count - 1 ? 0 : randInt(-4, 4));
+      var edge = Math.abs(lightness - 50) / 50;                 // 0 mid, 1 at the extremes
+      var saturation = Math.round(baseSat * (1 - edge * 0.45)); // calmer at both ends
+      palette.push(hslToHex(hues[i % hues.length], Math.max(12, saturation), lightness));
+    }
+    return { palette: palette, scheme: schemeName + ' · ' + count + ' colors' };
+  }
+
+  /** A heading/body pair from the curated list, never the one already shown. */
+  function pickFontPair(current) {
+    var options = PAIRS.filter(function (pair) {
+      return !current || pair.heading !== current.heading || pair.body !== current.body;
+    });
+    var chosen = pick(options);
+    return { heading: chosen.heading, body: chosen.body };
+  }
+
+  /**
+   * Colors for the preview, chosen from the palette with contrast in mind:
+   * the headline takes the darkest color that is genuinely readable, and the
+   * button takes the most saturated color that can carry black or white text.
+   * The preview can therefore never render an unreadable sample.
+   */
+  function previewColors(palette) {
+    var onWhite = palette.filter(function (hex) { return contrastRatio(hex, '#FFFFFF') >= AA_NORMAL; });
+    var byDarkness = onWhite.slice().sort(function (a, b) { return relativeLuminance(a) - relativeLuminance(b); });
+    var heading = byDarkness[0] || '#111111';
+
+    var accentCandidates = palette.slice().sort(function (a, b) { return chroma(b) - chroma(a); });
+    var accent = accentCandidates[0] || heading;
+    var accentText = bestTextOn(accent);
+
+    var eyebrow = onWhite.filter(function (hex) { return hex !== heading; })[0] || heading;
+
+    return {
+      heading: heading,
+      accent: accent,
+      accentText: accentText,
+      eyebrow: eyebrow,
+      buttonRatio: contrastRatio(accent, accentText)
+    };
+  }
+
+  /* ======================================================================
+     5. Applying and rendering
+     ====================================================================== */
+  var state = {
+    palette: [],
+    scheme: '',
+    fonts: { heading: '', body: '' },
+    favorites: [],
+    settings: { theme: 'light', shortcuts: true },
+    preset: null,
+    storageWorks: true
+  };
+
+  var elements = {};
+  var loadedFamilies = new Set();
+
+  /** Injects one Google Fonts stylesheet per family, only when first used. */
+  function ensureFamilyLoaded(family) {
+    if (loadedFamilies.has(family)) return;
+    var config = FONTS[family] || DEFAULT_FONT;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' +
+      encodeURIComponent(family).replace(/%20/g, '+') +
+      ':wght@' + config.weights.join(';') + '&display=swap';
+    document.head.appendChild(link);
+    loadedFamilies.add(family);
+  }
+
+  /** Loads the pair and points the preview's font variables at it. */
+  function applyFonts(fonts) {
+    ensureFamilyLoaded(fonts.heading);
+    ensureFamilyLoaded(fonts.body);
+
+    var preview = elements.preview;
+    preview.style.setProperty('--font-heading', '"' + fonts.heading + '", ' + stackOf(fonts.heading));
+    preview.style.setProperty('--font-body', '"' + fonts.body + '", ' + stackOf(fonts.body));
+    preview.style.setProperty('--weight-heading', String(headingWeight(fonts.heading)));
+
+    elements.headingName.textContent = fonts.heading + ' · ' + headingWeight(fonts.heading);
+    elements.bodyName.textContent = fonts.body + ' · 400';
+    elements.headingLink.href = 'https://fonts.google.com/specimen/' + fonts.heading.replace(/ /g, '+');
+    elements.bodyLink.href = 'https://fonts.google.com/specimen/' + fonts.body.replace(/ /g, '+');
+    elements.headingLink.setAttribute('aria-label', fonts.heading + ' on Google Fonts (opens in a new tab)');
+    elements.bodyLink.setAttribute('aria-label', fonts.body + ' on Google Fonts (opens in a new tab)');
+
+    /* Dim the preview until the faces are ready, but never wait forever:
+       an offline or blocked CDN just falls back to the stack above. */
+    preview.classList.add('is-loading');
+    var done = function () { preview.classList.remove('is-loading'); };
+    if (document.fonts && document.fonts.load) {
+      Promise.race([
+        Promise.all([
+          document.fonts.load(headingWeight(fonts.heading) + ' 1rem "' + fonts.heading + '"'),
+          document.fonts.load('400 1rem "' + fonts.body + '"')
+        ]),
+        new Promise(function (resolve) { setTimeout(resolve, 2500); })
+      ]).then(done, done);
+    } else {
+      setTimeout(done, 400);
+    }
+  }
+
+  /** One contrast badge ("On white 8.59:1 ✓"), readable by screen readers. */
+  function renderBadge(against, result) {
+    var li = document.createElement('li');
+    li.className = 'badge ' + (result.passAA ? 'is-pass' : 'is-fail');
+
+    var mark = document.createElement('span');
+    mark.className = 'badge-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = result.passAA ? '✓' : '✕';
+
+    var text = document.createElement('span');
+    text.textContent = 'On ' + against + ' ' + result.display + ':1';
+
+    /* Spelled out for screen readers: the tick alone carries no meaning. */
+    var sr = document.createElement('span');
+    sr.className = 'sr-only';
+    sr.textContent = result.passAA
+      ? ', passes WCAG AA for normal text'
+      : (result.passAALarge
+        ? ', fails WCAG AA for normal text, passes for large text'
+        : ', fails WCAG AA');
+
+    li.appendChild(mark);
+    li.appendChild(text);
+    li.appendChild(sr);
+    return li;
+  }
+
+  /** Swatches with HEX labels, copy buttons and contrast badges. */
+  function renderPalette(palette, scheme) {
+    var list = elements.paletteList;
+    list.textContent = '';
+
+    palette.forEach(function (hex, index) {
+      var item = document.createElement('li');
+      item.className = 'swatch';
+      item.style.setProperty('--i', String(index));
+
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'swatch-btn';
+      button.dataset.hex = hex;
+      button.setAttribute('aria-label', 'Copy ' + hex + ' to clipboard');
+
+      var chip = document.createElement('span');
+      chip.className = 'swatch-chip';
+      chip.style.backgroundColor = hex;
+      chip.setAttribute('aria-hidden', 'true');
+
+      var label = document.createElement('span');
+      label.className = 'swatch-hex';
+      label.textContent = hex;
+
+      var hint = document.createElement('span');
+      hint.className = 'swatch-hint';
+      hint.setAttribute('aria-hidden', 'true');
+      hint.textContent = 'Copy';
+
+      button.appendChild(chip);
+      button.appendChild(label);
+      button.appendChild(hint);
+
+      var badges = document.createElement('ul');
+      badges.className = 'badges';
+      var contrast = checkContrast(hex);
+      badges.appendChild(renderBadge('white', contrast.white));
+      badges.appendChild(renderBadge('black', contrast.black));
+
+      item.appendChild(button);
+      item.appendChild(badges);
+      list.appendChild(item);
+    });
+
+    elements.schemeTag.textContent = scheme;
+  }
+
+  /** Applies the palette's colors to the preview and replays its entrance. */
+  function renderPreview(combo) {
+    var colors = previewColors(combo.palette);
+    var preview = elements.preview;
+    preview.style.setProperty('--preview-heading', colors.heading);
+    preview.style.setProperty('--preview-accent', colors.accent);
+    preview.style.setProperty('--preview-accent-text', colors.accentText);
+    elements.eyebrow.style.color = colors.eyebrow;
+
+    var ratio = (Math.floor(colors.buttonRatio * 100) / 100).toFixed(2);
+    elements.previewNote.textContent =
+      'Preview colors are picked from the palette with a contrast check: the button is ' +
+      colors.accent + ' with ' + (colors.accentText === '#FFFFFF' ? 'white' : 'near-black') +
+      ' text, ' + ratio + ':1 (AA ' + (colors.buttonRatio >= AA_NORMAL ? 'pass' : 'fail') + ').';
+
+    /* Restart the animation: drop the class, force a reflow, add it back. */
+    preview.classList.remove('is-in');
+    void preview.offsetWidth;
+    preview.classList.add('is-in');
+  }
+
+  function renderExports(combo) {
+    elements.cssOutput.textContent = exportCSSVars(combo);
+    elements.jsonOutput.textContent = exportJSON(combo);
+  }
+
+  /** Marks which curated preset (if any) is showing. */
+  function renderPresets() {
+    Array.prototype.forEach.call(document.querySelectorAll('.chip[data-preset]'), function (chip) {
+      chip.setAttribute('aria-pressed', String(chip.dataset.preset === state.preset));
+    });
+  }
+
+  /** The single entry point for showing a combination. */
+  function applyCombo(combo, options) {
+    options = options || {};
+    state.palette = combo.palette.slice();
+    state.scheme = combo.scheme || '';
+    state.fonts = { heading: combo.fonts.heading, body: combo.fonts.body };
+    state.preset = options.preset || null;
+
+    applyFonts(state.fonts);
+    renderPalette(state.palette, state.scheme);
+    renderPreview(state);
+    renderExports(state);
+    renderPresets();
+  }
+
+  function shuffle() {
+    var generated = getRandomPalette();
+    applyCombo({
+      palette: generated.palette,
+      scheme: generated.scheme,
+      fonts: pickFontPair(state.fonts)
+    });
+    toast('New palette and pairing: ' + state.fonts.heading + ' with ' + state.fonts.body);
+  }
+
+  /* ======================================================================
+     6. Storage
+     ====================================================================== */
+  function readStorage(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (error) {
+      state.storageWorks = false;   // private mode, or storage switched off
+      return fallback;
+    }
+  }
+
+  function writeStorage(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (error) {
+      state.storageWorks = false;
+      return false;
+    }
+  }
+
+  /* Anything hand-edited, corrupted or from an older version is dropped
+     rather than trusted: family names go straight into a CSS value. */
+  function isValidCombo(combo) {
+    return combo &&
+      Array.isArray(combo.palette) &&
+      combo.palette.length >= 3 && combo.palette.length <= 8 &&
+      combo.palette.every(function (hex) { return typeof hex === 'string' && HEX_RE.test(hex); }) &&
+      combo.fonts &&
+      FAMILY_RE.test(String(combo.fonts.heading)) &&
+      FAMILY_RE.test(String(combo.fonts.body));
+  }
+
+  function loadFavorites() {
+    var stored = readStorage(STORAGE.favorites, []);
+    if (!Array.isArray(stored)) return [];
+    return stored.filter(isValidCombo).slice(0, MAX_FAVORITES).map(function (combo) {
+      return {
+        id: typeof combo.id === 'string' ? combo.id : makeId(),
+        palette: combo.palette.map(function (hex) { return hex.toUpperCase(); }),
+        fonts: { heading: combo.fonts.heading, body: combo.fonts.body },
+        savedAt: typeof combo.savedAt === 'string' ? combo.savedAt : new Date().toISOString()
+      };
+    });
+  }
+
+  function persistFavorites() {
+    var saved = writeStorage(STORAGE.favorites, state.favorites);
+    elements.favoritesNote.textContent = saved
+      ? 'Saved in this browser only, with localStorage.'
+      : 'This browser is blocking storage, so favorites will be lost when the page closes.';
+  }
+
+  function saveFavorite() {
+    var duplicate = state.favorites.some(function (combo) {
+      return combo.palette.join() === state.palette.join() &&
+        combo.fonts.heading === state.fonts.heading &&
+        combo.fonts.body === state.fonts.body;
+    });
+    if (duplicate) {
+      toast('Already in your favorites');
+      return;
+    }
+    state.favorites.unshift({
+      id: makeId(),
+      palette: state.palette.slice(),
+      fonts: { heading: state.fonts.heading, body: state.fonts.body },
+      savedAt: new Date().toISOString()
+    });
+    if (state.favorites.length > MAX_FAVORITES) state.favorites.length = MAX_FAVORITES;
+    persistFavorites();
+    renderFavorites();
+    toast('Saved to favorites');
+  }
+
+  function applyFavorite(id) {
+    var combo = state.favorites.find(function (item) { return item.id === id; });
+    if (!combo) return;
+    applyCombo({ palette: combo.palette, scheme: 'Saved combination', fonts: combo.fonts });
+    toast('Applied ' + combo.fonts.heading + ' with ' + combo.fonts.body);
+  }
+
+  function deleteFavorite(id) {
+    var index = state.favorites.findIndex(function (item) { return item.id === id; });
+    if (index < 0) return;
+    state.favorites.splice(index, 1);
+    persistFavorites();
+    renderFavorites();
+    toast('Removed from favorites');
+
+    /* Keep focus somewhere sensible: the next entry, or the Save button. */
+    var buttons = elements.favoritesList.querySelectorAll('[data-delete]');
+    var next = buttons[Math.min(index, buttons.length - 1)];
+    (next || elements.save).focus();
+  }
+
+  function formatDate(iso) {
+    try {
+      return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(iso));
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function renderFavorites() {
+    var list = elements.favoritesList;
+    list.textContent = '';
+    elements.favoritesCount.textContent = String(state.favorites.length);
+    elements.favoritesEmpty.hidden = state.favorites.length > 0;
+
+    state.favorites.forEach(function (combo) {
+      var item = document.createElement('li');
+      item.className = 'fav';
+
+      var strip = document.createElement('div');
+      strip.className = 'fav-swatches';
+      strip.setAttribute('aria-hidden', 'true');
+      combo.palette.forEach(function (hex) {
+        var cell = document.createElement('span');
+        cell.className = 'fav-swatch';
+        cell.style.backgroundColor = hex;
+        strip.appendChild(cell);
+      });
+
+      var meta = document.createElement('div');
+      var fonts = document.createElement('p');
+      fonts.className = 'fav-fonts';
+      fonts.textContent = combo.fonts.heading + ' + ' + combo.fonts.body;
+      var date = document.createElement('p');
+      date.className = 'fav-date';
+      date.textContent = combo.palette.length + ' colors · saved ' + formatDate(combo.savedAt);
+      /* The strip is decorative, so the HEX values are read out here instead. */
+      var hexes = document.createElement('span');
+      hexes.className = 'sr-only';
+      hexes.textContent = 'Palette: ' + combo.palette.join(', ');
+      meta.appendChild(fonts);
+      meta.appendChild(date);
+      meta.appendChild(hexes);
+
+      var actions = document.createElement('div');
+      actions.className = 'fav-actions';
+
+      var apply = document.createElement('button');
+      apply.type = 'button';
+      apply.className = 'btn btn-sm';
+      apply.dataset.apply = combo.id;
+      apply.textContent = 'Apply';
+      apply.setAttribute('aria-label', 'Apply ' + combo.fonts.heading + ' with ' + combo.fonts.body);
+
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'btn btn-sm btn-danger';
+      remove.dataset.delete = combo.id;
+      remove.textContent = 'Delete';
+      remove.setAttribute('aria-label', 'Delete saved combination ' + combo.fonts.heading + ' with ' + combo.fonts.body);
+
+      actions.appendChild(apply);
+      actions.appendChild(remove);
+
+      item.appendChild(strip);
+      item.appendChild(meta);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+  }
+
+  function loadSettings() {
+    var stored = readStorage(STORAGE.settings, {});
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return {
+      theme: stored.theme === 'dark' || stored.theme === 'light' ? stored.theme : (prefersDark ? 'dark' : 'light'),
+      shortcuts: stored.shortcuts !== false
+    };
+  }
+
+  function applyTheme(theme) {
+    var root = document.documentElement;
+    var dark = theme === 'dark';
+    root.classList.toggle('theme-dark', dark);
+    root.classList.toggle('theme-light', !dark);
+    elements.themeToggle.setAttribute('aria-pressed', String(dark));
+    elements.themeIcon.textContent = dark ? '☀' : '☾';
+    elements.metaThemeColor.setAttribute('content', dark ? '#1e1e1e' : '#f9fafb');
+  }
+
+  /* ======================================================================
+     7. Exports and clipboard
+     ====================================================================== */
+
+  /** CSS custom properties for the current combination. */
+  function exportCSSVars(combo) {
+    var lines = combo.palette.map(function (hex, index) {
+      return '  --color-' + (index + 1) + ': ' + hex + ';';
+    });
+    lines.push('  --font-heading: "' + combo.fonts.heading + '", ' + stackOf(combo.fonts.heading) + ';');
+    lines.push('  --font-body: "' + combo.fonts.body + '", ' + stackOf(combo.fonts.body) + ';');
+
+    var families = encodeURIComponent(combo.fonts.heading).replace(/%20/g, '+') +
+      ':wght@' + (FONTS[combo.fonts.heading] || DEFAULT_FONT).weights.join(';') +
+      '&family=' + encodeURIComponent(combo.fonts.body).replace(/%20/g, '+') +
+      ':wght@' + (FONTS[combo.fonts.body] || DEFAULT_FONT).weights.join(';');
+
+    return '/* Fonts: <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=' +
+      families + '&display=swap"> */\n:root {\n' + lines.join('\n') + '\n}';
+  }
+
+  /** The exact shape promised in the docs: { palette, fonts }. */
+  function exportJSON(combo) {
+    return JSON.stringify({
+      palette: combo.palette,
+      fonts: { heading: combo.fonts.heading, body: combo.fonts.body }
+    }, null, 2);
+  }
+
+  function downloadJSON() {
+    var stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    var blob = new Blob([exportJSON(state)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'aesthetic-' + stamp + '.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast('Downloaded ' + link.download);
+  }
+
+  /* Older browsers, and any page not in a secure context, fall back to a
+     hidden textarea and execCommand. */
+  function legacyCopy(text) {
+    var field = document.createElement('textarea');
+    field.value = text;
+    field.setAttribute('readonly', '');
+    field.style.cssText = 'position:fixed;top:-1000px;left:0;opacity:0;';
+    document.body.appendChild(field);
+    field.select();
+    var copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch (error) {
+      copied = false;
+    }
+    field.remove();
+    return copied;
+  }
+
+  function copyText(text, message) {
+    var finish = function (copied) {
+      toast(copied ? message : 'Copy failed — select the text and copy it by hand');
+      return copied;
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).then(function () {
+        return finish(true);
+      }, function () {
+        return finish(legacyCopy(text));
+      });
+    }
+    return Promise.resolve(finish(legacyCopy(text)));
+  }
+
+  var toastTimer = 0;
+  function toast(message) {
+    var node = elements.toast;
+    node.textContent = message;         /* role="status" announces the change */
+    node.classList.add('is-visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { node.classList.remove('is-visible'); }, 2600);
+  }
+
+  function copyCSS() { copyText(exportCSSVars(state), 'CSS variables copied'); }
+  function copyJSON() { copyText(exportJSON(state), 'JSON copied'); }
+
+  /* ======================================================================
+     8. Events, shortcuts, init
+     ====================================================================== */
+  function onSwatchClick(event) {
+    var button = event.target.closest('.swatch-btn');
+    if (!button) return;
+    var hex = button.dataset.hex;
+    copyText(hex, hex + ' copied').then(function (copied) {
+      if (!copied) return;
+      /* Visual confirmation on the swatch itself; the accessible name stays
+         the same so the button never renames itself under a screen reader. */
+      var hint = button.querySelector('.swatch-hint');
+      button.classList.add('is-copied');
+      hint.textContent = 'Copied';
+      setTimeout(function () {
+        button.classList.remove('is-copied');
+        hint.textContent = 'Copy';
+      }, 1400);
+    });
+  }
+
+  function onFavoritesClick(event) {
+    var apply = event.target.closest('[data-apply]');
+    var remove = event.target.closest('[data-delete]');
+    if (apply) applyFavorite(apply.dataset.apply);
+    else if (remove) deleteFavorite(remove.dataset.delete);
+  }
+
+  /**
+   * Single-key shortcuts. Two rules keep them out of the way:
+   *   - never while typing in a field;
+   *   - Space is ignored when a button has focus, because Space already
+   *     activates the focused button (otherwise one press would do both).
+   * They can be switched off entirely, which is also what WCAG 2.1.4 asks of
+   * single-character shortcuts.
+   */
+  function onKeydown(event) {
+    if (!state.settings.shortcuts) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+    var target = event.target;
+    if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+
+    var key = event.key.toLowerCase();
+    if (event.key === ' ' || event.code === 'Space') {
+      if (target.closest('button, a, summary, [role="button"]')) return;
+      event.preventDefault();               // no page scroll
+      shuffle();
+    } else if (key === 's') {
+      event.preventDefault();
+      saveFavorite();
+    } else if (key === 'c') {
+      event.preventDefault();
+      copyCSS();
+    }
+  }
+
+  function wireEvents() {
+    elements.shuffle.addEventListener('click', shuffle);
+    elements.save.addEventListener('click', saveFavorite);
+    elements.save2.addEventListener('click', saveFavorite);
+    elements.copyCss.addEventListener('click', copyCSS);
+    elements.copyCss2.addEventListener('click', copyCSS);
+    elements.copyJson.addEventListener('click', copyJSON);
+    elements.downloadJson.addEventListener('click', downloadJSON);
+    elements.downloadJson2.addEventListener('click', downloadJSON);
+
+    elements.paletteList.addEventListener('click', onSwatchClick);
+    elements.favoritesList.addEventListener('click', onFavoritesClick);
+
+    Array.prototype.forEach.call(document.querySelectorAll('.chip[data-preset]'), function (chip) {
+      chip.addEventListener('click', function () {
+        var preset = PRESETS[chip.dataset.preset];
+        applyCombo(preset, { preset: chip.dataset.preset });
+        toast(preset.label + ' applied');
+      });
+    });
+
+    elements.themeToggle.addEventListener('click', function () {
+      state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(state.settings.theme);
+      writeStorage(STORAGE.settings, state.settings);
+    });
+
+    elements.shortcutsToggle.addEventListener('change', function () {
+      state.settings.shortcuts = elements.shortcutsToggle.checked;
+      writeStorage(STORAGE.settings, state.settings);
+      toast(state.settings.shortcuts ? 'Keyboard shortcuts on' : 'Keyboard shortcuts off');
+    });
+
+    document.addEventListener('keydown', onKeydown);
+  }
+
+  function init() {
+    elements = {
+      shuffle: $('shuffle'),
+      save: $('save'),
+      save2: $('save-2'),
+      copyCss: $('copy-css'),
+      copyCss2: $('copy-css-2'),
+      copyJson: $('copy-json'),
+      downloadJson: $('download-json'),
+      downloadJson2: $('download-json-2'),
+      paletteList: $('palette-list'),
+      schemeTag: $('scheme-tag'),
+      preview: $('preview'),
+      eyebrow: document.querySelector('.preview-eyebrow'),
+      previewNote: $('preview-note'),
+      headingName: $('heading-name'),
+      bodyName: $('body-name'),
+      headingLink: $('heading-link'),
+      bodyLink: $('body-link'),
+      cssOutput: $('css-output'),
+      jsonOutput: $('json-output'),
+      favoritesList: $('favorites-list'),
+      favoritesEmpty: $('favorites-empty'),
+      favoritesCount: $('favorites-count'),
+      favoritesNote: $('favorites-note'),
+      themeToggle: $('theme-toggle'),
+      themeIcon: $('theme-icon'),
+      shortcutsToggle: $('shortcuts-toggle'),
+      metaThemeColor: $('meta-theme-color'),
+      toast: $('toast')
+    };
+
+    state.settings = loadSettings();
+    applyTheme(state.settings.theme);
+    elements.shortcutsToggle.checked = state.settings.shortcuts;
+
+    state.favorites = loadFavorites();
+    renderFavorites();
+    if (!state.storageWorks) persistFavorites();   // shows the blocked-storage note
+
+    /* The page opens on "Minimal" rather than something random, so the first
+       impression is a designed combination. */
+    applyCombo(PRESETS.minimal, { preset: 'minimal' });
+
+    wireEvents();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
