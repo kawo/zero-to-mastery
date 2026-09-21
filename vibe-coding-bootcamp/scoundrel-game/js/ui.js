@@ -20,6 +20,8 @@
   const C = window.ScoundrelConfig;
   const Engine = window.ScoundrelEngine;
   const Art = window.ScoundrelArt;
+  const Prefs = window.ScoundrelPrefs;
+  const Stats = window.ScoundrelStats;
 
   const $ = (id) => document.getElementById(id);
 
@@ -49,9 +51,21 @@
     debugPanel: $('debugPanel'),
     debugDeck: $('debugDeck'),
     seedInput: $('seedInput'),
+    presetReadout: $('presetReadout'),
+    settingsModal: $('settingsModal'),
+    statsModal: $('statsModal'),
+    welcomeModal: $('welcomeModal'),
+    presetChoices: $('presetChoices'),
+    motionChoices: $('motionChoices'),
+    showThreatToggle: $('showThreatToggle'),
+    coachToggle: $('coachToggle'),
+    settingsSeedInput: $('settingsSeedInput'),
+    scoreboard: $('scoreboard'),
+    historyList: $('historyList'),
   };
 
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  /* Motion is a preference, not just an OS setting — see prefs.js. */
+  const reduceMotion = () => Prefs.reduceMotion();
 
   /* Which slot is currently asking "weapon or bare hands?" — UI-only state. */
   let choosing = -1;
@@ -91,6 +105,8 @@
     el.deckCount.textContent = String(state.deck.length);
     el.discardCount.textContent = String(state.discard.length);
     el.seedReadout.textContent = state.seed;
+    const preset = C.PRESETS[state.preset];
+    el.presetReadout.textContent = preset && preset.id !== C.DEFAULT_PRESET ? `· ${preset.name}` : '';
 
     const can = Engine.canAvoid(state);
     el.avoidBtn.disabled = !can;
@@ -239,7 +255,7 @@
 
       // Damage preview badge on monsters — the number you actually care about.
       let badge = wrap.querySelector('.card__threat');
-      if (isMonster && playable) {
+      if (isMonster && playable && Prefs.get('showThreat')) {
         const dmg = Engine.previewDamage(state, card, offersChoice ? 'weapon' : 'bare');
         if (!badge) {
           badge = document.createElement('span');
@@ -299,7 +315,7 @@
     fresh.forEach((li, i) => {
       revealed.add(li.dataset.cardId);
       const card = li.querySelector('.card');
-      if (reduceMotion.matches) {
+      if (reduceMotion()) {
         card.classList.add('is-faceup');
         return;
       }
@@ -307,6 +323,17 @@
     });
 
     el.roomHint.textContent = roomHint(state);
+
+    // The room's own label carries progress, so a screen reader user can land
+    // on the group and know where they are without counting cards.
+    const open = Engine.view.pending(state).length;
+    el.room.setAttribute(
+      'aria-label',
+      state.status === 'playing'
+        ? `Room ${state.turn}. ${open} ${open === 1 ? 'card' : 'cards'} face up, `
+          + `${state.resolved} of ${Math.min(C.CARDS_TO_RESOLVE, open + state.resolved)} resolved.`
+        : `Room ${state.turn}. The run is over.`,
+    );
   }
 
   /* ------------------------------------------------------------------ *
@@ -392,6 +419,108 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * Settings
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Build one radio group. Real <input type="radio"> rather than buttons with
+   * aria-checked, so arrow-key behaviour and the accessibility tree come from
+   * the browser instead of being re-implemented here.
+   */
+  function choiceGroup(container, name, options, current) {
+    container.replaceChildren();
+    const frag = document.createDocumentFragment();
+    for (const opt of options) {
+      const id = `${name}-${opt.id}`;
+      const label = document.createElement('label');
+      label.className = 'choice';
+      label.setAttribute('for', id);
+      label.innerHTML = `
+        <input type="radio" id="${id}" name="${name}" value="${opt.id}"${opt.id === current ? ' checked' : ''} />
+        <span class="choice__body">
+          <b>${opt.name}</b>
+          ${opt.blurb ? `<i>${opt.blurb}</i>` : ''}
+        </span>`;
+      frag.appendChild(label);
+    }
+    container.appendChild(frag);
+  }
+
+  const MOTION_OPTIONS = [
+    { id: 'system', name: 'System', blurb: 'Follow your operating system’s reduced-motion setting.' },
+    { id: 'reduced', name: 'Reduced', blurb: 'No card flips, no shake, no stagger.' },
+    { id: 'full', name: 'Full', blurb: 'Always animate, whatever the system says.' },
+  ];
+
+  function renderSettings() {
+    choiceGroup(el.presetChoices, 'preset', Object.values(C.PRESETS), Prefs.get('preset'));
+    choiceGroup(el.motionChoices, 'motion', MOTION_OPTIONS, Prefs.get('motion'));
+    el.showThreatToggle.checked = Prefs.get('showThreat');
+    el.coachToggle.checked = Prefs.get('coach');
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Record
+   * ------------------------------------------------------------------ */
+
+  const WHEN = (ms) => {
+    const mins = Math.round((Date.now() - ms) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.round(hours / 24);
+    return days === 1 ? 'yesterday' : `${days}d ago`;
+  };
+
+  function renderStats() {
+    const s = Stats.all();
+    const rate = Stats.winRate();
+    const cells = [
+      ['Runs', s.games],
+      ['Won', s.wins],
+      ['Win rate', rate === null ? '—' : `${rate.toFixed(0)}%`],
+      ['Best score', s.bestScore === null ? '—' : (s.bestScore > 0 ? `+${s.bestScore}` : s.bestScore)],
+      ['Streak', s.currentStreak],
+      ['Longest streak', s.longestStreak],
+    ];
+    el.scoreboard.replaceChildren();
+    const frag = document.createDocumentFragment();
+    for (const [term, value] of cells) {
+      const wrap = document.createElement('div');
+      wrap.className = 'scoreboard__cell';
+      wrap.innerHTML = `<dt>${term}</dt><dd>${value}</dd>`;
+      frag.appendChild(wrap);
+    }
+    el.scoreboard.appendChild(frag);
+
+    if (!s.history.length) {
+      el.historyList.innerHTML = '<p class="history__empty">No finished runs yet. Your first one will appear here.</p>';
+      return;
+    }
+
+    const rows = document.createElement('ol');
+    rows.className = 'history__list';
+    for (const run of s.history) {
+      const li = document.createElement('li');
+      li.className = 'history__row';
+      li.dataset.status = run.status;
+      const preset = C.PRESETS[run.preset] ? C.PRESETS[run.preset].name : run.preset;
+      li.innerHTML = `
+        <span class="history__score">${run.score > 0 ? `+${run.score}` : run.score}</span>
+        <span class="history__meta">
+          <b>${run.status === 'won' ? 'Cleared' : `Fell in room ${run.turns}`}</b>
+          <i>${preset} · seed <code>${run.seed}</code> · ${WHEN(run.at)}</i>
+        </span>
+        <button type="button" class="btn btn--sm" data-replay="${run.seed}" data-preset="${run.preset}">
+          Replay<span class="sr-only"> the dungeon from seed ${run.seed}</span>
+        </button>`;
+      rows.appendChild(li);
+    }
+    el.historyList.replaceChildren(rows);
+  }
+
+  /* ------------------------------------------------------------------ *
    * Debug
    * ------------------------------------------------------------------ */
 
@@ -442,5 +571,6 @@
 
   window.ScoundrelUI = Object.freeze({
     el, render, reset, showEnd, setChoosing, getChoosing, renderDebug,
+    renderSettings, renderStats, staticCard,
   });
 })();

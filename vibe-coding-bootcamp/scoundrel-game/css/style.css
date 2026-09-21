@@ -697,6 +697,12 @@ kbd {
 .log__row[data-kind='weapon'] { color: var(--weapon); }
 .log__row[data-kind='avoid']  { color: var(--gold); }
 .log__row[data-kind='muted']  { color: var(--bone-3); font-style: italic; }
+.log__row[data-kind='coach']  {
+  color: #cdbd8e;
+  background: rgb(195 160 89 / 7%);
+  border-left: 2px solid var(--gold);
+  padding-left: 0.4rem;
+}
 .log__row[data-kind='start']  { color: var(--bone-3); letter-spacing: 0.04em; }
 .log__row[data-kind='win'],
 .log__row[data-kind='lose']   { font-family: var(--font-display); font-size: 0.8rem; letter-spacing: 0.06em; }
@@ -766,6 +772,8 @@ kbd {
   text-transform: uppercase;
   color: var(--gold);
 }
+
+.modal__body { margin-top: 0.75rem; }
 
 .prose p { margin: 0.5rem 0; color: var(--bone-2); }
 .prose ul, .prose ol { margin: 0.4rem 0; padding-left: 1.2rem; color: var(--bone-2); }
@@ -854,6 +862,146 @@ kbd {
 .end__detail { margin: 0.9rem 0 1.4rem; font-size: 0.9rem; color: var(--bone-2); }
 
 .end__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+
+/* Settings ---------------------------------------------------------------- */
+
+.field { margin: 0 0 1.4rem; padding: 0; border: 0; }
+.field legend {
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.field__hint { margin: 0.3rem 0 0.7rem; font-size: 0.82rem; color: var(--bone-3); }
+.field__danger { margin: 1.5rem 0 0; padding-top: 1rem; border-top: 1px solid var(--edge); }
+
+.choices { display: grid; gap: 0.45rem; }
+
+.choice {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--edge-2);
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 35%);
+  cursor: pointer;
+  transition: border-color var(--speed), background var(--speed);
+}
+.choice:hover { border-color: var(--bone-3); }
+.choice:has(input:checked) { border-color: var(--gold); background: rgb(195 160 89 / 9%); }
+.choice:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.choice input { margin: 0.25rem 0 0; accent-color: var(--gold); flex: none; }
+.choice__body { display: grid; gap: 0.1rem; }
+.choice__body b { font-family: var(--font-display); font-size: 0.86rem; letter-spacing: 0.04em; }
+.choice__body i { font-style: normal; font-size: 0.8rem; color: var(--bone-3); }
+
+.switch {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 0.55rem 0;
+  cursor: pointer;
+}
+.switch input { margin: 0.25rem 0 0; accent-color: var(--gold); flex: none; }
+.switch__text { display: grid; gap: 0.1rem; }
+.switch__text b { font-size: 0.9rem; }
+.switch__text i { font-style: normal; font-size: 0.8rem; color: var(--bone-3); }
+/* The native checkbox is the control; this span is a hook kept for skinning. */
+.switch__box { display: none; }
+
+.seed-form { display: flex; gap: 0.4rem; }
+.seed-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--edge-2);
+  border-radius: var(--radius-sm);
+  background: #000;
+  color: var(--bone);
+}
+
+/* Record ------------------------------------------------------------------ */
+
+.scoreboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: 0.5rem;
+  margin: 0 0 1.5rem;
+}
+.scoreboard__cell {
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 35%);
+}
+.scoreboard dt {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bone-3);
+}
+.scoreboard dd {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.history__empty { font-size: 0.86rem; color: var(--bone-3); font-style: italic; }
+.history__list { margin: 0.5rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.4rem; }
+
+.history__row {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--edge);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 30%);
+}
+.history__row[data-status='won']  { border-left-color: var(--gold); }
+.history__row[data-status='lost'] { border-left-color: #5a2a30; }
+
+.history__score { font-family: var(--font-display); font-size: 1.1rem; text-align: right; }
+.history__row[data-status='won'] .history__score  { color: #e9d9a8; }
+.history__row[data-status='lost'] .history__score { color: #e07a76; }
+
+.history__meta { display: grid; gap: 0.1rem; min-width: 0; }
+.history__meta b { font-size: 0.85rem; font-weight: 600; }
+.history__meta i {
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--bone-3);
+  overflow-wrap: anywhere;
+}
+
+/* Welcome ----------------------------------------------------------------- */
+
+.modal--welcome { width: min(34rem, calc(100vw - 2rem)); text-align: center; }
+.modal--welcome h2 { margin: 0.3rem 0 1rem; }
+.welcome__steps {
+  margin: 0 0 1rem;
+  padding-left: 1.2rem;
+  text-align: left;
+  display: grid;
+  gap: 0.6rem;
+}
+.welcome__steps li { color: var(--bone-2); }
+.welcome__note {
+  margin: 0 0 1.2rem;
+  font-size: 0.85rem;
+  color: var(--bone-3);
+  font-style: italic;
+}
+
+.seed-preset { color: var(--gold); }
 
 /* ---------- 9. Debug ----------------------------------------------------- */
 

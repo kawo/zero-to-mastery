@@ -15,16 +15,32 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
+
+/* An in-memory LocalStorage, so prefs and stats are exercised for real rather
+ * than silently falling back to their defaults. */
+function makeStorage() {
+  const map = new Map();
+  return {
+    getItem: (k) => (map.has(k) ? map.get(k) : null),
+    setItem: (k, v) => map.set(k, String(v)),
+    removeItem: (k) => map.delete(k),
+    clear: () => map.clear(),
+  };
+}
+
 const sandbox = { console, Math, Date, JSON };
 sandbox.window = sandbox;
+sandbox.localStorage = makeStorage();
 vm.createContext(sandbox);
-for (const file of ['js/config.js', 'js/rng.js', 'js/engine.js']) {
+for (const file of ['js/config.js', 'js/prefs.js', 'js/stats.js', 'js/rng.js', 'js/engine.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, file), 'utf8'), sandbox, { filename: file });
 }
 
 const C = sandbox.ScoundrelConfig;
 const RNG = sandbox.ScoundrelRng;
 const E = sandbox.ScoundrelEngine;
+const Prefs = sandbox.ScoundrelPrefs;
+const Stats = sandbox.ScoundrelStats;
 
 let passed = 0;
 let failed = 0;
@@ -221,18 +237,156 @@ group('Endings');
 }
 
 /* ===================================================================== *
+ * Rulesets
+ * ===================================================================== */
+
+group('Rulesets');
+{
+  const armed = (presetId, rank, cap) => {
+    const s = E.create('ruleset', presetId);
+    s.weapon = { card: C.makeCard('♦', 5), lastSlain: cap, stack: [] };
+    return E.canUseWeapon(s, C.makeCard('♠', rank));
+  };
+  check('standard allows an equal-value monster', armed('standard', 10, 10) === true);
+  check('classic refuses an equal-value monster', armed('classic', 10, 10) === false);
+  check('classic allows a smaller one', armed('classic', 9, 10) === true);
+
+  /* A bloody win: relaxed leaves the cap alone, standard drops it. */
+  const swing = (presetId) => {
+    const s = E.create(`swing-${presetId}`, presetId);
+    s.weapon = { card: C.makeCard('♦', 5), lastSlain: null, stack: [] };
+    s.deck = [C.makeCard('♥', 2)];
+    s.room = [{ card: C.makeCard('♠', 12), done: false, dealtOn: s.turn }];
+    s.resolved = 0;
+    E.resolve(s, 0, 'weapon');
+    return s.weapon;
+  };
+  const relaxed = swing('relaxed');
+  check('relaxed: a bloody win neither stacks nor lowers the cap',
+    relaxed.lastSlain === null && relaxed.stack.length === 0,
+    { cap: relaxed.lastSlain, stack: relaxed.stack.length });
+  const standard = swing('standard');
+  check('standard: a bloody win stacks and caps the blade',
+    standard.lastSlain === 12 && standard.stack.length === 1,
+    { cap: standard.lastSlain, stack: standard.stack.length });
+
+  check('an unknown preset falls back to the default',
+    E.create('x', 'nonsense').preset === C.DEFAULT_PRESET);
+
+  /* The ruleset belongs to the run, not to whatever the setting says now. */
+  const run = E.create('frozen', 'classic');
+  const roundTripped = JSON.parse(JSON.stringify(run));
+  Prefs.set('preset', 'relaxed');
+  check('a run keeps its own ruleset after the setting changes',
+    E.rulesOf(run).weaponStrictlyDecreasing === true);
+  check('rules survive a save/load round trip',
+    E.rulesOf(roundTripped).weaponStrictlyDecreasing === true);
+  check('replay keeps the ruleset', E.replay(run).preset === 'classic');
+  Prefs.set('preset', C.DEFAULT_PRESET);
+
+  /* Saves written before rulesets existed. */
+  const legacy = E.create('legacy');
+  delete legacy.rules;
+  delete legacy.preset;
+  check('a save with no ruleset falls back to the module defaults',
+    E.rulesOf(legacy).weaponStrictlyDecreasing === C.WEAPON_STRICTLY_DECREASING);
+}
+
+/* ===================================================================== *
+ * Preferences
+ * ===================================================================== */
+
+group('Preferences');
+{
+  Prefs.reset();
+  check('defaults are served before anything is set',
+    Prefs.get('preset') === C.DEFAULT_PRESET && Prefs.get('showThreat') === true);
+  check('a valid value is accepted',
+    Prefs.set('motion', 'reduced') && Prefs.get('motion') === 'reduced');
+  check('a value outside the options is rejected',
+    Prefs.set('motion', 'sideways') === false && Prefs.get('motion') === 'reduced');
+  check('a wrongly typed value is rejected',
+    Prefs.set('showThreat', 'yes') === false && Prefs.get('showThreat') === true);
+  check('an unknown key is rejected', Prefs.set('nope', 1) === false);
+
+  let fired = 0;
+  const off = Prefs.onChange(() => { fired += 1; });
+  Prefs.set('coach', false);
+  Prefs.set('coach', false);   // same value, so no event
+  off();
+  Prefs.set('coach', true);    // after unsubscribing
+  check('listeners fire once per real change and unsubscribe cleanly', fired === 1, fired);
+
+  Prefs.reset();
+  check('reset restores the defaults', Prefs.get('motion') === 'system');
+}
+
+/* ===================================================================== *
+ * Record
+ * ===================================================================== */
+
+group('Record');
+{
+  Stats.reset();
+  const finish = (status, score, seed = 'rec') => ({
+    status,
+    score,
+    seed,
+    preset: 'standard',
+    turn: 7,
+    health: status === 'won' ? score : 0,
+    killer: status === 'lost' ? C.makeCard('♠', 14) : null,
+  });
+
+  check('an unfinished run is not recorded', Stats.record({ status: 'playing' }) === null);
+
+  Stats.record(finish('won', 12));
+  Stats.record(finish('won', 5));
+  Stats.record(finish('lost', -30));
+  let s = Stats.all();
+  check('games, wins and losses counted',
+    s.games === 3 && s.wins === 2 && s.losses === 1,
+    { games: s.games, wins: s.wins, losses: s.losses });
+  check('win rate', Math.round(Stats.winRate()) === 67, Stats.winRate());
+  check('best score is the highest across all runs', s.bestScore === 12, s.bestScore);
+  check('a loss breaks the streak', s.currentStreak === 0, s.currentStreak);
+  check('longest streak is remembered', s.longestStreak === 2, s.longestStreak);
+
+  Stats.record(finish('won', 3));
+  s = Stats.all();
+  check('the streak resumes after a loss', s.currentStreak === 1 && s.longestStreak === 2);
+  check('history is newest first', s.history[0].score === 3 && s.history[3].score === 12);
+  check('history keeps the seed for replay', s.history[0].seed === 'rec');
+
+  for (let i = 0; i < C.HISTORY_LIMIT + 10; i += 1) Stats.record(finish('lost', -i, `s${i}`));
+  check(`history is capped at ${C.HISTORY_LIMIT}`,
+    Stats.all().history.length === C.HISTORY_LIMIT, Stats.all().history.length);
+
+  check('all() hands back a copy, not the live array', (() => {
+    const copy = Stats.all();
+    copy.history.push('junk');
+    return Stats.all().history.length === C.HISTORY_LIMIT;
+  })());
+
+  Stats.reset();
+  check('reset clears everything',
+    Stats.all().games === 0 && Stats.all().history.length === 0);
+}
+
+/* ===================================================================== *
  * Fuzzing: invariants over thousands of random games
  * ===================================================================== */
 
-group('Fuzz (4000 random games)');
+group('Fuzz (4000 random games, cycling all three rulesets)');
 {
   let wins = 0;
   let stuck = 0;
   const problems = [];
+  const PRESETS = Object.keys(C.PRESETS);
 
   for (let g = 0; g < 4000 && problems.length === 0; g += 1) {
     const rand = RNG.make(`policy-${g}`);
-    const s = E.create(`fuzz-${g}`);
+    const s = E.create(`fuzz-${g}`, PRESETS[g % PRESETS.length]);
     let steps = 0;
 
     while (s.status === 'playing') {

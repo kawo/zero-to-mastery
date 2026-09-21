@@ -94,7 +94,9 @@
     <button type="button" class="btn" id="newGameBtn"><span class="btn__key" aria-hidden="true">N</span><span>New game</span></button>
     <button type="button" class="btn" id="restartBtn"><span class="btn__key" aria-hidden="true">R</span><span>Restart dungeon</span></button>
     <button type="button" class="btn" id="rulesBtn"><span class="btn__key" aria-hidden="true">?</span><span>Rules</span></button>
-    <p class="seed-readout">Seed <code id="seedReadout">—</code></p>
+    <button type="button" class="btn" id="statsBtn"><span class="btn__key" aria-hidden="true">T</span><span>Record</span></button>
+    <button type="button" class="btn" id="settingsBtn"><span class="btn__key" aria-hidden="true">S</span><span>Settings</span></button>
+    <p class="seed-readout">Seed <code id="seedReadout">—</code> <span class="seed-preset" id="presetReadout"></span></p>
   </footer>
 </div>
 
@@ -148,9 +150,10 @@
 
     <h3>Keyboard</h3>
     <ul class="keys">
-      <li><kbd>1</kbd>–<kbd>4</kbd> pick a card</li>
+      <li><kbd>1</kbd>–<kbd>4</kbd> pick a card &middot; <kbd>←</kbd> <kbd>→</kbd> move between them</li>
       <li><kbd>A</kbd> avoid the room</li>
       <li><kbd>N</kbd> new game &middot; <kbd>R</kbd> restart the same dungeon</li>
+      <li><kbd>S</kbd> settings &middot; <kbd>T</kbd> your record</li>
       <li><kbd>?</kbd> these rules &middot; <kbd>Esc</kbd> close / cancel</li>
     </ul>
   </div>
@@ -173,6 +176,91 @@
   </div>
 </dialog>
 
+<!-- ================= WELCOME (first run only) ================= -->
+<dialog class="modal modal--welcome" id="welcomeModal" aria-labelledby="welcomeTitle">
+  <p class="end__eyebrow">A solo card game</p>
+  <h2 id="welcomeTitle">Welcome to the dungeon</h2>
+  <div class="modal__body prose">
+    <p>Three things and you can play:</p>
+    <ol class="welcome__steps">
+      <li><b>Four cards, pick three.</b> The one you leave follows you into the next room.</li>
+      <li><b>♦ is your weapon, ♥ heals, ♣ ♠ hurt.</b> Each monster shows what it will cost you before you touch it.</li>
+      <li><b>Your blade dulls.</b> After a kill it can only fight something that size or smaller — so don't waste a big weapon on a small monster.</li>
+    </ol>
+    <p class="welcome__note">You start at 20 health. Clear all 44 cards to win.</p>
+  </div>
+  <div class="end__actions">
+    <button type="button" class="btn btn--primary" id="welcomeStartBtn">Start playing</button>
+    <button type="button" class="btn" id="welcomeRulesBtn">Full rules</button>
+  </div>
+</dialog>
+
+<!-- ================= SETTINGS ================= -->
+<dialog class="modal" id="settingsModal" aria-labelledby="settingsTitle">
+  <form method="dialog" class="modal__close-form">
+    <button class="modal__close" value="close" aria-label="Close settings">&times;</button>
+  </form>
+  <h2 id="settingsTitle">Settings</h2>
+  <div class="modal__body">
+
+    <fieldset class="field">
+      <legend>Ruleset</legend>
+      <p class="field__hint">Applies to the next new game. A run in progress keeps the rules it was dealt with.</p>
+      <div class="choices" id="presetChoices"></div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>Motion</legend>
+      <p class="field__hint">“System” follows your operating system’s reduced-motion setting.</p>
+      <div class="choices" id="motionChoices"></div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>Help</legend>
+      <label class="switch">
+        <input type="checkbox" id="showThreatToggle" />
+        <span class="switch__box" aria-hidden="true"></span>
+        <span class="switch__text"><b>Damage preview</b><i>Show what each monster will cost before you play it</i></span>
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="coachToggle" />
+        <span class="switch__box" aria-hidden="true"></span>
+        <span class="switch__text"><b>Coaching notes</b><i>One-off tips in the chronicle the first time something matters</i></span>
+      </label>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>Deal a specific dungeon</legend>
+      <p class="field__hint">Seeds are any text. The same seed always deals the same 44 cards.</p>
+      <form class="seed-form" id="settingsSeedForm">
+        <label class="sr-only" for="settingsSeedInput">Seed</label>
+        <input id="settingsSeedInput" name="seed" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. goblin" />
+        <button class="btn btn--sm" type="submit">Deal it</button>
+      </form>
+    </fieldset>
+
+    <p class="field__danger">
+      <button type="button" class="btn btn--sm btn--ghost" id="resetPrefsBtn">Reset settings</button>
+    </p>
+  </div>
+</dialog>
+
+<!-- ================= RECORD / STATS ================= -->
+<dialog class="modal" id="statsModal" aria-labelledby="statsTitle">
+  <form method="dialog" class="modal__close-form">
+    <button class="modal__close" value="close" aria-label="Close record">&times;</button>
+  </form>
+  <h2 id="statsTitle">Your record</h2>
+  <div class="modal__body">
+    <dl class="scoreboard" id="scoreboard"></dl>
+    <h3>Recent runs</h3>
+    <div class="history" id="historyList"></div>
+    <p class="field__danger">
+      <button type="button" class="btn btn--sm btn--ghost" id="resetStatsBtn">Clear record</button>
+    </p>
+  </div>
+</dialog>
+
 <!-- ================= DEBUG (hidden) ================= -->
 <aside class="debug" id="debugPanel" hidden aria-label="Debug">
   <h2>Debug</h2>
@@ -187,6 +275,8 @@
 </aside>
 
 <script src="js/config.js"></script>
+<script src="js/prefs.js"></script>
+<script src="js/stats.js"></script>
 <script src="js/rng.js"></script>
 <script src="js/art.js"></script>
 <script src="js/storage.js"></script>

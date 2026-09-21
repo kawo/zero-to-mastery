@@ -8,6 +8,9 @@
  * STATE SHAPE (all JSON-safe, so it round-trips through LocalStorage as is)
  *
  *   seed        string    the dungeon's identity; replaying it deals the same 44 cards
+ *   preset      string    which ruleset this run was dealt with
+ *   rules       object    the ruleset itself, frozen into the run at deal time
+ *   recorded    boolean   set by app.js once the run is folded into the record
  *   deck        Card[]    index 0 is the top of the deck, push() puts a card underneath
  *   room        Slot[]    up to 4 slots, kept in dealt order; { card, done, dealtOn }
  *   discard     Card[]    spent potions, monsters killed bare-handed, retired weapons
@@ -43,6 +46,18 @@
   const cardText = (card) => `${card.suit}${card.label}`;
 
   /**
+   * The ruleset this run was dealt with.
+   *
+   * Stored on the state so changing the Settings preset never alters a game in
+   * progress, and a save always replays by its own rules. Saves written before
+   * rulesets existed fall back to the module defaults.
+   */
+  const rulesOf = (state) => state.rules || {
+    weaponStrictlyDecreasing: C.WEAPON_STRICTLY_DECREASING,
+    stackOnlyOnCleanKill: C.STACK_ONLY_ON_CLEAN_KILL,
+  };
+
+  /**
    * Append to the chronicle. Entries carry a monotonic id so the renderer can
    * append only what is new — which is what keeps the aria-live region from
    * re-announcing the whole history every time you play a card.
@@ -61,11 +76,14 @@
    * Deal a fresh dungeon.
    * @param {string} [seed] omit for a random one; pass one to replay a dungeon
    */
-  function create(seed) {
+  function create(seed, preset) {
     const usedSeed = String(seed == null || seed === '' ? RNG.randomSeed() : seed);
+    const presetId = C.PRESETS[preset] ? preset : C.DEFAULT_PRESET;
     const state = {
       version: C.SAVE_VERSION,
       seed: usedSeed,
+      preset: presetId,
+      rules: C.rulesFor(presetId),
       deck: RNG.shuffle(C.buildDeck(), RNG.make(usedSeed)),
       room: [],
       discard: [],
@@ -83,13 +101,16 @@
       startedAt: Date.now(),
     };
     log(state, `You step into the dungeon. 44 cards, seed ${usedSeed}.`, 'start');
+    if (presetId !== C.DEFAULT_PRESET) {
+      log(state, `Ruleset: ${C.PRESETS[presetId].name}.`, 'muted');
+    }
     beginRoom(state);
     return state;
   }
 
-  /** Deal the same dungeon again from the top. */
+  /** Deal the same dungeon again from the top, under the same ruleset. */
   function replay(state) {
-    return create(state.seed);
+    return create(state.seed, state.preset);
   }
 
   /* ------------------------------------------------------------------ *
@@ -180,7 +201,7 @@
     if (!state.weapon || card.kind !== 'monster') return false;
     const cap = state.weapon.lastSlain;
     if (cap === null) return true;
-    return C.WEAPON_STRICTLY_DECREASING ? card.rank < cap : card.rank <= cap;
+    return rulesOf(state).weaponStrictlyDecreasing ? card.rank < cap : card.rank <= cap;
   }
 
   /** Damage you would take from this monster, for the given plan. */
@@ -250,7 +271,7 @@
 
     const weapon = state.weapon;
     const damage = Math.max(0, card.rank - weapon.card.rank);
-    const slain = C.STACK_ONLY_ON_CLEAN_KILL ? damage === 0 : true;
+    const slain = rulesOf(state).stackOnlyOnCleanKill ? damage === 0 : true;
 
     if (slain) {
       weapon.stack.push(card);
@@ -366,6 +387,7 @@
     resolve,
     canUseWeapon,
     previewDamage,
+    rulesOf,
     remainingMonsterValue,
     view,
   });

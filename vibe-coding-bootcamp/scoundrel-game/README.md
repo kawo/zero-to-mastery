@@ -66,22 +66,24 @@ usually a mistake.
 
 ---
 
-## Rules this build had to decide
+## Rulesets
 
-The written rules for Scoundrel are ambiguous in two places. Both are single
-constants in [`js/config.js`](js/config.js), so you can flip either and reload.
+The written rules for Scoundrel are ambiguous in two places, so both readings
+ship as selectable rulesets in **Settings**:
 
-**`WEAPON_STRICTLY_DECREASING: false`** — the brief specified a *non-increasing*
-sequence (a blade capped at 10 may still fight another 10), and that is what
-ships. Printed editions of Scoundrel use the stricter *strictly decreasing* rule.
-Set it to `true` for the harsher dungeon.
+| Ruleset | The blade may fight… | A bloody win… |
+| --- | --- | --- |
+| **Standard** (default) | its last kill's value **or lower** | stacks and lowers the cap |
+| **Classic** | something **strictly smaller** | stacks and lowers the cap |
+| **Relaxed** | its last kill's value or lower | leaves the cap alone |
 
-**`STACK_ONLY_ON_CLEAN_KILL: false`** — the brief said a monster is stacked on the
-weapon only "if defeated (damage ≤ 0)". Taken literally, a bloody win would leave
-the cap untouched, so one good weapon would clear the whole dungeon and the
-weapon rule would never bite. This build uses the printed rule instead: swinging
-the weapon always slays the monster and always lowers the cap, and you soak the
-overflow as damage. Set it to `true` for the literal reading.
+Classic is the printed rule and the hardest. Relaxed is the literal reading of
+the original brief — taken at face value, one good weapon clears the dungeon and
+the weapon rule never really bites, which is why it is not the default.
+
+A ruleset is **copied into the run when the dungeon is dealt**, so changing the
+setting never alters a game in progress, and a saved game always replays by the
+rules it was dealt with. The history list records which ruleset each run used.
 
 ---
 
@@ -103,15 +105,20 @@ test framework — the harness builds a fake `window`, evaluates the browser
 modules into it, and exercises the real code.
 
 ```
-node tests/engine.test.js          # 37 assertions, ~2s
+node tests/engine.test.js          # 66 assertions, ~3s
 node tests/engine.test.js --full   # adds the beam-search winnability check, ~1 min
 ```
 
 Covered: deck composition, shuffle bias, the worked weapon example above,
 equipping, potion capping and the one-per-room rule, carry-forward, both avoid
-restrictions, short final rooms, both scoring paths, and a 4000-game fuzz run
-checking that health stays in range, no card is ever lost or duplicated, and no
-position can get stuck.
+restrictions, short final rooms, both scoring paths, all three rulesets (including
+that a run keeps its own rules when the setting changes under it), preference
+validation, and the record — streaks, best score, history cap, and that a finished
+run counts exactly once.
+
+Plus a 4000-game fuzz run, cycling all three rulesets, checking that health stays
+in range, no card is ever lost or duplicated, and no position can get stuck. The
+harness stubs LocalStorage in memory so prefs and stats are exercised for real.
 
 ### URL parameters
 
@@ -133,7 +140,9 @@ css/style.css           the whole theme — tokens, layout, cards, animation, a1
 favicon.svg .png        the spade mark, filled solid so it survives 16px
 apple-touch-icon.png    180x180 for iOS home screens
 assets/cards/           the eleven card illustrations (2.5 MB total)
-js/config.js            rules constants, card tables, art mapping, deck builder
+js/config.js            rules constants, rulesets, card tables, art mapping, deck
+js/prefs.js             player settings (own storage key)
+js/stats.js             lifetime record and run history (own storage key)
 js/rng.js               seeded mulberry32 + Fisher–Yates
 js/art.js               card face/back markup + the inline suit outlines
 js/storage.js           LocalStorage save/load, wrapped against private mode
@@ -187,11 +196,61 @@ A potion that would be wasted is labelled as such before you spend a card on it.
 new entries so a screen reader announces the thing that just happened rather than
 the whole history.
 
+### Onboarding
+
+A first visit opens a three-point primer — pick three of four, what the suits do,
+and that the blade dulls — with a link to the full rules. It is shown once.
+
+After that, teaching happens where a rule actually bites: the first time you
+fight bare-handed, equip a blade, cap one, waste a potion or could avoid a room,
+a one-off note appears in the chronicle explaining that rule. Each fires once per
+browser, and the whole thing is switchable in Settings. Teaching a rule at the
+moment it costs you something beats front-loading it into a modal nobody reads
+twice.
+
+### Your record
+
+Every finished run is folded into a lifetime record: runs, wins, win rate, best
+score, current and longest streak, plus the last 25 runs. Each history row keeps
+its seed and ruleset, so any past run can be dealt again from the list — losing a
+good dungeon by one card and immediately replaying it is the loop this is here
+to serve.
+
+A run is recorded exactly once. The guard lives on the game state rather than in
+the stats module, because the state is what gets saved: finish a run, close the
+tab, come back, and the end screen shows again — but the run must not count
+twice.
+
+### Storage
+
+Three independent LocalStorage keys, so one being lost or outdated never takes
+the others with it:
+
+| Key | Holds |
+| --- | --- |
+| `scoundrel:save:v1` | the run in progress (or the finished one you last saw) |
+| `scoundrel:prefs:v1` | settings |
+| `scoundrel:stats:v1` | lifetime record and history |
+
+A save from an older build is discarded rather than migrated — but your settings
+and your record survive it. Every read is wrapped: private windows, blocked site
+data and full quotas all throw, and none of them should cost you the game.
+Preferences validate on read, so a hand-edited or half-written value falls back
+to its default instead of breaking startup.
+
 ### Accessibility
 
-- Fully keyboard operable: <kbd>1</kbd>–<kbd>4</kbd> cards, <kbd>A</kbd> avoid,
-  <kbd>N</kbd> new game, <kbd>R</kbd> restart, <kbd>?</kbd> rules,
-  <kbd>Esc</kbd> cancel. A skip link jumps to the room.
+- Fully keyboard operable: <kbd>1</kbd>–<kbd>4</kbd> cards, <kbd>←</kbd>/<kbd>→</kbd>
+  (and <kbd>Home</kbd>/<kbd>End</kbd>) to move between playable cards,
+  <kbd>A</kbd> avoid, <kbd>N</kbd> new game, <kbd>R</kbd> restart, <kbd>S</kbd>
+  settings, <kbd>T</kbd> record, <kbd>?</kbd> rules, <kbd>Esc</kbd> cancel. A skip
+  link jumps to the room.
+- The room's own label carries progress — "Room 3. 4 cards face up, 1 of 3
+  resolved" — so landing on the group tells you where you are without counting.
+- Motion is a **setting**, not just an OS query: System, Reduced or Full. The OS
+  control is not always reachable, and some people want the flip off only here.
+- Settings use real radios and checkboxes, so arrow-key behaviour and the
+  accessibility tree come from the browser rather than being re-implemented.
 - Focus is managed, not dropped: playing a card or avoiding a room moves focus to
   the next playable card, but only when you were already working the keyboard.
   The page never steals focus on load.

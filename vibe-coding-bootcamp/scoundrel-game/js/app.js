@@ -10,6 +10,8 @@
 
   const missing = [
     ['ScoundrelConfig', 'js/config.js'],
+    ['ScoundrelPrefs', 'js/prefs.js'],
+    ['ScoundrelStats', 'js/stats.js'],
     ['ScoundrelRng', 'js/rng.js'],
     ['ScoundrelArt', 'js/art.js'],
     ['ScoundrelStorage', 'js/storage.js'],
@@ -29,6 +31,9 @@
   const Engine = window.ScoundrelEngine;
   const Storage = window.ScoundrelStorage;
   const UI = window.ScoundrelUI;
+  const Prefs = window.ScoundrelPrefs;
+  const Stats = window.ScoundrelStats;
+  const C = window.ScoundrelConfig;
   const el = UI.el;
 
   /** @type {object} the one live game */
@@ -41,12 +46,28 @@
    * ------------------------------------------------------------------ */
 
   function commit({ checkEnd = true } = {}) {
+    if (state.status !== 'playing') recordOnce();
     Storage.save(state);
     UI.render(state);
     if (checkEnd && state.status !== 'playing') {
       // Let the last card's flip and the damage flash land first.
       window.setTimeout(() => UI.showEnd(state), 420);
     }
+  }
+
+  /**
+   * Fold a finished run into the lifetime record, once and only once.
+   *
+   * The guard lives on the state because the state is what gets saved: finish a
+   * run, close the tab, come back, and the end screen shows again — but the run
+   * must not be counted a second time. Saving immediately after makes the flag
+   * durable.
+   */
+  function recordOnce() {
+    if (!state || state.recorded) return;
+    state.recorded = true;
+    Stats.record(state);
+    Storage.save(state);
   }
 
   /**
@@ -58,15 +79,28 @@
   function startGame(seed, takeFocus = true) {
     UI.setChoosing(-1);
     UI.reset();
-    state = Engine.create(seed);
+    state = Engine.create(seed, Prefs.get('preset'));
     if (el.endModal.open) el.endModal.close();
     commit({ checkEnd: false });
     if (takeFocus) focusFirstCard();
   }
 
-  /** Same seed, same 44 cards, from the top. */
+  /** Same seed and ruleset, from the top. */
   function restart() {
-    startGame(state.seed);
+    const seed = state.seed;
+    const preset = state.preset;
+    UI.setChoosing(-1);
+    UI.reset();
+    state = Engine.create(seed, preset);
+    if (el.endModal.open) el.endModal.close();
+    commit({ checkEnd: false });
+    focusFirstCard();
+  }
+
+  /** Deal a past run again, with the ruleset it was played under. */
+  function replaySeed(seed, preset) {
+    if (preset && Prefs.get('preset') !== preset) Prefs.set('preset', preset);
+    startGame(seed);
   }
 
   function resumeOrStart() {
@@ -81,6 +115,58 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * Coaching
+   *
+   * One-off notes pushed into the chronicle the first time something that
+   * needs explaining actually happens. Teaching a rule at the moment it bites
+   * beats front-loading it in a modal nobody reads twice. Each fires once per
+   * browser and the whole thing can be switched off in Settings.
+   * ------------------------------------------------------------------ */
+
+  const COACH_KEY = 'scoundrel:coached:v1';
+  let coached = null;
+
+  function coachSeen() {
+    if (coached) return coached;
+    try {
+      coached = new Set(JSON.parse(window.localStorage.getItem(COACH_KEY) || '[]'));
+    } catch {
+      coached = new Set();
+    }
+    return coached;
+  }
+
+  function coach(id, text) {
+    if (!Prefs.get('coach') || !state || state.status !== 'playing') return;
+    const seen = coachSeen();
+    if (seen.has(id)) return;
+    seen.add(id);
+    try {
+      window.localStorage.setItem(COACH_KEY, JSON.stringify([...seen]));
+    } catch { /* a lost tip is not worth breaking the turn over */ }
+    state.log.push({ id: (state.logSeq += 1), text: `Tip: ${text}`, kind: 'coach', turn: state.turn });
+  }
+
+  /** Watch what just happened and teach the rule behind it. */
+  function coachOn(before) {
+    if (!state.weapon) {
+      if (before.health > state.health) {
+        coach('bare', 'with no weapon you take a monster’s full value. A ♦ card equips instantly.');
+      }
+    } else if (!before.weapon || before.weapon.card.id !== state.weapon.card.id) {
+      coach('equipped', 'your blade fights anything until its first kill. After that it is capped by what it killed, and the cap only falls — so spend it on something big.');
+    } else if (state.weapon.lastSlain !== null && before.weapon.lastSlain === null) {
+      coach('capped', `the blade is now capped at ${state.weapon.lastSlain}. Anything bigger has to be fought bare-handed, or left for the next room.`);
+    }
+    if (state.potionUsed && !before.potionUsed) {
+      coach('potion', 'only one potion works per room. A second ♥ is worth more left behind as your carry-over card.');
+    }
+    if (Engine.canAvoid(state) && state.turn >= 2) {
+      coach('avoid', 'Avoid sends all four cards to the bottom of the deck — it buys time, it does not remove them. You cannot avoid twice running.');
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
    * Actions
    * ------------------------------------------------------------------ */
 
@@ -90,9 +176,15 @@
     // Playing a card disables its button, which would drop focus to <body>.
     // Only recover it if the player was actually working the keyboard here.
     const hadFocus = el.room.contains(document.activeElement);
+    const snapshot = {
+      health: state.health,
+      potionUsed: state.potionUsed,
+      weapon: state.weapon && { card: state.weapon.card, lastSlain: state.weapon.lastSlain },
+    };
 
     if (!Engine.resolve(state, index, mode)) return;
     UI.setChoosing(-1);
+    coachOn(snapshot);
 
     // If that card closed the room, the board is about to change completely;
     // hold input for the deal so a fast click does not land on a card that
@@ -168,7 +260,69 @@
     if (cardBtn && !cardBtn.disabled) pressCard(Number(cardBtn.dataset.index));
   });
 
+  /* ---- settings, record, welcome ---- */
+
+  function openSettings() { UI.renderSettings(); el.settingsModal.showModal(); }
+  function openStats() { UI.renderStats(); el.statsModal.showModal(); }
+
+  el.settingsModal.addEventListener('change', (event) => {
+    const t = event.target;
+    if (t.name === 'preset') Prefs.set('preset', t.value);
+    else if (t.name === 'motion') Prefs.set('motion', t.value);
+    else if (t.id === 'showThreatToggle') { Prefs.set('showThreat', t.checked); UI.render(state); }
+    else if (t.id === 'coachToggle') Prefs.set('coach', t.checked);
+  });
+
+  document.getElementById('settingsSeedForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const seed = el.settingsSeedInput.value.trim();
+    el.settingsModal.close();
+    startGame(seed || undefined);
+  });
+
+  document.getElementById('resetPrefsBtn').addEventListener('click', () => {
+    Prefs.reset();
+    UI.renderSettings();
+    UI.render(state);
+  });
+
+  document.getElementById('resetStatsBtn').addEventListener('click', (event) => {
+    const btn = event.currentTarget;
+    // Two-step: clearing a record is not undoable, so make it deliberate.
+    if (btn.dataset.armed !== 'true') {
+      btn.dataset.armed = 'true';
+      btn.textContent = 'Really clear it?';
+      window.setTimeout(() => {
+        btn.dataset.armed = 'false';
+        btn.textContent = 'Clear record';
+      }, 4000);
+      return;
+    }
+    Stats.reset();
+    btn.dataset.armed = 'false';
+    btn.textContent = 'Clear record';
+    UI.renderStats();
+  });
+
+  el.statsModal.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-replay]');
+    if (!btn) return;
+    el.statsModal.close();
+    replaySeed(btn.dataset.replay, btn.dataset.preset);
+  });
+
+  document.getElementById('welcomeStartBtn').addEventListener('click', () => {
+    el.welcomeModal.close();
+    focusFirstCard();
+  });
+  document.getElementById('welcomeRulesBtn').addEventListener('click', () => {
+    el.welcomeModal.close();
+    el.rulesModal.showModal();
+  });
+
   el.avoidBtn.addEventListener('click', avoid);
+  document.getElementById('statsBtn').addEventListener('click', openStats);
+  document.getElementById('settingsBtn').addEventListener('click', openSettings);
   document.getElementById('newGameBtn').addEventListener('click', () => startGame());
   document.getElementById('restartBtn').addEventListener('click', restart);
   document.getElementById('rulesBtn').addEventListener('click', () => el.rulesModal.showModal());
@@ -179,7 +333,7 @@
 
   // <dialog> gives us Esc and the focus trap; clicking the backdrop should
   // close too, which it does not do on its own.
-  for (const dialog of [el.rulesModal, el.endModal]) {
+  for (const dialog of [el.rulesModal, el.endModal, el.settingsModal, el.statsModal]) {
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) dialog.close();
     });
@@ -201,9 +355,26 @@
       cancelChoice();
       return;
     }
-    if (el.rulesModal.open || el.endModal.open) return;
+    if (el.rulesModal.open || el.endModal.open
+      || el.settingsModal.open || el.statsModal.open || el.welcomeModal.open) return;
 
     const key = event.key.toLowerCase();
+
+    // Arrow keys walk the playable cards, so the room behaves like one control
+    // rather than four separate tab stops.
+    if (['arrowleft', 'arrowright', 'home', 'end'].includes(key)) {
+      const cards = [...el.room.querySelectorAll('.card__btn:not([disabled])')];
+      if (cards.length) {
+        event.preventDefault();
+        const at = cards.indexOf(document.activeElement);
+        const next = key === 'home' ? 0
+          : key === 'end' ? cards.length - 1
+            : at < 0 ? 0
+              : (at + (key === 'arrowright' ? 1 : cards.length - 1)) % cards.length;
+        cards[next].focus();
+      }
+      return;
+    }
 
     if (key >= '1' && key <= '4') {
       event.preventDefault();
@@ -227,6 +398,14 @@
       case 'h':
         event.preventDefault();
         el.rulesModal.showModal();
+        break;
+      case 's':
+        event.preventDefault();
+        openSettings();
+        break;
+      case 't':
+        event.preventDefault();
+        openStats();
         break;
       case '`':
         event.preventDefault();
@@ -277,11 +456,21 @@
   if (params.get('seed')) startGame(params.get('seed'), false);
   else resumeOrStart();
 
+  // First visit ever: a three-point primer instead of dropping someone into a
+  // dungeon with no explanation. Shown once, then never again.
+  if (!Prefs.get('seenWelcome')) {
+    Prefs.set('seenWelcome', true);
+    el.welcomeModal.showModal();
+  }
+
   // Handy from the console: ScoundrelGame.state, .start('seed')
   window.ScoundrelGame = {
     get state() { return state; },
     start: startGame,
     restart,
+    replay: replaySeed,
     debug: toggleDebug,
+    stats: () => Stats.all(),
+    prefs: () => Prefs.all(),
   };
 })();

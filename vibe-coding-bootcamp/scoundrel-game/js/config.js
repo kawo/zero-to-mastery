@@ -43,11 +43,49 @@
     /** Potions after the first in a room are poured out. */
     POTIONS_PER_ROOM: 1,
 
+    /** Runs kept in the history list. */
+    HISTORY_LIMIT: 25,
+
     STORAGE_KEY: 'scoundrel:save:v1',
     SAVE_VERSION: 1,
     /** Chronicle entries kept in memory / in the save. */
     LOG_LIMIT: 120,
   };
+
+  /* ------------------------------------------------------------------ *
+   * Rulesets
+   *
+   * The two constants above are the defaults; these are the presets a player
+   * can pick in Settings. A ruleset is copied into the game state when the
+   * dungeon is dealt, so changing the setting never alters a run in progress —
+   * and a saved game always plays by the rules it was dealt with.
+   * ------------------------------------------------------------------ */
+
+  const PRESETS = {
+    standard: {
+      id: 'standard',
+      name: 'Standard',
+      blurb: 'A blade may fight monsters of its last kill’s value or lower.',
+      rules: { weaponStrictlyDecreasing: false, stackOnlyOnCleanKill: false },
+    },
+    classic: {
+      id: 'classic',
+      name: 'Classic',
+      blurb: 'Printed rules: a blade may only fight something strictly smaller. Harder.',
+      rules: { weaponStrictlyDecreasing: true, stackOnlyOnCleanKill: false },
+    },
+    relaxed: {
+      id: 'relaxed',
+      name: 'Relaxed',
+      blurb: 'A blade only dulls on a clean kill, so one good weapon lasts. Easier.',
+      rules: { weaponStrictlyDecreasing: false, stackOnlyOnCleanKill: true },
+    },
+  };
+
+  const DEFAULT_PRESET = 'standard';
+
+  /** The ruleset for a preset id, falling back to the default. */
+  const rulesFor = (id) => ({ ...(PRESETS[id] || PRESETS[DEFAULT_PRESET]).rules });
 
   /* ------------------------------------------------------------------ *
    * Cards
@@ -187,6 +225,9 @@
     ...RULES,
     SUITS,
     RANK_LABEL,
+    PRESETS,
+    DEFAULT_PRESET,
+    rulesFor,
     ART,
     ART_DIR,
     ART_BACK,
