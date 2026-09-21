@@ -101,44 +101,45 @@
   </form>
   <h2 id="rulesTitle">How to play Scoundrel</h2>
   <div class="modal__body prose">
-    <p>You are alone in a dungeon made of cards. Survive the whole deck and you win; reach <strong>0 health</strong> and you don't.</p>
+    <p>Clear all 44 cards and you walk out. Reach <strong>0 health</strong> and you don't. You start at 20.</p>
 
-    <h3>The dungeon</h3>
-    <p>44 cards: the jokers, the red face cards and the red aces have been removed.</p>
+    <h3>The deck</h3>
     <ul>
-      <li><b class="t-monster">26 monsters</b> — every ♣ and ♠. J = 11, Q = 12, K = 13, A = 14.</li>
-      <li><b class="t-weapon">9 weapons</b> — ♦2 to ♦10.</li>
-      <li><b class="t-potion">9 potions</b> — ♥2 to ♥10.</li>
+      <li><b class="t-monster">26 monsters</b> — ♣ and ♠. J 11, Q 12, K 13, A 14.</li>
+      <li><b class="t-weapon">9 weapons</b> — ♦2–♦10.</li>
+      <li><b class="t-potion">9 potions</b> — ♥2–♥10.</li>
     </ul>
 
     <h3>Each room</h3>
-    <p>Cards are dealt until four are face up. Then you choose:</p>
+    <p>Four cards are dealt. Either:</p>
     <ul>
-      <li><b>Avoid</b> — all four cards go to the bottom of the deck, in order, and a fresh room is dealt. You may not avoid two rooms in a row.</li>
-      <li><b>Face it</b> — resolve any <b>three</b> of the four cards, in any order. The card you leave behind becomes the first card of the next room.</li>
+      <li><b>Avoid</b> — all four slide under the deck. Never twice in a row.</li>
+      <li><b>Face it</b> — resolve any three, in any order. The fourth leads the next room.</li>
     </ul>
 
-    <h3>Resolving a card</h3>
-    <p><b class="t-weapon">Weapon (♦)</b> — equipped at once. Your old weapon and every monster stacked on it are discarded, and the new weapon starts with a clean history.</p>
-    <p><b class="t-potion">Potion (♥)</b> — heals its value, never above 20. <b>Only the first potion in a room does anything</b>; any further potion you resolve in that same room is thrown away empty.</p>
-    <p><b class="t-monster">Monster (♣ ♠)</b> — fight it bare-handed and take its full value as damage, or use your weapon and take <code>monster − weapon</code> damage (never below 0). Fighting with the weapon always slays the monster; it is stacked on the blade as a record of the fight.</p>
+    <h3>Cards</h3>
+    <ul>
+      <li><b class="t-weapon">♦ Weapon</b> — equips at once with a fresh cap, discarding your old blade and everything stacked on it.</li>
+      <li><b class="t-potion">♥ Potion</b> — heals its value, max 20. <b>Only the first each room works</b>; the rest are poured out.</li>
+      <li><b class="t-monster">♣ ♠ Monster</b> — bare-handed costs its full value. With a weapon, <code>monster − weapon</code> (min 0) — the blade always kills, and the monster stacks on it.</li>
+    </ul>
 
     <h3>The weapon rule</h3>
-    <p>A blade dulls. Once it has slain something, it may only be used on monsters <b>of that value or lower</b> — a non-increasing sequence.</p>
+    <p>A blade dulls: after a kill it may only fight monsters <b>of that value or lower</b>.</p>
     <div class="example">
-      <p><b>Worked example.</b> You equip <span class="chip">♦7</span>.</p>
+      <p>Equip <span class="chip">♦7</span>, then:</p>
       <ol>
-        <li>Fight <span class="chip">♠10</span> with it → you take <b>10 − 7 = 3</b> damage. The 10 is stacked; the blade is now capped at <b>10</b>.</li>
-        <li>Fight <span class="chip">♣10</span> → allowed (10 ≤ 10). You take 3 more damage. Still capped at 10.</li>
-        <li>Fight <span class="chip">♣4</span> → allowed. <b>4 − 7 = −3 → 0 damage.</b> The cap drops to <b>4</b>.</li>
-        <li>Now a <span class="chip">♠9</span> appears. 9 &gt; 4, so the blade refuses. Take all 9 bare-handed, or leave the 9 for the next room.</li>
+        <li><span class="chip">♠10</span> → take <b>3</b>, cap becomes <b>10</b></li>
+        <li><span class="chip">♣10</span> → allowed, 10 ≤ 10. Take <b>3</b></li>
+        <li><span class="chip">♣4</span> → take <b>0</b>, but the cap drops to <b>4</b></li>
+        <li><span class="chip">♠9</span> → refused. Bare-hand it, or leave it for the next room.</li>
       </ol>
     </div>
 
-    <h3>Scoring</h3>
+    <h3>Score</h3>
     <ul>
-      <li><b>Survived</b> — your score is the health you walked out with.</li>
-      <li><b>Died</b> — your score is negative: the total value of every monster still lurking in the dungeon, including the one that finished you.</li>
+      <li><b>Survived</b> — the health you kept.</li>
+      <li><b>Died</b> — minus every monster still down there, the one that killed you included.</li>
     </ul>
 
     <h3>Keyboard</h3>
