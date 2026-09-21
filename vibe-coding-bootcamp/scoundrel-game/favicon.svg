@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Scoundrel">
+  <rect width="100" height="100" fill="#06060a"/>
+  <g fill="#d9d6cd" transform="translate(50 50) scale(.86) translate(-50 -50)">
+    <path d="M50 8 90 63H10Z"/>
+    <circle cx="29" cy="63" r="21"/>
+    <circle cx="71" cy="63" r="21"/>
+    <path d="M44 58h12l7 36H37Z"/>
+  </g>
+</svg>

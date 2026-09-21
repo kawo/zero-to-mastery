@@ -130,6 +130,8 @@ and can reveal the deck order.
 ```
 index.html              structure: HUD, room, chronicle, controls, modals
 css/style.css           the whole theme — tokens, layout, cards, animation, a11y
+favicon.svg .png        the spade mark, filled solid so it survives 16px
+apple-touch-icon.png    180x180 for iOS home screens
 assets/cards/           the eleven card illustrations (2.5 MB total)
 js/config.js            rules constants, card tables, art mapping, deck builder
 js/rng.js               seeded mulberry32 + Fisher–Yates
