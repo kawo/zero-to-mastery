@@ -12,6 +12,9 @@
     ['ScoundrelConfig', 'js/config.js'],
     ['ScoundrelPrefs', 'js/prefs.js'],
     ['ScoundrelStats', 'js/stats.js'],
+    ['ScoundrelAchievements', 'js/achievements.js'],
+    ['ScoundrelAudio', 'js/audio.js'],
+    ['ScoundrelParticles', 'js/particles.js'],
     ['ScoundrelRng', 'js/rng.js'],
     ['ScoundrelArt', 'js/art.js'],
     ['ScoundrelStorage', 'js/storage.js'],
@@ -33,6 +36,9 @@
   const UI = window.ScoundrelUI;
   const Prefs = window.ScoundrelPrefs;
   const Stats = window.ScoundrelStats;
+  const Achievements = window.ScoundrelAchievements;
+  const Audio = window.ScoundrelAudio;
+  const Fx = window.ScoundrelParticles;
   const C = window.ScoundrelConfig;
   const el = UI.el;
 
@@ -50,8 +56,14 @@
     Storage.save(state);
     UI.render(state);
     if (checkEnd && state.status !== 'playing') {
+      const won = state.status === 'won';
       // Let the last card's flip and the damage flash land first.
-      window.setTimeout(() => UI.showEnd(state), 420);
+      window.setTimeout(() => {
+        UI.showEnd(state);
+        Audio.play(won ? 'win' : 'lose');
+        if (won) Fx.rain('gold');
+      }, 420);
+      checkAchievements({ type: 'end' });
     }
   }
 
@@ -79,6 +91,7 @@
   function startGame(seed, takeFocus = true) {
     UI.setChoosing(-1);
     UI.reset();
+    Fx.clear();
     state = Engine.create(seed, Prefs.get('preset'));
     if (el.endModal.open) el.endModal.close();
     commit({ checkEnd: false });
@@ -112,6 +125,69 @@
       return;
     }
     startGame(undefined, false);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Feedback
+   *
+   * Sound and particles are driven off the engine's outcome object, so the
+   * presentation never re-derives what happened from the state — it is told.
+   * ------------------------------------------------------------------ */
+
+  /** The card element a burst should come from, if it is still on screen. */
+  const nodeFor = (card) =>
+    el.room.querySelector(`.slot[data-card-id="${card.id}"] .card`) || el.room;
+
+  function feedback(outcome) {
+    if (!outcome) return;
+    const node = nodeFor(outcome.card);
+
+    if (outcome.kind === 'weapon') {
+      Audio.play('equip');
+      Fx.burst(node, 'equip', 0.5);
+      return;
+    }
+    if (outcome.kind === 'potion') {
+      if (outcome.wasted) return;              // a wasted potion gets no fanfare
+      Audio.play('potion');
+      Fx.burst(node, 'heal', Math.min(1, outcome.healed / 8));
+      return;
+    }
+    // Monster. A clean kill and a costly one should not feel the same.
+    if (outcome.clean) {
+      Audio.play('kill');
+      Fx.burst(node, 'kill', 0.85);
+    } else {
+      Audio.play('hit', outcome.damage);
+      Fx.burst(node, 'damage', Math.min(1, outcome.damage / 10));
+      if (!Prefs.reduceMotion()) {
+        document.body.classList.remove('is-struck');
+        void document.body.offsetWidth;        // restart the animation
+        document.body.classList.add('is-struck');
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Achievements
+   * ------------------------------------------------------------------ */
+
+  function checkAchievements(event) {
+    if (!state) return;
+    let fresh = [];
+    try {
+      fresh = Achievements.check({ stats: Stats.all(), state, event });
+    } catch (err) {
+      console.warn('[Scoundrel] achievement check failed:', err);
+      return;
+    }
+    fresh.forEach((a, i) => {
+      // Stagger so two at once do not land on the same frame.
+      window.setTimeout(() => {
+        UI.toast(a);
+        Audio.play('unlock');
+      }, 260 + i * 700);
+    });
   }
 
   /* ------------------------------------------------------------------ *
@@ -182,7 +258,9 @@
       weapon: state.weapon && { card: state.weapon.card, lastSlain: state.weapon.lastSlain },
     };
 
-    if (!Engine.resolve(state, index, mode)) return;
+    const outcome = Engine.resolve(state, index, mode);
+    if (!outcome) return;
+    feedback(outcome);
     UI.setChoosing(-1);
     coachOn(snapshot);
 
@@ -194,6 +272,7 @@
       window.setTimeout(() => { busy = false; }, 260);
     }
     commit();
+    checkAchievements({ type: 'resolve', ...outcome });
     if (hadFocus && state.status === 'playing') focusFirstCard();
   }
 
@@ -204,9 +283,11 @@
     const fromKeyboard = document.activeElement === el.avoidBtn || el.room.contains(document.activeElement);
     UI.setChoosing(-1);
     Engine.avoid(state);
+    Audio.play('avoid');
     busy = true;
     window.setTimeout(() => { busy = false; }, 260);
     commit();
+    checkAchievements({ type: 'avoid' });
     if (fromKeyboard && state.status === 'playing') focusFirstCard();
   }
 
@@ -263,7 +344,7 @@
   /* ---- settings, record, welcome ---- */
 
   function openSettings() { UI.renderSettings(); el.settingsModal.showModal(); }
-  function openStats() { UI.renderStats(); el.statsModal.showModal(); }
+  function openStats() { UI.renderStats(state); el.statsModal.showModal(); }
 
   el.settingsModal.addEventListener('change', (event) => {
     const t = event.target;
@@ -271,6 +352,14 @@
     else if (t.name === 'motion') Prefs.set('motion', t.value);
     else if (t.id === 'showThreatToggle') { Prefs.set('showThreat', t.checked); UI.render(state); }
     else if (t.id === 'coachToggle') Prefs.set('coach', t.checked);
+    else if (t.id === 'soundToggle') {
+      Prefs.set('sound', t.checked);
+      if (t.checked) { Audio.unlock(); Audio.play('flip'); } // confirm it works
+    } else if (t.id === 'particlesToggle') {
+      Prefs.set('particles', t.checked);
+      if (t.checked) Fx.burst(el.avoidBtn, 'gold', 0.4);
+      else Fx.clear();
+    }
   });
 
   document.getElementById('settingsSeedForm').addEventListener('submit', (event) => {
@@ -291,17 +380,20 @@
     // Two-step: clearing a record is not undoable, so make it deliberate.
     if (btn.dataset.armed !== 'true') {
       btn.dataset.armed = 'true';
-      btn.textContent = 'Really clear it?';
+      btn.textContent = 'Clear record and trophies?';
       window.setTimeout(() => {
         btn.dataset.armed = 'false';
         btn.textContent = 'Clear record';
       }, 4000);
       return;
     }
+    // Several trophies are derived from the record, so leaving them unlocked
+    // after wiping it would be incoherent.
     Stats.reset();
+    Achievements.reset();
     btn.dataset.armed = 'false';
     btn.textContent = 'Clear record';
-    UI.renderStats();
+    UI.renderStats(state);
   });
 
   el.statsModal.addEventListener('click', (event) => {
@@ -448,6 +540,16 @@
   // flip so no card turns over to an empty rectangle.
   window.ScoundrelArt.preload();
 
+  // Browsers refuse to start an AudioContext before the player has interacted
+  // with the page. Create it on the first gesture, once.
+  for (const type of ['pointerdown', 'keydown']) {
+    window.addEventListener(type, function once() {
+      window.removeEventListener('pointerdown', once);
+      window.removeEventListener('keydown', once);
+      if (Prefs.get('sound')) Audio.unlock();
+    }, { once: false });
+  }
+
   const params = new URLSearchParams(window.location.search);
   if (params.has('debug')) toggleDebug(true);
 
@@ -472,5 +574,6 @@
     debug: toggleDebug,
     stats: () => Stats.all(),
     prefs: () => Prefs.all(),
+    achievements: () => Achievements.all({ stats: Stats.all(), state, event: { type: 'view' } }),
   };
 })();

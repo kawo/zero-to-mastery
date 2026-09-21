@@ -23,6 +23,7 @@
  *   status      'playing' | 'won' | 'lost'
  *   score       null | number
  *   killer      null | Card    the monster that finished you, kept for scoring
+ *   avoidsUsed  number    rooms fled; potionsDrunk/potionsWasted/monstersSlain likewise
  *   log         Entry[]   { text, kind, turn }
  *
  * A note on `room`: resolved cards stay in the array with done = true until the
@@ -96,6 +97,12 @@
       status: 'playing',
       score: null,
       killer: null,
+      // Tallies for achievements and the end screen. Cheap to keep, and they
+      // cannot be reconstructed from the final state.
+      avoidsUsed: 0,
+      potionsDrunk: 0,
+      potionsWasted: 0,
+      monstersSlain: 0,
       log: [],
       logSeq: 0,
       startedAt: Date.now(),
@@ -173,6 +180,7 @@
     state.deck.push(...cards); // in order: the room reappears intact, much later
     state.room = [];
     state.avoidedLast = true;
+    state.avoidsUsed = (state.avoidsUsed || 0) + 1;
 
     log(state, `Avoided the room — ${cards.map(cardText).join(' ')} slid under the deck.`, 'avoid');
     beginRoom(state);
@@ -236,20 +244,24 @@
     log(state, `Equipped ${cardText(card)} — ${card.name}.`, 'weapon');
   }
 
-  function drink(state, card) {
+  function drink(state, card, outcome) {
     if (state.potionUsed) {
+      state.potionsWasted = (state.potionsWasted || 0) + 1;
       // Rule: one potion per room. The rest are resolved, but wasted — which
       // makes "which three do I play" a real decision when two hearts show up.
       state.discard.push(card);
+      outcome.wasted = true;
       log(state, `Poured out ${cardText(card)} — you can only stomach one potion a room.`, 'muted');
       return;
     }
     const before = state.health;
     state.health = Math.min(C.MAX_HEALTH, state.health + card.rank);
     state.potionUsed = true;
+    state.potionsDrunk = (state.potionsDrunk || 0) + 1;
     state.discard.push(card);
 
     const healed = state.health - before;
+    outcome.healed = healed;
     log(
       state,
       healed === card.rank
@@ -259,12 +271,14 @@
     );
   }
 
-  function fight(state, card, mode) {
+  function fight(state, card, mode, outcome) {
     const withWeapon = mode === 'weapon' && canUseWeapon(state, card);
 
     if (!withWeapon) {
       state.discard.push(card);
       hurt(state, card.rank, card);
+      outcome.bareHanded = true;
+      outcome.damage = card.rank;
       log(state, `Fought ${cardText(card)} bare-handed — took ${card.rank} damage.`, 'damage');
       return;
     }
@@ -276,10 +290,16 @@
     if (slain) {
       weapon.stack.push(card);
       weapon.lastSlain = card.rank; // the cap only ever falls from here
+      state.monstersSlain = (state.monstersSlain || 0) + 1;
     } else {
       state.discard.push(card);
     }
     if (damage > 0) hurt(state, damage, card);
+
+    outcome.withWeapon = true;
+    outcome.damage = damage;
+    outcome.clean = damage === 0;
+    outcome.slain = slain;
 
     log(
       state,
@@ -292,19 +312,39 @@
 
   /**
    * Play the card in room slot `index`.
+   *
+   * Returns an outcome describing HOW it resolved — the presentation layer
+   * needs that to pick a sound and a particle burst, and achievements need it
+   * to spot things like a clean kill that the final state cannot show.
+   *
    * @param {number} index
    * @param {'weapon'|'bare'} [mode] only meaningful for monsters
-   * @returns {boolean} whether anything happened
+   * @returns {object|null} the outcome, or null if the card could not be played
    */
   function resolve(state, index, mode) {
-    if (state.status !== 'playing') return false;
+    if (state.status !== 'playing') return null;
     const slot = state.room[index];
-    if (!slot || slot.done) return false;
+    if (!slot || slot.done) return null;
 
     const card = slot.card;
-    if (card.kind === 'weapon') equip(state, card);
-    else if (card.kind === 'potion') drink(state, card);
-    else fight(state, card, mode);
+    const outcome = {
+      card,
+      kind: card.kind,
+      damage: 0,
+      healed: 0,
+      withWeapon: false,
+      bareHanded: false,
+      clean: false,
+      slain: false,
+      wasted: false,
+      equipped: false,
+      roomEnded: false,
+      turn: state.turn,
+    };
+
+    if (card.kind === 'weapon') { equip(state, card); outcome.equipped = true; }
+    else if (card.kind === 'potion') drink(state, card, outcome);
+    else fight(state, card, mode, outcome);
 
     slot.done = true;
     state.resolved += 1;
@@ -313,7 +353,8 @@
     state.avoidedLast = false;
 
     afterResolve(state);
-    return true;
+    outcome.roomEnded = state.turn !== outcome.turn;
+    return outcome;
   }
 
   /** Death, victory or the next room — in that order of precedence. */

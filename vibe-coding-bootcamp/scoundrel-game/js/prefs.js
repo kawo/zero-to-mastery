@@ -34,6 +34,12 @@
     showThreat: { value: true },
     /** One-off teaching notes in the chronicle. */
     coach: { value: true },
+    /** Synthesised sound effects. Off by default: a game that makes noise
+     *  uninvited on first load is a game people mute at the tab level. */
+    sound: { value: false },
+    /** Sparks, motes and the win shower. Reduced motion suppresses these
+     *  regardless of this setting. */
+    particles: { value: true },
     /** Has the welcome been shown. */
     seenWelcome: { value: false },
   };

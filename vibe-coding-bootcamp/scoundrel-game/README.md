@@ -105,7 +105,7 @@ test framework — the harness builds a fake `window`, evaluates the browser
 modules into it, and exercises the real code.
 
 ```
-node tests/engine.test.js          # 66 assertions, ~3s
+node tests/engine.test.js          # 99 assertions, ~3s
 node tests/engine.test.js --full   # adds the beam-search winnability check, ~1 min
 ```
 
@@ -116,9 +116,17 @@ that a run keeps its own rules when the setting changes under it), preference
 validation, and the record — streaks, best score, history cap, and that a finished
 run counts exactly once.
 
+Also every achievement condition — including the ones that must *not* fire, like
+Bare Knuckle when the face card kills you — and the outcome object that sound and
+particles are driven from.
+
 Plus a 4000-game fuzz run, cycling all three rulesets, checking that health stays
 in range, no card is ever lost or duplicated, and no position can get stuck. The
-harness stubs LocalStorage in memory so prefs and stats are exercised for real.
+harness stubs LocalStorage in memory so prefs, stats and trophies are exercised
+for real.
+
+Audio and particles are not covered: they are WebAudio and canvas, and testing
+them headlessly would test the mock rather than the sound.
 
 ### URL parameters
 
@@ -143,6 +151,9 @@ assets/cards/           the eleven card illustrations (2.5 MB total)
 js/config.js            rules constants, rulesets, card tables, art mapping, deck
 js/prefs.js             player settings (own storage key)
 js/stats.js             lifetime record and run history (own storage key)
+js/achievements.js      trophy definitions and unlock checks
+js/audio.js             synthesised sound — oscillators, no audio files
+js/particles.js         canvas overlay for sparks, motes and the win shower
 js/rng.js               seeded mulberry32 + Fisher–Yates
 js/art.js               card face/back markup + the inline suit outlines
 js/storage.js           LocalStorage save/load, wrapped against private mode
@@ -221,6 +232,48 @@ the stats module, because the state is what gets saved: finish a run, close the
 tab, come back, and the end screen shows again — but the run must not count
 twice.
 
+### Polish
+
+**Sound** is synthesised from oscillators and a noise buffer — there are no
+audio files, so the game stays a handful of text files that run from `file://`
+with nothing fetched. The palette is dry and low: short percussive hits, minor
+intervals, no reverb. Damage is pitched by how hard you were hit; a clean kill
+and a costly one deliberately do not sound alike.
+
+It is **off by default**. A game that makes noise uninvited on first load is a
+game people mute at the tab level. Browsers also refuse to start an
+`AudioContext` before a gesture, so the context is created on first interaction
+and every call before that is a silent no-op.
+
+**Particles** are one canvas overlay. Bursts are fired at an element, so callers
+pass a card and never think about coordinates, and the animation loop stops
+dead when the last particle dies — an idle table costs nothing. Suppressed
+entirely under reduced motion, which is exactly what that setting is for.
+
+**Trophies** are fifteen achievements, weighted towards *how* you won rather
+than how often: clearing the dungeon without ever avoiding, winning without
+drinking, killing an ace with a blade, taking a face card bare-handed and
+living. Each is either a one-off condition or a counter with a progress bar.
+Unlocks arrive as a toast in a polite live region, so they queue behind whatever
+the chronicle just announced rather than talking over it.
+
+Sound, particles and achievements are all driven off the **outcome object** the
+engine returns from `resolve()`. The presentation layer is told what happened
+rather than re-deriving it from the state — which is the only way to know that a
+kill was clean, since the final state cannot show it.
+
+### Leaderboard
+
+The board is **your own top ten, kept in this browser**. There is no global one,
+and that is a deliberate limit rather than an omission: a shared board that could
+be trusted needs a server to verify runs, and this project has no backend by
+design. A client-side board that anyone can edit with devtools is not a
+leaderboard, it is decoration.
+
+Every row keeps its seed and ruleset, so a good dungeon can be handed to someone
+else — `?seed=…` deals exactly the same 44 cards — which is the closest thing to
+competition a static page can honestly offer.
+
 ### Storage
 
 Three independent LocalStorage keys, so one being lost or outdated never takes
@@ -231,6 +284,8 @@ the others with it:
 | `scoundrel:save:v1` | the run in progress (or the finished one you last saw) |
 | `scoundrel:prefs:v1` | settings |
 | `scoundrel:stats:v1` | lifetime record and history |
+| `scoundrel:achievements:v1` | unlocked trophies |
+| `scoundrel:coached:v1` | which one-off tips have been shown |
 
 A save from an older build is discarded rather than migrated — but your settings
 and your record survive it. Every read is wrapped: private windows, blocked site

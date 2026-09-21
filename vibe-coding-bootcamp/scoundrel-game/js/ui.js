@@ -22,6 +22,7 @@
   const Art = window.ScoundrelArt;
   const Prefs = window.ScoundrelPrefs;
   const Stats = window.ScoundrelStats;
+  const Achievements = window.ScoundrelAchievements;
 
   const $ = (id) => document.getElementById(id);
 
@@ -62,6 +63,12 @@
     settingsSeedInput: $('settingsSeedInput'),
     scoreboard: $('scoreboard'),
     historyList: $('historyList'),
+    boardList: $('boardList'),
+    trophyList: $('trophyList'),
+    trophyCount: $('trophyCount'),
+    soundToggle: $('soundToggle'),
+    particlesToggle: $('particlesToggle'),
+    toasts: $('toasts'),
   };
 
   /* Motion is a preference, not just an OS setting — see prefs.js. */
@@ -457,6 +464,8 @@
     choiceGroup(el.motionChoices, 'motion', MOTION_OPTIONS, Prefs.get('motion'));
     el.showThreatToggle.checked = Prefs.get('showThreat');
     el.coachToggle.checked = Prefs.get('coach');
+    el.soundToggle.checked = Prefs.get('sound');
+    el.particlesToggle.checked = Prefs.get('particles');
   }
 
   /* ------------------------------------------------------------------ *
@@ -473,7 +482,7 @@
     return days === 1 ? 'yesterday' : `${days}d ago`;
   };
 
-  function renderStats() {
+  function renderStats(state) {
     const s = Stats.all();
     const rate = Stats.winRate();
     const cells = [
@@ -494,19 +503,37 @@
     }
     el.scoreboard.appendChild(frag);
 
-    if (!s.history.length) {
-      el.historyList.innerHTML = '<p class="history__empty">No finished runs yet. Your first one will appear here.</p>';
+    renderRuns(el.boardList, bestRuns(s.history), 'No finished runs yet. Your best ten will collect here.', true);
+    renderRuns(el.historyList, s.history, 'Nothing played yet.', false);
+    renderTrophies(state);
+  }
+
+  /**
+   * The local leaderboard: your own top ten by score.
+   *
+   * Deliberately local. A shared board that could be trusted needs a server to
+   * verify runs, and this game has none by design — the sibling projects make
+   * the same call and say so rather than shipping a board anyone can edit.
+   */
+  function bestRuns(history) {
+    return history.slice().sort((a, b) => b.score - a.score).slice(0, 10);
+  }
+
+  function renderRuns(host, runs, emptyText, ranked) {
+    if (!runs.length) {
+      host.innerHTML = `<p class="history__empty">${emptyText}</p>`;
       return;
     }
-
     const rows = document.createElement('ol');
     rows.className = 'history__list';
-    for (const run of s.history) {
+    runs.forEach((run, i) => {
       const li = document.createElement('li');
       li.className = 'history__row';
       li.dataset.status = run.status;
+      if (ranked) li.dataset.rank = String(i + 1);
       const preset = C.PRESETS[run.preset] ? C.PRESETS[run.preset].name : run.preset;
       li.innerHTML = `
+        ${ranked ? `<span class="history__rank" aria-hidden="true">${i + 1}</span>` : ''}
         <span class="history__score">${run.score > 0 ? `+${run.score}` : run.score}</span>
         <span class="history__meta">
           <b>${run.status === 'won' ? 'Cleared' : `Fell in room ${run.turns}`}</b>
@@ -516,8 +543,71 @@
           Replay<span class="sr-only"> the dungeon from seed ${run.seed}</span>
         </button>`;
       rows.appendChild(li);
+    });
+    host.replaceChildren(rows);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Trophies
+   * ------------------------------------------------------------------ */
+
+  function renderTrophies(state) {
+    const context = { stats: Stats.all(), state: state || {}, event: { type: 'view' } };
+    const list = Achievements.all(context);
+    const { unlocked, total } = Achievements.count();
+    el.trophyCount.textContent = `${unlocked} of ${total}`;
+
+    const frag = document.createDocumentFragment();
+    for (const a of list) {
+      const li = document.createElement('li');
+      li.className = 'trophy-row';
+      li.dataset.unlocked = String(a.unlocked);
+      li.dataset.kind = a.kind;
+      const bar = a.bar
+        ? `<span class="trophy-bar"><span style="width:${(a.bar.current / a.bar.goal) * 100}%"></span></span>
+           <span class="trophy-progress">${a.bar.current} / ${a.bar.goal}</span>`
+        : '';
+      li.innerHTML = `
+        <span class="trophy-mark" aria-hidden="true">${a.unlocked ? '★' : '☆'}</span>
+        <span class="trophy-body">
+          <b>${a.title}</b>
+          <i>${a.desc}</i>
+          ${bar}
+        </span>
+        <span class="sr-only">${a.unlocked ? 'Unlocked' : 'Locked'}</span>`;
+      frag.appendChild(li);
     }
-    el.historyList.replaceChildren(rows);
+    el.trophyList.replaceChildren(frag);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Toasts
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Announce an unlocked achievement. The host is aria-live polite, so this
+   * waits its turn behind whatever the chronicle just said.
+   */
+  function toast(achievement) {
+    const node = document.createElement('div');
+    node.className = 'toast';
+    node.dataset.kind = achievement.kind;
+    node.innerHTML = `
+      <span class="toast__mark" aria-hidden="true">★</span>
+      <span class="toast__body">
+        <b>${achievement.title}</b>
+        <i>${achievement.desc}</i>
+      </span>`;
+    el.toasts.appendChild(node);
+
+    const life = Prefs.reduceMotion() ? 6000 : 4600;
+    window.setTimeout(() => {
+      node.dataset.leaving = 'true';
+      window.setTimeout(() => node.remove(), 400);
+    }, life);
+
+    // Never let a pile-up push the room off screen.
+    while (el.toasts.children.length > 3) el.toasts.firstChild.remove();
   }
 
   /* ------------------------------------------------------------------ *
@@ -571,6 +661,6 @@
 
   window.ScoundrelUI = Object.freeze({
     el, render, reset, showEnd, setChoosing, getChoosing, renderDebug,
-    renderSettings, renderStats, staticCard,
+    renderSettings, renderStats, staticCard, toast, bestRuns,
   });
 })();

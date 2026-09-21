@@ -1003,6 +1003,122 @@ kbd {
 
 .seed-preset { color: var(--gold); }
 
+/* Particles --------------------------------------------------------------- */
+
+/* Above the table, below nothing that can be clicked. */
+.fx {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+/* A hit shakes the whole table, briefly. */
+.is-struck { animation: struck 260ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+@keyframes struck {
+  10%, 90% { transform: translate3d(-2px, 0, 0); }
+  20%, 80% { transform: translate3d(3px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-5px, 0, 0); }
+  40%, 60% { transform: translate3d(5px, 0, 0); }
+}
+
+/* Trophies ---------------------------------------------------------------- */
+
+.trophy-count {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--bone-3);
+  text-transform: none;
+}
+
+.trophies { margin: 0.5rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.35rem; }
+
+.trophy-row {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr;
+  gap: 0.6rem;
+  align-items: start;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 30%);
+}
+.trophy-row[data-unlocked='false'] { opacity: 0.55; }
+.trophy-row[data-unlocked='true'] { border-color: #4a3f2a; background: rgb(195 160 89 / 7%); }
+
+.trophy-mark { font-size: 1.1rem; line-height: 1.2; color: var(--bone-3); }
+.trophy-row[data-unlocked='true'] .trophy-mark { color: var(--gold); }
+
+.trophy-body { display: grid; gap: 0.15rem; min-width: 0; }
+.trophy-body b { font-family: var(--font-display); font-size: 0.85rem; letter-spacing: 0.04em; }
+.trophy-body i { font-style: normal; font-size: 0.78rem; color: var(--bone-3); }
+
+.trophy-bar {
+  display: block;
+  height: 0.25rem;
+  margin-top: 0.3rem;
+  border-radius: 999px;
+  background: #000;
+  overflow: hidden;
+}
+.trophy-bar > span { display: block; height: 100%; background: var(--gold); border-radius: inherit; }
+.trophy-progress { font-size: 0.68rem; color: var(--bone-3); }
+
+/* Leaderboard rank -------------------------------------------------------- */
+
+.history__row[data-rank] { grid-template-columns: 1.4rem 3.2rem 1fr auto; }
+.history__rank {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  color: var(--bone-3);
+  text-align: right;
+}
+.history__row[data-rank='1'] .history__rank,
+.history__row[data-rank='2'] .history__rank,
+.history__row[data-rank='3'] .history__rank { color: var(--gold); }
+
+/* Toasts ------------------------------------------------------------------ */
+
+.toasts {
+  position: fixed;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 60;
+  display: grid;
+  gap: 0.5rem;
+  justify-items: end;
+  pointer-events: none;
+  max-width: min(22rem, calc(100vw - 1.5rem));
+}
+
+.toast {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, #17140d, #0a0a10);
+  box-shadow: 0 16px 34px -18px #000;
+  animation: toast-in 280ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.toast[data-leaving='true'] { animation: toast-out 380ms ease-in both; }
+
+@keyframes toast-in  { from { opacity: 0; transform: translateX(18px) scale(0.96); } }
+@keyframes toast-out { to   { opacity: 0; transform: translateX(18px) scale(0.96); } }
+
+.toast__mark { font-size: 1.3rem; color: var(--gold); }
+.toast__body { display: grid; gap: 0.1rem; }
+.toast__body b {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: #f0e3c4;
+}
+.toast__body i { font-style: normal; font-size: 0.75rem; color: var(--bone-2); }
+
 /* ---------- 9. Debug ----------------------------------------------------- */
 
 .debug {

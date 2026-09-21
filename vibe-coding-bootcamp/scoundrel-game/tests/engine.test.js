@@ -32,7 +32,7 @@ const sandbox = { console, Math, Date, JSON };
 sandbox.window = sandbox;
 sandbox.localStorage = makeStorage();
 vm.createContext(sandbox);
-for (const file of ['js/config.js', 'js/prefs.js', 'js/stats.js', 'js/rng.js', 'js/engine.js']) {
+for (const file of ['js/config.js', 'js/prefs.js', 'js/stats.js', 'js/achievements.js', 'js/rng.js', 'js/engine.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, file), 'utf8'), sandbox, { filename: file });
 }
 
@@ -41,6 +41,7 @@ const RNG = sandbox.ScoundrelRng;
 const E = sandbox.ScoundrelEngine;
 const Prefs = sandbox.ScoundrelPrefs;
 const Stats = sandbox.ScoundrelStats;
+const Ach = sandbox.ScoundrelAchievements;
 
 let passed = 0;
 let failed = 0;
@@ -371,6 +372,178 @@ group('Record');
   Stats.reset();
   check('reset clears everything',
     Stats.all().games === 0 && Stats.all().history.length === 0);
+}
+
+/* ===================================================================== *
+ * Achievements
+ * ===================================================================== */
+
+group('Achievements');
+{
+  Ach.reset();
+  Stats.reset();
+
+  const ctx = (over = {}) => ({
+    stats: { games: 0, wins: 0, currentStreak: 0, ...(over.stats || {}) },
+    state: { status: 'playing', health: 20, turn: 1, ...(over.state || {}) },
+    event: { type: 'resolve', ...(over.event || {}) },
+  });
+  const ids = (list) => list.map((a) => a.id).sort();
+
+  check('nothing unlocks from an empty context', Ach.check(ctx()).length === 0);
+
+  check('first finished run unlocks First Blood',
+    ids(Ach.check(ctx({ stats: { games: 1 } }))).includes('first-blood'));
+  check('it does not unlock twice',
+    Ach.check(ctx({ stats: { games: 2 } })).length === 0);
+
+  Ach.reset();
+  check('a clean kill unlocks Surgeon',
+    ids(Ach.check(ctx({ event: { clean: true } }))).includes('surgeon'));
+
+  Ach.reset();
+  check('an ace killed with a weapon unlocks Giant Killer',
+    ids(Ach.check(ctx({
+      event: { withWeapon: true, card: C.makeCard('♠', 14) },
+    }))).includes('giant-killer'));
+
+  Ach.reset();
+  check('a face card killed bare-handed while alive unlocks Bare Knuckle',
+    ids(Ach.check(ctx({
+      event: { bareHanded: true, card: C.makeCard('♣', 13) },
+      state: { health: 4 },
+    }))).includes('bare-knuckle'));
+
+  Ach.reset();
+  check('dying to that face card does NOT unlock it',
+    !ids(Ach.check(ctx({
+      event: { bareHanded: true, card: C.makeCard('♣', 13) },
+      state: { health: 0 },
+    }))).includes('bare-knuckle'));
+
+  Ach.reset();
+  const won = (over) => ctx({
+    event: { type: 'end' },
+    state: {
+      status: 'won', health: 12, avoidsUsed: 2, potionsDrunk: 3, preset: 'standard', ...over,
+    },
+  });
+  check('winning at full health unlocks Unscathed',
+    ids(Ach.check(won({ health: 20 }))).includes('unscathed'));
+  Ach.reset();
+  check('winning on 1 health unlocks By a Thread',
+    ids(Ach.check(won({ health: 1 }))).includes('by-a-thread'));
+  Ach.reset();
+  check('winning with no avoids unlocks Nowhere to Run',
+    ids(Ach.check(won({ avoidsUsed: 0 }))).includes('no-flight'));
+  Ach.reset();
+  check('winning having avoided does not',
+    !ids(Ach.check(won({ avoidsUsed: 1 }))).includes('no-flight'));
+  Ach.reset();
+  check('winning dry unlocks Teetotal',
+    ids(Ach.check(won({ potionsDrunk: 0 }))).includes('teetotal'));
+  Ach.reset();
+  check('winning on Classic unlocks Purist',
+    ids(Ach.check(won({ preset: 'classic' }))).includes('purist'));
+  Ach.reset();
+  check('losing unlocks none of the win trophies',
+    Ach.check(ctx({ event: { type: 'end' }, state: { status: 'lost', health: 0 } }))
+      .every((a) => !['unscathed', 'no-flight', 'teetotal', 'purist'].includes(a.id)));
+
+  Ach.reset();
+  check('five on one blade unlocks The Butcher',
+    ids(Ach.check(ctx({
+      state: { weapon: { card: C.makeCard('♦', 9), lastSlain: 4, stack: [1, 2, 3, 4, 5] } },
+    }))).includes('butcher'));
+
+  // Counters show a bar until they are met.
+  Ach.reset();
+  const partway = Ach.all(ctx({ stats: { games: 10 } })).find((a) => a.id === 'veteran');
+  check('a counter reports progress while locked',
+    partway.unlocked === false && partway.bar.current === 10 && partway.bar.goal === 25, partway.bar);
+  check('a counter unlocks on reaching its goal',
+    ids(Ach.check(ctx({ stats: { games: 25 } }))).includes('veteran'));
+  const done = Ach.all(ctx({ stats: { games: 25 } })).find((a) => a.id === 'veteran');
+  check('an unlocked counter drops its bar', done.unlocked === true && done.bar === null);
+
+  // A broken condition must not take the turn down with it.
+  Ach.reset();
+  check('a throwing context is survived',
+    (() => {
+      try {
+        Ach.check({ stats: null, state: null, event: null });
+        return true;
+      } catch { return false; }
+    })());
+
+  const total = Ach.count().total;
+  check('every entry has an id, title and description',
+    Ach.LIST.every((a) => a.id && a.title && a.desc) && total === Ach.LIST.length);
+  check('ids are unique', new Set(Ach.LIST.map((a) => a.id)).size === total);
+  check('every entry has exactly one of test or progress',
+    Ach.LIST.every((a) => (!!a.test) !== (!!a.progress)));
+
+  Ach.reset();
+  check('reset empties the case', Ach.count().unlocked === 0);
+}
+
+/* ===================================================================== *
+ * Resolve outcomes (what sound and particles are driven from)
+ * ===================================================================== */
+
+group('Resolve outcomes');
+{
+  const rig = (card, weapon) => {
+    const s = E.create('outcome', 'standard');
+    s.weapon = weapon || null;
+    s.deck = [C.makeCard('♥', 2)];
+    s.room = [{ card, done: false, dealtOn: s.turn }];
+    s.resolved = 0;
+    return s;
+  };
+
+  let s = rig(C.makeCard('♦', 8));
+  let out = E.resolve(s, 0);
+  check('equipping reports equipped', out.equipped === true && out.kind === 'weapon');
+
+  s = rig(C.makeCard('♥', 6));
+  s.health = 10;
+  out = E.resolve(s, 0);
+  check('drinking reports how much it healed', out.healed === 6, out.healed);
+
+  s = rig(C.makeCard('♥', 6));
+  s.potionUsed = true;
+  out = E.resolve(s, 0);
+  check('a wasted potion is flagged and heals nothing',
+    out.wasted === true && out.healed === 0);
+
+  s = rig(C.makeCard('♠', 9));
+  out = E.resolve(s, 0, 'bare');
+  check('bare-handed reports full damage',
+    out.bareHanded === true && out.damage === 9 && out.clean === false);
+
+  s = rig(C.makeCard('♠', 4), { card: C.makeCard('♦', 9), lastSlain: null, stack: [] });
+  out = E.resolve(s, 0, 'weapon');
+  check('a clean kill is flagged',
+    out.withWeapon === true && out.clean === true && out.damage === 0 && out.slain === true);
+
+  s = rig(C.makeCard('♠', 13), { card: C.makeCard('♦', 5), lastSlain: null, stack: [] });
+  out = E.resolve(s, 0, 'weapon');
+  check('a bloody win reports the overflow, not a clean kill',
+    out.damage === 8 && out.clean === false && out.slain === true, out.damage);
+
+  // A room of four, so resolving one card does not end the room and refill the
+  // slot underneath us — otherwise index 0 is a different card by the next line.
+  s = E.create('spent', 'standard');
+  check('an out-of-range slot returns null', E.resolve(s, 9, 'bare') === null);
+  E.resolve(s, 0, 'bare');
+  check('the slot is marked done', s.room[0].done === true);
+  check('replaying a spent slot returns null', E.resolve(s, 0, 'bare') === null);
+
+  const fresh = E.create('counters', 'standard');
+  check('a new run starts every tally at zero',
+    fresh.avoidsUsed === 0 && fresh.potionsDrunk === 0
+    && fresh.potionsWasted === 0 && fresh.monstersSlain === 0);
 }
 
 /* ===================================================================== *

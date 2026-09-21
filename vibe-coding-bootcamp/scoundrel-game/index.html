@@ -216,6 +216,20 @@
     </fieldset>
 
     <fieldset class="field">
+      <legend>Feel</legend>
+      <label class="switch">
+        <input type="checkbox" id="soundToggle" />
+        <span class="switch__box" aria-hidden="true"></span>
+        <span class="switch__text"><b>Sound</b><i>Synthesised cues for hits, kills and potions. No audio files.</i></span>
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="particlesToggle" />
+        <span class="switch__box" aria-hidden="true"></span>
+        <span class="switch__text"><b>Particles</b><i>Sparks and motes. Reduced motion turns these off regardless.</i></span>
+      </label>
+    </fieldset>
+
+    <fieldset class="field">
       <legend>Help</legend>
       <label class="switch">
         <input type="checkbox" id="showThreatToggle" />
@@ -253,13 +267,29 @@
   <h2 id="statsTitle">Your record</h2>
   <div class="modal__body">
     <dl class="scoreboard" id="scoreboard"></dl>
+
+    <h3 id="boardHeading">Best runs</h3>
+    <p class="field__hint">
+      Your own top ten, kept in this browser. A shared, trustworthy leaderboard
+      would need a server, and this game deliberately has none.
+    </p>
+    <div class="history" id="boardList"></div>
+
     <h3>Recent runs</h3>
     <div class="history" id="historyList"></div>
+
+    <h3>Trophies <span class="trophy-count" id="trophyCount"></span></h3>
+    <ul class="trophies" id="trophyList"></ul>
+
     <p class="field__danger">
       <button type="button" class="btn btn--sm btn--ghost" id="resetStatsBtn">Clear record</button>
     </p>
   </div>
 </dialog>
+
+<!-- Achievement toasts. Polite, so an unlock never cuts across the
+     chronicle announcing what just happened in the room. -->
+<div class="toasts" id="toasts" role="status" aria-live="polite" aria-atomic="false"></div>
 
 <!-- ================= DEBUG (hidden) ================= -->
 <aside class="debug" id="debugPanel" hidden aria-label="Debug">
@@ -277,6 +307,9 @@
 <script src="js/config.js"></script>
 <script src="js/prefs.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/achievements.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/particles.js"></script>
 <script src="js/rng.js"></script>
 <script src="js/art.js"></script>
 <script src="js/storage.js"></script>
