@@ -154,6 +154,16 @@
           <p class="pair-sample-text">Body copy on this background, at the size you would actually read it.</p>
         </div>
         <p class="pair-verdict" id="pair-verdict"></p>
+
+        <!-- The four thresholds WCAG sets for text, each one either met or not -->
+        <ul class="wcag-levels" id="wcag-levels" aria-label="WCAG levels for this pair"></ul>
+
+        <!-- Only shown when the pair could be better, with colors from this
+             palette that would do it -->
+        <div class="pair-fixes" id="pair-fixes" hidden>
+          <span class="control-label" id="pair-fixes-label">Ways to fix it</span>
+          <ul class="fix-list" id="fix-list" aria-labelledby="pair-fixes-label"></ul>
+        </div>
       </div>
     </section>
 

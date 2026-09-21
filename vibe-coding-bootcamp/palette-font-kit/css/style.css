@@ -1100,6 +1100,65 @@ pre {
 
 .pair-verdict .badge { margin-right: 6px; }
 
+/* ---------- WCAG levels and fixes ---------- */
+.wcag-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.wcag-levels .badge { font-family: var(--font-ui-body); }
+
+.wcag-levels .badge b {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.pair-fixes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.pair-fixes[hidden] { display: none; }
+
+.fix-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* A suggestion wears the colors it is suggesting, so the choice is visible
+   before it is made. */
+.fix {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background-color: var(--fix-bg, var(--surface));
+  color: var(--fix-fg, var(--text));
+  font-family: var(--font-ui-heading);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.fix:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.fix:active { transform: translateY(1px); }
+
+.fix-ratio {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
 /* ---------- Variable axis sliders ---------- */
 .axes-control[hidden] { display: none; }
 

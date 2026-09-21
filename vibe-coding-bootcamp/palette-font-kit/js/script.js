@@ -743,6 +743,136 @@
     return best;
   }
 
+  /* What WCAG 2.1 asks of text, and what each threshold is for. Large text
+     is 18.66px bold or 24px and over. */
+  var WCAG_LEVELS = [
+    { name: 'AA', size: 'normal', need: AA_NORMAL },
+    { name: 'AA', size: 'large', need: AA_LARGE },
+    { name: 'AAA', size: 'normal', need: 7 },
+    { name: 'AAA', size: 'large', need: AA_NORMAL }
+  ];
+
+  /** The four thresholds, each one met or not. */
+  function renderWcagLevels(ratio) {
+    elements.wcagLevels.replaceChildren.apply(elements.wcagLevels, WCAG_LEVELS.map(function (level) {
+      var passes = ratio >= level.need;
+      var item = document.createElement('li');
+      item.className = 'badge ' + (passes ? 'is-pass' : 'is-fail');
+
+      var mark = document.createElement('span');
+      mark.className = 'badge-mark';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.textContent = passes ? '✓' : '✕';
+
+      var name = document.createElement('b');
+      name.textContent = level.name;
+      /* The spaces are part of the text, not just flex gaps: this is what a
+         screen reader reads out, and what a copied line looks like. */
+      var size = document.createElement('span');
+      size.textContent = ' ' + level.size + ' text';
+      var need = document.createElement('span');
+      need.className = 'fix-ratio';
+      need.textContent = ' needs ' + level.need.toFixed(1) + ':1';
+
+      /* The tick is decorative, so the result is spelled out. */
+      var spoken = document.createElement('span');
+      spoken.className = 'sr-only';
+      spoken.textContent = passes ? ', passes' : ', fails';
+
+      item.append(mark, name, size, need, spoken);
+      return item;
+    }));
+  }
+
+  /**
+   * Colors from the palette that would put this pair right: keep the
+   * background and change the text, or the other way round. Best first, and
+   * if the palette has nothing, plain black or white is offered instead —
+   * better an honest way out than a list of colors that all fail.
+   */
+  function pairFixes(background, foreground, ratio) {
+    var target = ratio >= AA_NORMAL ? 7 : AA_NORMAL;   // reach AAA if AA is already met
+    var fixes = [];
+
+    var byRatio = function (candidate, other) { return contrastRatio(candidate, other); };
+    var textSwaps = state.palette
+      .filter(function (hex) { return hex !== foreground; })
+      .map(function (hex) { return { role: 'text', hex: hex, ratio: byRatio(hex, background) }; })
+      .filter(function (item) { return item.ratio >= target; })
+      .sort(function (a, b) { return b.ratio - a.ratio; });
+    var backgroundSwaps = state.palette
+      .filter(function (hex) { return hex !== background; })
+      .map(function (hex) { return { role: 'background', hex: hex, ratio: byRatio(hex, foreground) }; })
+      .filter(function (item) { return item.ratio >= target; })
+      .sort(function (a, b) { return b.ratio - a.ratio; });
+
+    if (textSwaps[0]) fixes.push(textSwaps[0]);
+    if (backgroundSwaps[0]) fixes.push(backgroundSwaps[0]);
+    if (textSwaps[1] && fixes.length < 3) fixes.push(textSwaps[1]);
+
+    if (!fixes.length && ratio < AA_NORMAL) {
+      var ink = bestTextOn(background);
+      fixes.push({ role: 'text', hex: ink, ratio: contrastRatio(ink, background), outside: true });
+    }
+    return fixes;
+  }
+
+  function renderPairFixes(background, foreground, ratio) {
+    var fixes = pairFixes(background, foreground, ratio);
+    elements.pairFixes.hidden = fixes.length === 0 || ratio >= 7;
+    if (elements.pairFixes.hidden) {
+      elements.fixList.replaceChildren();
+      return;
+    }
+
+    elements.fixList.replaceChildren.apply(elements.fixList, fixes.map(function (fix) {
+      var item = document.createElement('li');
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'fix';
+      button.dataset.role = fix.role;
+      button.dataset.hex = fix.hex;
+
+      /* The button wears the pair it is proposing. */
+      var pairBackground = fix.role === 'text' ? background : fix.hex;
+      var pairForeground = fix.role === 'text' ? fix.hex : foreground;
+      button.style.setProperty('--fix-bg', pairBackground);
+      button.style.setProperty('--fix-fg', pairForeground);
+
+      var words = document.createElement('span');
+      words.textContent = (fix.role === 'text' ? 'Text ' : 'Background ') + fix.hex +
+        (fix.outside ? ' (not in the palette)' : '');
+      var shown = document.createElement('span');
+      shown.className = 'fix-ratio';
+      shown.textContent = (Math.floor(fix.ratio * 100) / 100).toFixed(2) + ':1';
+
+      button.setAttribute('aria-label',
+        'Use ' + fix.hex + ' as the ' + fix.role + ' color, ' +
+        (Math.floor(fix.ratio * 100) / 100).toFixed(2) + ' to 1' +
+        (fix.outside ? ', which is not one of the palette colors' : ''));
+      button.append(words, shown);
+      item.appendChild(button);
+      return item;
+    }));
+  }
+
+  /** Puts a suggestion into the pair, adding the color to the lists if needed. */
+  function applyPairFix(button) {
+    var hex = button.dataset.hex;
+    var select = button.dataset.role === 'text' ? elements.pairFg : elements.pairBg;
+    if (state.palette.indexOf(hex) === -1) {
+      /* Black or white, offered when the palette had nothing: it has to exist
+         in the list before it can be chosen. */
+      var option = document.createElement('option');
+      option.value = hex;
+      option.textContent = hex + ' (outside the palette)';
+      select.appendChild(option);
+    }
+    select.value = hex;
+    renderPair();
+    toast(hex + ' set as the ' + button.dataset.role + ' color');
+  }
+
   /** Paints the sample and says whether the pair is usable. */
   function renderPair() {
     var background = elements.pairBg.value || state.palette[0];
@@ -776,6 +906,8 @@
           : foreground + ' on ' + background + ' fails AA: too close together to read.';
 
     verdict.append(badge, words);
+    renderWcagLevels(ratio);
+    renderPairFixes(background, foreground, ratio);
     /* The pair is part of the configuration, so the share link changes with it. */
     if (elements.shareUrl) renderShare();
   }
@@ -2650,6 +2782,10 @@
       }
     });
 
+    elements.fixList.addEventListener('click', function (event) {
+      var button = event.target.closest('.fix');
+      if (button) applyPairFix(button);
+    });
     elements.pairBg.addEventListener('change', renderPair);
     elements.pairFg.addEventListener('change', renderPair);
     elements.pairSwap.addEventListener('click', function () {
@@ -2779,6 +2915,9 @@
       pairBest: $('pair-best'),
       pairSample: $('pair-sample'),
       pairVerdict: $('pair-verdict'),
+      wcagLevels: $('wcag-levels'),
+      pairFixes: $('pair-fixes'),
+      fixList: $('fix-list'),
       downloadCss: $('download-css'),
       downloadZip: $('download-zip'),
       shareUrl: $('share-url'),
