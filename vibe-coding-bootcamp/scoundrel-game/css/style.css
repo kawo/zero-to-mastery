@@ -225,17 +225,20 @@ kbd {
   box-shadow: var(--shadow);
 }
 
-/* Let every panel shrink below its content width instead of forcing the row
-   wider than the card it sits in. */
-.hud > * { min-width: 0; }
+/* Only the panels that can actually give are allowed to shrink below their
+   content width. The brand must NOT: "Scoundrel" is one unbreakable word in
+   letter-spaced display type, so a track narrower than the word does not wrap
+   it, it paints it over whatever sits next door. The gauge is a bar and the
+   weapon panel wraps, so both compress cleanly. */
+.gauge, .panel--weapon { min-width: 0; }
 
 .hud__brand { display: flex; align-items: center; gap: 0.75rem; }
 
 .brand-mark { width: 2.4rem; height: 2.4rem; color: var(--bone-2); flex: none; }
 
 .hud__titles h1 {
-  font-size: clamp(1.35rem, 1.1rem + 1.4vw, 1.9rem);
-  letter-spacing: 0.22em;
+  font-size: clamp(1.2rem, 1rem + 1.1vw, 1.6rem);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 .hud__titles p {
@@ -348,35 +351,48 @@ kbd {
 .counter { display: grid; gap: 0.1rem; }
 .counter dd { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
 
+/* The HUD packs five panels into a row only when five genuinely fit. It steps
+ * up in three stages rather than one, because the width each panel needs is set
+ * by its longest translation, not by the English it was drawn against.
+ *
+ * 40rem — three rows. Brand and counters share the top, the health bar gets a
+ *         full row of its own, the weapon panel and the button share the last.
+ * 60rem — two rows, the original arrangement, once the gauge has real room
+ *         between the brand and the counters.
+ * 72rem — all five across. */
 @media (min-width: 40rem) {
+  .hud {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'brand  counters'
+      'gauge  gauge'
+      'weapon avoid';
+    align-items: center;
+  }
+  .hud__brand { grid-area: brand; }
+  .gauge { grid-area: gauge; max-width: 26rem; justify-self: start; width: 100%; }
+  .counters { grid-area: counters; justify-self: end; }
+  .panel--weapon { grid-area: weapon; }
+  .btn--avoid { grid-area: avoid; justify-self: end; }
+}
+
+@media (min-width: 60rem) {
   .hud {
     grid-template-columns: auto 1fr auto;
     grid-template-areas:
       'brand  gauge   counters'
       'weapon weapon  avoid';
-    align-items: center;
   }
-  .hud__brand { grid-area: brand; }
-  .gauge { grid-area: gauge; max-width: 26rem; justify-self: start; width: 100%; }
-  .counters { grid-area: counters; }
-  .panel--weapon { grid-area: weapon; }
-  .btn--avoid { grid-area: avoid; justify-self: end; }
+  .counters { justify-self: auto; }
 }
 
-/* Five across, but only once there is genuinely room for five.
- *
- * This used to start at 64rem, which fitted the English labels and nothing
- * else: "Avoid room" is 10 characters, "Éviter la salle" is 15, and uppercase
- * display type with letter-spacing makes that difference wider still. Below
- * 72rem the two-row layout above is the honest answer — the weapon panel gets
- * a full row and the button sits beside it with room to spare.
- *
- * The tracks can also all be squeezed (minmax(0, …) rather than auto), so a
- * longer translation compresses the row instead of pushing out of the panel. */
 @media (min-width: 72rem) {
   .hud {
-    grid-template-columns:
-      minmax(0, auto) minmax(9rem, 16rem) minmax(10rem, 1fr) minmax(0, auto) minmax(0, auto);
+    /* brand, counters and avoid are content-sized (`auto`) so they are never
+       squeezed narrower than their text. The gauge and the weapon panel carry
+       all the flex, with low floors so a longer translation compresses them
+       rather than pushing the row out of the panel. */
+    grid-template-columns: auto minmax(8rem, 14rem) minmax(9rem, 1fr) auto auto;
     grid-template-areas: 'brand gauge weapon counters avoid';
   }
 }
