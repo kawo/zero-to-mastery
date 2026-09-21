@@ -1,0 +1,874 @@
+/* ==========================================================================
+   Scoundrel
+   A dark, engraved deck on a starfield. Mobile-first; the two-column table
+   appears at 60rem.
+
+   Sections
+     1. Tokens
+     2. Reset & base
+     3. Utilities
+     4. Buttons
+     5. HUD
+     6. Board & cards
+     7. Chronicle
+     8. Controls & modals
+     9. Debug
+    10. Motion preferences
+   ========================================================================== */
+
+/* ---------- 1. Tokens ---------------------------------------------------- */
+
+:root {
+  /* Surfaces: near-black, warmed very slightly so it is not a dead void. */
+  --ink:        #06060a;
+  --ink-2:      #0b0b11;
+  --ink-3:      #101018;
+  --card-face:  #0a0a10;
+
+  /* Ink on black — the engraved silver of the artwork. */
+  --bone:       #d9d6cd;
+  --bone-2:     #a5a196;
+  --bone-3:     #6f6c64;
+  --edge:       #24242e;
+  --edge-2:     #33333f;
+
+  /* Card types. Kept close to the monochrome art: a tint, not a repaint. */
+  --monster:    #c2606a;
+  --weapon:     #8fa9c4;
+  --potion:     #6fb392;
+  --gold:       #c3a059;
+
+  --danger:     #c2606a;
+  --ok:         #6fb392;
+
+  --focus:      #e4c87a;
+
+  /* Type */
+  --font-display: 'Cinzel', 'Trajan Pro', Georgia, 'Times New Roman', serif;
+  --font-body:    'Spectral', Georgia, Cambria, 'Times New Roman', serif;
+
+  /* Space & shape */
+  --gap:   clamp(0.6rem, 2vw, 1rem);
+  --pad:   clamp(0.85rem, 3vw, 1.5rem);
+  --radius: 10px;
+  --radius-sm: 6px;
+
+  --shadow: 0 18px 40px -20px rgb(0 0 0 / 90%);
+  --speed: 220ms;
+  --flip: 520ms;
+}
+
+/* ---------- 2. Reset & base --------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  font-size: clamp(0.95rem, 0.9rem + 0.3vw, 1.05rem);
+  line-height: 1.55;
+  color: var(--bone);
+  background-color: var(--ink);
+
+  /* Starfield: three sparse dot layers plus a slow vignette. Cheap, static,
+     and it keeps the black from looking flat behind the cards. */
+  background-image:
+    radial-gradient(1.4px 1.4px at 18% 22%, rgb(217 214 205 / 55%) 50%, transparent 51%),
+    radial-gradient(1px 1px at 72% 14%, rgb(217 214 205 / 40%) 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 41% 78%, rgb(217 214 205 / 32%) 50%, transparent 51%),
+    radial-gradient(1px 1px at 88% 62%, rgb(217 214 205 / 30%) 50%, transparent 51%),
+    radial-gradient(1.6px 1.6px at 8% 66%, rgb(217 214 205 / 25%) 50%, transparent 51%),
+    radial-gradient(120% 90% at 50% 0%, rgb(30 30 46 / 55%) 0%, transparent 70%);
+  background-size: 260px 260px, 340px 340px, 420px 420px, 300px 300px, 500px 500px, 100% 100%;
+  background-attachment: fixed;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+button, input { font: inherit; color: inherit; }
+
+code, kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+kbd {
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--edge-2);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--ink-3);
+  color: var(--bone);
+}
+
+/* ---------- 3. Utilities ------------------------------------------------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -4rem;
+  z-index: 50;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--ink-3);
+  border: 1px solid var(--focus);
+  color: var(--bone);
+  text-decoration: none;
+  transition: top var(--speed);
+}
+.skip-link:focus-visible { top: 0.5rem; }
+
+/* One focus treatment everywhere: a warm ring that reads on black. */
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.t-monster { color: var(--monster); }
+.t-weapon  { color: var(--weapon); }
+.t-potion  { color: var(--potion); }
+
+/* ---------- 4. Buttons --------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.95rem;
+  min-height: 2.75rem;
+  border: 1px solid var(--edge-2);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, var(--ink-3), var(--ink-2));
+  color: var(--bone);
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color var(--speed), background var(--speed), transform var(--speed), color var(--speed);
+}
+
+.btn:hover:not(:disabled) { border-color: var(--bone-3); background: linear-gradient(180deg, #16161f, var(--ink-3)); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  color: var(--bone-3);
+}
+
+.btn__key {
+  display: grid;
+  place-items: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--edge-2);
+  border-radius: 4px;
+  background: #000;
+  font-size: 0.7rem;
+  color: var(--bone-2);
+}
+
+.btn--primary { border-color: var(--gold); color: #f0e3c4; }
+.btn--primary:hover:not(:disabled) { border-color: #e0bd74; background: #1b1710; }
+.btn--ghost { border-color: transparent; background: none; color: var(--bone-2); }
+.btn--ghost:hover:not(:disabled) { color: var(--bone); background: var(--ink-3); }
+.btn--sm { min-height: 2.1rem; padding: 0.3rem 0.6rem; font-size: 0.7rem; }
+
+.btn--avoid:not(:disabled) { border-color: #4a3f2a; color: #e6d5a8; }
+.btn--avoid:not(:disabled):hover { border-color: var(--gold); }
+
+/* ---------- 5. HUD ------------------------------------------------------- */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: var(--pad);
+  min-height: 100dvh;
+}
+
+.hud {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--gap);
+  padding: var(--pad);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgb(16 16 24 / 88%), rgb(6 6 10 / 88%));
+  box-shadow: var(--shadow);
+}
+
+.hud__brand { display: flex; align-items: center; gap: 0.75rem; }
+
+.brand-mark { width: 2.4rem; height: 2.4rem; color: var(--bone-2); flex: none; }
+
+.hud__titles h1 {
+  font-size: clamp(1.35rem, 1.1rem + 1.4vw, 1.9rem);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.hud__titles p {
+  margin: 0.1rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bone-3);
+}
+
+/* Health gauge */
+.gauge { display: grid; gap: 0.35rem; }
+
+.gauge__top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+
+.gauge__label, .panel__label, .counter dt {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--bone-3);
+}
+
+.gauge__value { font-family: var(--font-display); font-size: 1.5rem; line-height: 1; }
+.gauge__max { font-size: 0.8rem; color: var(--bone-3); }
+
+.meter {
+  height: 0.6rem;
+  border: 1px solid var(--edge-2);
+  border-radius: 999px;
+  background: #000;
+  overflow: hidden;
+}
+
+.meter__fill {
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6d2b34, var(--monster) 70%, #e19aa1);
+  transition: width 380ms cubic-bezier(0.22, 0.61, 0.36, 1), background 380ms;
+}
+
+.gauge[data-level='low'] .meter__fill  { background: linear-gradient(90deg, #7a3b1f, #d08a4a); }
+.gauge[data-level='critical'] .meter__fill { background: linear-gradient(90deg, #7d1f1f, #e4453f); }
+.gauge[data-level='critical'] .gauge__value { color: #f0a5a0; }
+
+.gauge.is-hit .gauge__value { animation: hit 420ms ease-out; }
+.gauge.is-hit .meter { animation: shake 320ms ease-out; }
+
+@keyframes hit {
+  0%   { color: #ff8f86; transform: scale(1.18); }
+  100% { color: inherit; transform: scale(1); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+/* Weapon panel */
+.panel {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 45%);
+}
+
+.panel--weapon[data-empty='false'] { border-color: #2e3d4d; }
+
+.panel__body { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.panel__empty { color: var(--bone-3); font-style: italic; }
+
+.weapon__card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--weapon);
+  border-radius: 4px;
+  color: var(--weapon);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+.weapon__card .glyph { fill: none; stroke: currentColor; stroke-width: 6; }
+
+.weapon__meta { display: grid; line-height: 1.25; }
+.weapon__name { font-size: 0.9rem; }
+.weapon__cap {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.weapon__cap[data-fresh='true'] { color: var(--ok); }
+
+.weapon__stack { display: flex; flex-wrap: wrap; gap: 0.2rem; margin-left: auto; }
+.weapon__stack i {
+  font-style: normal;
+  font-size: 0.7rem;
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--edge-2);
+  border-radius: 3px;
+  color: var(--bone-3);
+}
+
+/* Counters */
+.counters { display: flex; gap: 1.25rem; margin: 0; }
+.counter { display: grid; gap: 0.1rem; }
+.counter dd { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
+
+@media (min-width: 40rem) {
+  .hud {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'brand  gauge   counters'
+      'weapon weapon  avoid';
+    align-items: center;
+  }
+  .hud__brand { grid-area: brand; }
+  .gauge { grid-area: gauge; max-width: 26rem; justify-self: start; width: 100%; }
+  .counters { grid-area: counters; }
+  .panel--weapon { grid-area: weapon; }
+  .btn--avoid { grid-area: avoid; justify-self: end; }
+}
+
+@media (min-width: 64rem) {
+  .hud {
+    grid-template-columns: auto minmax(14rem, 22rem) minmax(16rem, 1fr) auto auto;
+    grid-template-areas: 'brand gauge weapon counters avoid';
+  }
+}
+
+/* ---------- 6. Board & cards -------------------------------------------- */
+
+.board { display: grid; gap: var(--gap); flex: 1; }
+
+@media (min-width: 60rem) {
+  .board { grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem); align-items: start; }
+}
+
+.room-wrap {
+  padding: var(--pad);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: rgb(6 6 10 / 70%);
+  box-shadow: var(--shadow);
+}
+
+.room-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: var(--gap);
+}
+
+.room-head h2 { font-size: 0.9rem; letter-spacing: 0.24em; text-transform: uppercase; color: var(--bone-2); }
+.room-hint { margin: 0; font-size: 0.85rem; color: var(--bone-3); font-style: italic; }
+
+.room {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 48rem) { .room { grid-template-columns: repeat(4, 1fr); } }
+
+.slot { position: relative; }
+
+.slot--empty {
+  border: 1px dashed var(--edge);
+  border-radius: var(--radius);
+  aspect-ratio: 5 / 7;
+  opacity: 0.35;
+}
+
+/* The card itself ------------------------------------------------------- */
+
+.card { position: relative; perspective: 1200px; }
+
+.card__btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  aspect-ratio: 5 / 7;
+}
+.card__btn:disabled { cursor: default; }
+
+.card__inner {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateY(180deg);
+  transition: transform var(--flip) cubic-bezier(0.3, 0.9, 0.3, 1);
+}
+.card.is-faceup .card__inner { transform: rotateY(0deg); }
+
+.face {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border: 1px solid var(--edge-2);
+  border-radius: var(--radius);
+  background: var(--card-face);
+  backface-visibility: hidden;
+  overflow: hidden;
+}
+
+.face--back { transform: rotateY(180deg); background: #07070c; }
+
+.face--front {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  place-items: center;
+  padding: 0.4rem;
+  background:
+    radial-gradient(90% 70% at 50% 30%, rgb(28 28 40 / 70%), transparent 70%),
+    var(--card-face);
+}
+
+/* Artwork ---------------------------------------------------------------- */
+
+.art { width: 100%; height: 100%; grid-row: 1; }
+.art--back { width: 100%; height: 100%; }
+
+.art__suit, .art__emblem, .back__frame, .back__motif, .glyph > g {
+  fill: none;
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.art__suit   { stroke-width: 1.6; opacity: 0.55; }
+.art__emblem { stroke-width: 1.9; }
+
+.art .ink      { fill: currentColor; }
+.art .ink-soft { fill: currentColor; opacity: 0.16; }
+
+.face--back { color: var(--bone-3); }
+.back__frame { stroke-width: 0.9; opacity: 0.55; }
+.back__motif { stroke-width: 1.1; opacity: 0.8; }
+.back__stars { fill: var(--bone-2); opacity: 0.5; }
+
+/* Per-type colour. The art stays largely bone; the type tints the frame,
+   the glow and the accents, so the deck still reads as one object. */
+.card { color: var(--bone); }
+.card[data-kind='monster'] .face--front { border-color: #3a2228; color: #ded8d2; }
+.card[data-kind='weapon']  .face--front { border-color: #22303e; color: #d6e0ea; }
+.card[data-kind='potion']  .face--front { border-color: #1f3830; color: #d3e6da; }
+
+.card[data-kind='monster'] .art__suit { stroke: var(--monster); opacity: 0.45; }
+.card[data-kind='weapon']  .art__suit { stroke: var(--weapon);  opacity: 0.5; }
+.card[data-kind='potion']  .art__suit { stroke: var(--potion);  opacity: 0.5; }
+
+/* Pips & name ------------------------------------------------------------ */
+
+.pip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.12rem;
+  font-family: var(--font-display);
+  font-size: clamp(0.72rem, 2.2vw, 0.95rem);
+  line-height: 1;
+  color: inherit;
+}
+.pip .glyph { fill: none; stroke: currentColor; stroke-width: 7; }
+.pip--tl { top: 0.4rem; left: 0.45rem; }
+.pip--br { bottom: 2.4rem; right: 0.45rem; transform: rotate(180deg); }
+
+.card__name {
+  grid-row: 2;
+  display: grid;
+  gap: 0.05rem;
+  width: 100%;
+  padding: 0.35rem 0.2rem 0.15rem;
+  border-top: 1px solid rgb(255 255 255 / 7%);
+  text-align: center;
+}
+.card__name b {
+  font-family: var(--font-display);
+  font-size: clamp(0.6rem, 1.9vw, 0.76rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.card__name i {
+  font-style: normal;
+  font-size: clamp(0.55rem, 1.6vw, 0.66rem);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bone-3);
+}
+
+/* Threat badge ----------------------------------------------------------- */
+
+.card__threat {
+  position: absolute;
+  top: -0.5rem;
+  right: -0.4rem;
+  z-index: 2;
+  min-width: 2rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--monster);
+  border-radius: 999px;
+  background: #170d10;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  text-align: center;
+  color: #f0b9bd;
+  pointer-events: none;
+}
+.card__threat[data-safe='true'] { border-color: var(--ok); background: #0c1712; color: #a7dcc3; }
+
+/* States ----------------------------------------------------------------- */
+
+.card__btn:hover:not(:disabled) .card__inner { transform: translateY(-4px) rotateY(0deg); }
+.card.is-faceup .card__btn:hover:not(:disabled) .face--front {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 1px rgb(228 200 122 / 25%), 0 14px 30px -14px rgb(228 200 122 / 40%);
+}
+.card__btn:focus-visible { outline-offset: 4px; }
+
+.card[data-done='true'] { opacity: 0.28; filter: grayscale(1); }
+.card[data-done='true'] .card__btn { pointer-events: none; }
+
+.card[data-wasted='true'] .card__name i::after {
+  content: ' · wasted';
+  color: var(--monster);
+}
+
+.card[data-choosing='true'] .face--front { border-color: var(--focus); }
+
+/* The weapon-or-fists prompt --------------------------------------------- */
+
+.engage {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 3;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.5rem;
+  border: 1px solid var(--focus);
+  border-radius: var(--radius);
+  background: rgb(8 8 12 / 97%);
+  box-shadow: 0 -10px 30px -10px rgb(0 0 0 / 90%);
+  animation: rise 180ms ease-out;
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+.engage__title {
+  margin: 0 0 0.1rem;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bone-3);
+}
+
+.engage__btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-height: 2.2rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--edge-2);
+  border-radius: var(--radius-sm);
+  background: var(--ink-2);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color var(--speed), background var(--speed);
+}
+.engage__btn:hover { border-color: var(--bone-3); background: var(--ink-3); }
+.engage__btn b { font-family: var(--font-display); color: #f0b9bd; }
+.engage__btn[data-act='weapon'] { border-color: #2e3d4d; }
+.engage__btn[data-act='weapon'] span { color: var(--weapon); }
+
+.engage__cancel {
+  border: 0;
+  background: none;
+  padding: 0.2rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bone-3);
+  cursor: pointer;
+}
+.engage__cancel:hover { color: var(--bone); }
+
+/* ---------- 7. Chronicle ------------------------------------------------- */
+
+.log-wrap {
+  display: grid;
+  gap: 0.6rem;
+  padding: var(--pad);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: rgb(6 6 10 / 70%);
+  box-shadow: var(--shadow);
+  min-height: 0;
+}
+
+.log-wrap h2 { font-size: 0.8rem; letter-spacing: 0.24em; text-transform: uppercase; color: var(--bone-2); }
+
+.log {
+  margin: 0;
+  padding: 0 0.2rem 0 0;
+  list-style: none;
+  max-height: 16rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--edge-2) transparent;
+  font-size: 0.85rem;
+}
+
+@media (min-width: 60rem) { .log { max-height: 28rem; } }
+
+.log::-webkit-scrollbar { width: 8px; }
+.log::-webkit-scrollbar-thumb { background: var(--edge-2); border-radius: 999px; }
+
+.log__row {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / 4%);
+  color: var(--bone-2);
+  animation: fade-in 260ms ease-out;
+}
+.log__row:last-child { border-bottom: 0; }
+
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } }
+
+.log__turn {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  color: var(--bone-3);
+  text-align: right;
+  padding-top: 0.15rem;
+}
+
+.log__text { min-width: 0; overflow-wrap: anywhere; }
+
+.log__row[data-kind='room']   { color: var(--bone); }
+.log__row[data-kind='damage'] { color: #e6a3a8; }
+.log__row[data-kind='kill']   { color: #cbd8e6; }
+.log__row[data-kind='potion'] { color: #a7dcc3; }
+.log__row[data-kind='weapon'] { color: var(--weapon); }
+.log__row[data-kind='avoid']  { color: var(--gold); }
+.log__row[data-kind='muted']  { color: var(--bone-3); font-style: italic; }
+.log__row[data-kind='start']  { color: var(--bone-3); letter-spacing: 0.04em; }
+.log__row[data-kind='win'],
+.log__row[data-kind='lose']   { font-family: var(--font-display); font-size: 0.8rem; letter-spacing: 0.06em; }
+.log__row[data-kind='win']    { color: #e9d9a8; }
+.log__row[data-kind='lose']   { color: #f0a5a0; }
+
+/* ---------- 8. Controls & modals ---------------------------------------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: var(--pad);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: rgb(6 6 10 / 70%);
+}
+
+.seed-readout {
+  margin: 0 0 0 auto;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bone-3);
+}
+.seed-readout code { color: var(--bone-2); text-transform: none; letter-spacing: 0; }
+
+/* Modals ------------------------------------------------------------------ */
+
+.modal {
+  width: min(44rem, calc(100vw - 2rem));
+  max-height: min(85dvh, 50rem);
+  padding: clamp(1.1rem, 4vw, 2rem);
+  border: 1px solid var(--edge-2);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #101018, #07070c);
+  color: var(--bone);
+  box-shadow: 0 40px 80px -30px #000;
+}
+
+.modal::backdrop { background: rgb(2 2 5 / 80%); backdrop-filter: blur(3px); }
+
+.modal[open] { animation: modal-in 220ms ease-out; }
+@keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+
+.modal__close-form { position: sticky; top: 0; float: right; margin: -0.5rem -0.5rem 0 0; }
+
+.modal__close {
+  width: 2.25rem; height: 2.25rem;
+  border: 1px solid var(--edge-2);
+  border-radius: var(--radius-sm);
+  background: var(--ink-2);
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--bone-2);
+  cursor: pointer;
+}
+.modal__close:hover { color: var(--bone); border-color: var(--bone-3); }
+
+.modal h2 { font-size: clamp(1.1rem, 1rem + 1vw, 1.5rem); letter-spacing: 0.14em; text-transform: uppercase; }
+.modal h3 {
+  margin: 1.5rem 0 0.4rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.prose p { margin: 0.5rem 0; color: var(--bone-2); }
+.prose ul, .prose ol { margin: 0.4rem 0; padding-left: 1.2rem; color: var(--bone-2); }
+.prose li { margin: 0.25rem 0; }
+.prose b { color: var(--bone); }
+
+.example {
+  margin: 0.75rem 0;
+  padding: 0.85rem 1rem;
+  border-left: 2px solid var(--gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: rgb(195 160 89 / 7%);
+}
+.example ol { padding-left: 1.1rem; }
+
+.chip {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--edge-2);
+  border-radius: 4px;
+  background: #000;
+  font-family: var(--font-display);
+  color: var(--bone);
+}
+
+.keys { list-style: none; padding-left: 0; }
+.keys li { margin: 0.35rem 0; }
+
+/* End-of-run ------------------------------------------------------------- */
+
+.modal--end { width: min(30rem, calc(100vw - 2rem)); text-align: center; }
+
+.end__eyebrow {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--bone-3);
+}
+
+.modal--end h2 { margin: 0.35rem 0 0.75rem; }
+
+.end__score {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 12vw, 4.5rem);
+  line-height: 1;
+}
+.modal--end[data-result='won'] .end__score { color: #e9d9a8; }
+.modal--end[data-result='lost'] .end__score { color: #e07a76; }
+.modal--end[data-result='won'] h2 { color: #e9d9a8; }
+
+.end__detail { margin: 0.9rem 0 1.4rem; font-size: 0.9rem; color: var(--bone-2); }
+
+.end__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+
+/* ---------- 9. Debug ----------------------------------------------------- */
+
+.debug {
+  position: fixed;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 40;
+  width: min(20rem, calc(100vw - 1.5rem));
+  padding: 0.85rem;
+  border: 1px solid var(--edge-2);
+  border-radius: var(--radius-sm);
+  background: rgb(7 7 12 / 97%);
+  font-size: 0.8rem;
+  box-shadow: var(--shadow);
+}
+
+.debug h2 { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+.debug__row { display: flex; align-items: center; gap: 0.4rem; margin: 0.6rem 0 0; }
+.debug__row label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bone-3); }
+
+.debug input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--edge-2);
+  border-radius: 4px;
+  background: #000;
+}
+
+.debug__deck {
+  max-height: 11rem;
+  margin: 0.5rem 0 0;
+  padding: 0 0 0 0.2rem;
+  overflow-y: auto;
+  list-style: none;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--bone-3);
+}
+
+.debug__note { margin: 0.6rem 0 0; font-size: 0.68rem; color: var(--bone-3); }
+
+/* ---------- 10. Motion preferences --------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Keep the flip as an instant state change rather than a rotation. */
+  .card__inner { transition: none; }
+  .card__btn:hover:not(:disabled) .card__inner { transform: rotateY(0deg); }
+  .card:not(.is-faceup) .card__inner { transform: rotateY(180deg); }
+}

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Scoundrel</title>
+<meta name="description" content="Scoundrel: a solo dungeon-crawl card game played with 44 cards. Survive the deck, manage your weapon, and get out alive." />
+<meta name="color-scheme" content="dark" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%2306060a'/%3E%3Cg fill='none' stroke='%23d9d6cd' stroke-width='5'%3E%3Cpath d='M50 12 84 60H16Z'/%3E%3Ccircle cx='32' cy='64' r='18'/%3E%3Ccircle cx='68' cy='64' r='18'/%3E%3C/g%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<a class="skip-link" href="#room">Skip to the room</a>
+
+<div class="app" id="app" data-status="playing">
+
+  <!-- ================= HUD ================= -->
+  <header class="hud" aria-label="Status">
+    <div class="hud__brand">
+      <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+        <g fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round">
+          <path d="M50 10 86 58H14Z" />
+          <circle cx="31" cy="63" r="19" />
+          <circle cx="69" cy="63" r="19" />
+          <path d="M42 76h16l5 20H37Z" />
+        </g>
+      </svg>
+      <div class="hud__titles">
+        <h1>Scoundrel</h1>
+        <p>A dungeon of 44 cards</p>
+      </div>
+    </div>
+
+    <!-- Health -->
+    <div class="gauge" id="healthGauge">
+      <div class="gauge__top">
+        <span class="gauge__label">Health</span>
+        <span class="gauge__value"><output id="healthValue" aria-live="off">20</output><span class="gauge__max">/20</span></span>
+      </div>
+      <div class="meter" role="meter" aria-labelledby="healthLabelText" aria-valuemin="0" aria-valuemax="20" aria-valuenow="20" id="healthMeter">
+        <div class="meter__fill" id="healthFill"></div>
+      </div>
+      <span class="sr-only" id="healthLabelText">Health</span>
+    </div>
+
+    <!-- Weapon -->
+    <div class="panel panel--weapon" id="weaponPanel" data-empty="true">
+      <span class="panel__label">Weapon</span>
+      <div class="panel__body" id="weaponBody">
+        <span class="panel__empty">Bare hands</span>
+      </div>
+    </div>
+
+    <!-- Counters -->
+    <dl class="counters">
+      <div class="counter"><dt>Room</dt><dd id="turnCount">1</dd></div>
+      <div class="counter"><dt>Deck</dt><dd id="deckCount">44</dd></div>
+      <div class="counter"><dt>Discard</dt><dd id="discardCount">0</dd></div>
+    </dl>
+
+    <button type="button" class="btn btn--avoid" id="avoidBtn" aria-describedby="avoidHint">
+      <span class="btn__key" aria-hidden="true">A</span>
+      <span>Avoid room</span>
+    </button>
+    <p class="sr-only" id="avoidHint">Send all four cards to the bottom of the deck. You cannot avoid two rooms in a row.</p>
+  </header>
+
+  <!-- ================= ROOM ================= -->
+  <main class="board">
+    <section class="room-wrap" aria-labelledby="roomHeading">
+      <div class="room-head">
+        <h2 id="roomHeading">The Room</h2>
+        <p class="room-hint" id="roomHint">Resolve three of the four cards.</p>
+      </div>
+      <ul class="room" id="room" aria-label="Room cards"></ul>
+    </section>
+
+    <!-- ================= LOG ================= -->
+    <section class="log-wrap" aria-labelledby="logHeading">
+      <h2 id="logHeading">Chronicle</h2>
+      <ol class="log" id="log" role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-labelledby="logHeading"></ol>
+    </section>
+  </main>
+
+  <!-- ================= CONTROLS ================= -->
+  <footer class="controls">
+    <button type="button" class="btn" id="newGameBtn"><span class="btn__key" aria-hidden="true">N</span><span>New game</span></button>
+    <button type="button" class="btn" id="restartBtn"><span class="btn__key" aria-hidden="true">R</span><span>Restart dungeon</span></button>
+    <button type="button" class="btn" id="rulesBtn"><span class="btn__key" aria-hidden="true">?</span><span>Rules</span></button>
+    <p class="seed-readout">Seed <code id="seedReadout">—</code></p>
+  </footer>
+</div>
+
+<!-- ================= RULES MODAL ================= -->
+<dialog class="modal" id="rulesModal" aria-labelledby="rulesTitle">
+  <form method="dialog" class="modal__close-form">
+    <button class="modal__close" value="close" aria-label="Close rules">&times;</button>
+  </form>
+  <h2 id="rulesTitle">How to play Scoundrel</h2>
+  <div class="modal__body prose">
+    <p>You are alone in a dungeon made of cards. Survive the whole deck and you win; reach <strong>0 health</strong> and you don't.</p>
+
+    <h3>The dungeon</h3>
+    <p>44 cards: the jokers, the red face cards and the red aces have been removed.</p>
+    <ul>
+      <li><b class="t-monster">26 monsters</b> — every ♣ and ♠. J = 11, Q = 12, K = 13, A = 14.</li>
+      <li><b class="t-weapon">9 weapons</b> — ♦2 to ♦10.</li>
+      <li><b class="t-potion">9 potions</b> — ♥2 to ♥10.</li>
+    </ul>
+
+    <h3>Each room</h3>
+    <p>Cards are dealt until four are face up. Then you choose:</p>
+    <ul>
+      <li><b>Avoid</b> — all four cards go to the bottom of the deck, in order, and a fresh room is dealt. You may not avoid two rooms in a row.</li>
+      <li><b>Face it</b> — resolve any <b>three</b> of the four cards, in any order. The card you leave behind becomes the first card of the next room.</li>
+    </ul>
+
+    <h3>Resolving a card</h3>
+    <p><b class="t-weapon">Weapon (♦)</b> — equipped at once. Your old weapon and every monster stacked on it are discarded, and the new weapon starts with a clean history.</p>
+    <p><b class="t-potion">Potion (♥)</b> — heals its value, never above 20. <b>Only the first potion in a room does anything</b>; any further potion you resolve in that same room is thrown away empty.</p>
+    <p><b class="t-monster">Monster (♣ ♠)</b> — fight it bare-handed and take its full value as damage, or use your weapon and take <code>monster − weapon</code> damage (never below 0). Fighting with the weapon always slays the monster; it is stacked on the blade as a record of the fight.</p>
+
+    <h3>The weapon rule</h3>
+    <p>A blade dulls. Once it has slain something, it may only be used on monsters <b>of that value or lower</b> — a non-increasing sequence.</p>
+    <div class="example">
+      <p><b>Worked example.</b> You equip <span class="chip">♦7</span>.</p>
+      <ol>
+        <li>Fight <span class="chip">♠10</span> with it → you take <b>10 − 7 = 3</b> damage. The 10 is stacked; the blade is now capped at <b>10</b>.</li>
+        <li>Fight <span class="chip">♣10</span> → allowed (10 ≤ 10). You take 3 more damage. Still capped at 10.</li>
+        <li>Fight <span class="chip">♣4</span> → allowed. <b>4 − 7 = −3 → 0 damage.</b> The cap drops to <b>4</b>.</li>
+        <li>Now a <span class="chip">♠9</span> appears. 9 &gt; 4, so the blade refuses. Take all 9 bare-handed, or leave the 9 for the next room.</li>
+      </ol>
+    </div>
+
+    <h3>Scoring</h3>
+    <ul>
+      <li><b>Survived</b> — your score is the health you walked out with.</li>
+      <li><b>Died</b> — your score is negative: the total value of every monster still lurking in the dungeon, including the one that finished you.</li>
+    </ul>
+
+    <h3>Keyboard</h3>
+    <ul class="keys">
+      <li><kbd>1</kbd>–<kbd>4</kbd> pick a card</li>
+      <li><kbd>A</kbd> avoid the room</li>
+      <li><kbd>N</kbd> new game &middot; <kbd>R</kbd> restart the same dungeon</li>
+      <li><kbd>?</kbd> these rules &middot; <kbd>Esc</kbd> close / cancel</li>
+    </ul>
+  </div>
+</dialog>
+
+<!-- ================= END-OF-RUN MODAL ================= -->
+<dialog class="modal modal--end" id="endModal" aria-labelledby="endTitle">
+  <div class="end">
+    <p class="end__eyebrow" id="endEyebrow">The dungeon</p>
+    <h2 id="endTitle">Cleared</h2>
+    <p class="end__score"><span class="sr-only">Score</span><output id="endScore">0</output></p>
+    <p class="end__detail" id="endDetail"></p>
+    <div class="end__actions">
+      <button type="button" class="btn btn--primary" id="endNewBtn">New dungeon</button>
+      <button type="button" class="btn" id="endRetryBtn">Retry this one</button>
+      <button type="button" class="btn btn--ghost" id="endCloseBtn">Look at the table</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ================= DEBUG (hidden) ================= -->
+<aside class="debug" id="debugPanel" hidden aria-label="Debug">
+  <h2>Debug</h2>
+  <form id="seedForm" class="debug__row">
+    <label for="seedInput">Seed</label>
+    <input id="seedInput" name="seed" type="text" autocomplete="off" spellcheck="false" />
+    <button class="btn btn--sm" type="submit">Deal</button>
+  </form>
+  <p class="debug__row"><button class="btn btn--sm" type="button" id="peekBtn" aria-expanded="false">Peek at the deck</button></p>
+  <ol class="debug__deck" id="debugDeck" hidden></ol>
+  <p class="debug__note">Toggle with <kbd>`</kbd> or <code>?debug=1</code></p>
+</aside>
+
+<script src="js/config.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/art.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
