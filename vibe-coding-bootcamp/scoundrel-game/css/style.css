@@ -730,6 +730,7 @@ kbd {
 .modal {
   width: min(44rem, calc(100vw - 2rem));
   max-height: min(85dvh, 50rem);
+  overflow-y: auto;            /* explicit: the end modal grows by a card */
   padding: clamp(1.1rem, 4vw, 2rem);
   border: 1px solid var(--edge-2);
   border-radius: var(--radius);
@@ -817,6 +818,38 @@ kbd {
 .modal--end[data-result='won'] .end__score { color: #e9d9a8; }
 .modal--end[data-result='lost'] .end__score { color: #e07a76; }
 .modal--end[data-result='won'] h2 { color: #e9d9a8; }
+
+/* The card that killed you. In the room, `.card__btn` supplies the size and the
+   flip; a display card has neither, so `.card--static` carries the box itself
+   and the front face mounts straight into it. */
+.end__card { display: grid; place-items: center; margin: 0.9rem 0 0.2rem; }
+
+.trophy { display: grid; gap: 0.55rem; justify-items: center; margin: 0; }
+
+.card--static {
+  position: relative;
+  width: clamp(7rem, 34vw, 8.75rem);
+  aspect-ratio: 5 / 7;
+  animation: trophy-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.card--static .face--front {
+  position: absolute;
+  inset: 0;
+  border-color: #5a2a30;
+  box-shadow: 0 0 0 1px rgb(194 96 106 / 25%), 0 18px 36px -18px rgb(194 96 106 / 45%);
+}
+
+@keyframes trophy-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.94) rotate(-3deg); }
+}
+
+.trophy__cap {
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bone-3);
+}
 
 .end__detail { margin: 0.9rem 0 1.4rem; font-size: 0.9rem; color: var(--bone-2); }
 

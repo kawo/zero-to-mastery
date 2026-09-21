@@ -45,6 +45,7 @@
     endTitle: $('endTitle'),
     endScore: $('endScore'),
     endDetail: $('endDetail'),
+    endCard: $('endCard'),
     debugPanel: $('debugPanel'),
     debugDeck: $('debugDeck'),
     seedInput: $('seedInput'),
@@ -344,11 +345,45 @@
    * End of run
    * ------------------------------------------------------------------ */
 
+  /**
+   * A card with no button and no flip, for display only.
+   *
+   * Shares the room card's markup and styling, minus the interactive parts:
+   * the front face is mounted straight into `.card`, which carries the size, so
+   * there is no `.card__inner` and nothing to rotate.
+   */
+  function staticCard(card, caption) {
+    return `<figure class="trophy">
+      <div class="card card--static" data-kind="${card.kind}" data-suit="${card.suitKey}">
+        <div class="face face--front">
+          <span class="pip pip--tl" aria-hidden="true">${card.label}${Art.glyph(card.suit, 11)}</span>
+          <span class="pip pip--br" aria-hidden="true">${card.label}${Art.glyph(card.suit, 11)}</span>
+          ${Art.face(card)}
+          <span class="card__name"><b>${card.name}</b><i>strength ${card.rank}</i></span>
+        </div>
+      </div>
+      <figcaption class="trophy__cap">
+        <span class="sr-only">${spoken(card)}, ${card.name}, strength ${card.rank}. </span>${caption}
+      </figcaption>
+    </figure>`;
+  }
+
   function showEnd(state) {
     const won = state.status === 'won';
     el.endModal.dataset.result = won ? 'won' : 'lost';
     el.endEyebrow.textContent = won ? 'You walked out' : 'You did not walk out';
     el.endTitle.textContent = won ? 'Dungeon cleared' : `Slain by ${state.killer ? state.killer.name : 'the dark'}`;
+    // Show the monster that finished you. `killer` is a full card object and is
+    // saved with the run, so this survives a reload on a finished game; older
+    // saves may not carry it, hence the guard.
+    if (!won && state.killer) {
+      el.endCard.innerHTML = staticCard(state.killer, 'dealt the final blow');
+      el.endCard.hidden = false;
+    } else {
+      el.endCard.replaceChildren();
+      el.endCard.hidden = true;
+    }
+
     el.endScore.textContent = state.score > 0 ? `+${state.score}` : String(state.score);
     el.endDetail.textContent = won
       ? `You finished with ${state.health} of ${C.MAX_HEALTH} health after ${state.turn} rooms. Your score is the health you kept.`
