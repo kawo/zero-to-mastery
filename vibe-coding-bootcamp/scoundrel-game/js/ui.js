@@ -23,6 +23,9 @@
   const Prefs = window.ScoundrelPrefs;
   const Stats = window.ScoundrelStats;
   const Achievements = window.ScoundrelAchievements;
+  const I18n = window.ScoundrelI18n;
+  const t = I18n.t;
+  const td = I18n.td;
 
   const $ = (id) => document.getElementById(id);
 
@@ -51,12 +54,14 @@
     endCard: $('endCard'),
     debugPanel: $('debugPanel'),
     debugDeck: $('debugDeck'),
+    peekBtn: $('peekBtn'),
     seedInput: $('seedInput'),
     presetReadout: $('presetReadout'),
     settingsModal: $('settingsModal'),
     statsModal: $('statsModal'),
     welcomeModal: $('welcomeModal'),
     presetChoices: $('presetChoices'),
+    langChoices: $('langChoices'),
     motionChoices: $('motionChoices'),
     showThreatToggle: $('showThreatToggle'),
     coachToggle: $('coachToggle'),
@@ -81,8 +86,17 @@
   /* Cards already flipped face up, so they are not re-animated. */
   let revealed = new Set();
 
-  const RANK_WORD = { 11: 'Jack', 12: 'Queen', 13: 'King', 14: 'Ace' };
-  const spoken = (card) => `${RANK_WORD[card.rank] || card.rank} of ${card.suitName}`;
+  /** The card's flavour name, translated. English lives in config.js. */
+  const cardName = (card) => td(`card.${card.id}`, card.name);
+
+  /** "Ace of Spades" / "As de Pique", for screen readers. */
+  const spoken = (card) => t('card.spoken', {
+    rank: card.rank > 10 ? t(`rank.${card.rank}`) : card.rank,
+    suit: t(`suit.${card.suitKey}`),
+  });
+
+  const presetName = (id) => (C.PRESETS[id] ? td(`preset.${id}`, C.PRESETS[id].name) : id);
+  const presetBlurb = (id) => td(`preset.${id}.blurb`, C.PRESETS[id].blurb);
 
   /* ------------------------------------------------------------------ *
    * HUD
@@ -95,7 +109,8 @@
     el.healthValue.textContent = String(state.health);
     el.healthFill.style.width = `${pct}%`;
     el.healthMeter.setAttribute('aria-valuenow', String(state.health));
-    el.healthMeter.setAttribute('aria-valuetext', `${state.health} of ${C.MAX_HEALTH} health`);
+    el.healthMeter.setAttribute('aria-valuetext',
+      t('hud.healthOf', { n: state.health, max: C.MAX_HEALTH }));
     el.healthGauge.dataset.level = state.health <= 5 ? 'critical' : state.health <= 10 ? 'low' : 'ok';
 
     // Flash the meter when it drops, so damage is felt and not just read.
@@ -112,52 +127,48 @@
     el.deckCount.textContent = String(state.deck.length);
     el.discardCount.textContent = String(state.discard.length);
     el.seedReadout.textContent = state.seed;
-    const preset = C.PRESETS[state.preset];
-    el.presetReadout.textContent = preset && preset.id !== C.DEFAULT_PRESET ? `· ${preset.name}` : '';
+    el.presetReadout.textContent = state.preset && state.preset !== C.DEFAULT_PRESET
+      ? `· ${presetName(state.preset)}` : '';
 
     const can = Engine.canAvoid(state);
     el.avoidBtn.disabled = !can;
-    el.avoidBtn.title = can
-      ? 'Send all four cards to the bottom of the deck'
-      : avoidReason(state);
+    el.avoidBtn.title = can ? t('hud.avoidTitle') : avoidReason(state);
   }
 
   function avoidReason(state) {
-    if (state.status !== 'playing') return 'The run is over';
-    if (state.avoidedLast) return 'You cannot avoid two rooms in a row';
-    if (state.resolved > 0) return 'Too late — you have already played a card';
-    return 'Not enough cards left to avoid';
+    if (state.status !== 'playing') return t('avoid.over');
+    if (state.avoidedLast) return t('avoid.twice');
+    if (state.resolved > 0) return t('avoid.touched');
+    return t('avoid.short');
   }
 
   function renderWeapon(state) {
     const weapon = state.weapon;
     if (!weapon) {
       el.weaponPanel.dataset.empty = 'true';
-      el.weaponBody.innerHTML = '<span class="panel__empty">Bare hands</span>';
-      el.weaponPanel.setAttribute('aria-label', 'No weapon equipped. You fight bare-handed.');
+      el.weaponBody.innerHTML = `<span class="panel__empty">${t('hud.bareHands')}</span>`;
+      el.weaponPanel.setAttribute('aria-label', t('card.noWeaponAria'));
       return;
     }
 
     el.weaponPanel.dataset.empty = 'false';
     const cap = weapon.lastSlain;
-    const capText = cap === null ? 'fresh' : `max ${cap}`;
+    const capText = cap === null ? t('hud.weaponFresh') : t('hud.weaponCap', { n: cap });
     el.weaponBody.innerHTML = `
       <span class="weapon__card">${Art.glyph(weapon.card.suit, 16)}<b>${weapon.card.label}</b></span>
       <span class="weapon__meta">
-        <span class="weapon__name">${weapon.card.name}</span>
+        <span class="weapon__name">${cardName(weapon.card)}</span>
         <span class="weapon__cap" data-fresh="${cap === null}">${capText}</span>
       </span>
-      ${weapon.stack.length ? `<span class="weapon__stack" title="Monsters slain with this blade">${
+      ${weapon.stack.length ? `<span class="weapon__stack" title="${t('hud.weaponStackTitle')}">${
         weapon.stack.map((c) => `<i>${c.suit}${c.label}</i>`).join('')
       }</span>` : ''}
     `;
     el.weaponPanel.setAttribute(
       'aria-label',
-      `Weapon: ${spoken(weapon.card)}, strength ${weapon.card.rank}. `
-      + (cap === null
-        ? 'Not yet used, it can fight anything.'
-        : `It can only fight monsters of value ${cap} or lower.`)
-      + (weapon.stack.length ? ` ${weapon.stack.length} slain.` : ''),
+      t('card.weaponAria', { card: spoken(weapon.card), n: weapon.card.rank })
+      + (cap === null ? t('card.weaponAriaFresh') : t('card.weaponAriaCap', { cap }))
+      + (weapon.stack.length ? t('card.weaponAriaSlain', { n: weapon.stack.length }) : ''),
     );
   }
 
@@ -166,33 +177,34 @@
    * ------------------------------------------------------------------ */
 
   function roomHint(state) {
-    if (state.status === 'won') return 'The dungeon is empty. You made it out.';
-    if (state.status === 'lost') return 'You fell here.';
+    if (state.status === 'won') return t('room.won');
+    if (state.status === 'lost') return t('room.lost');
 
     const left = Engine.view.pending(state).length;
     const toGo = Math.min(C.CARDS_TO_RESOLVE, left) - state.resolved;
-    if (choosing >= 0) return 'Weapon or bare hands?';
+    if (choosing >= 0) return t('room.choosing');
     if (state.deck.length === 0 && left <= C.CARDS_TO_RESOLVE) {
-      return left === 1 ? 'One card between you and the door.' : `Last ${left} cards. Play them all.`;
+      return left === 1 ? t('room.lastOne') : t('room.lastFew', { n: left });
     }
-    if (toGo <= 0) return 'Dealing the next room…';
-    return `Resolve ${toGo} more ${toGo === 1 ? 'card' : 'cards'}. The one you leave follows you in.`;
+    if (toGo <= 0) return t('room.dealing');
+    return t('room.toGo', { n: toGo });
   }
 
   function cardLabel(state, card, mode) {
-    const base = `${spoken(card)}, ${card.name}`;
-    if (card.kind === 'weapon') return `${base}. Weapon, strength ${card.rank}. Press to equip.`;
+    const base = `${spoken(card)}, ${cardName(card)}`;
+    if (card.kind === 'weapon') return t('card.weapon', { card: base, n: card.rank });
     if (card.kind === 'potion') {
       return state.potionUsed
-        ? `${base}. Potion worth ${card.rank}, but you have already drunk this room — it will be wasted.`
-        : `${base}. Potion, heals ${card.rank}. Press to drink.`;
+        ? t('card.potionWasted', { card: base, n: card.rank })
+        : t('card.potion', { card: base, n: card.rank });
     }
     const bare = card.rank;
     if (mode === 'choice') {
-      const armed = Engine.previewDamage(state, card, 'weapon');
-      return `${base}. Monster, strength ${card.rank}. Press to choose: weapon for ${armed} damage, or bare hands for ${bare}.`;
+      return t('card.monsterChoice', {
+        card: base, n: card.rank, armed: Engine.previewDamage(state, card, 'weapon'), bare,
+      });
     }
-    return `${base}. Monster, strength ${card.rank}. Press to fight bare-handed for ${bare} damage.`;
+    return t('card.monsterBare', { card: base, n: card.rank, bare });
   }
 
   function buildCard(slot, index) {
@@ -218,8 +230,8 @@
           <span class="pip pip--br" aria-hidden="true">${card.label}${Art.glyph(card.suit, 11)}</span>
           ${Art.face(card)}
           <span class="card__name">
-            <b>${card.name}</b>
-            <i>${card.kind === 'potion' ? `heals ${card.rank}` : card.kind === 'weapon' ? `strength ${card.rank}` : `strength ${card.rank}`}</i>
+            <b>${cardName(card)}</b>
+            <i>${card.kind === 'potion' ? t('card.heals', { n: card.rank }) : t('card.strength', { n: card.rank })}</i>
           </span>
         </span>
       </span>`;
@@ -256,7 +268,7 @@
       wrap.dataset.wasted = String(card.kind === 'potion' && state.potionUsed && !slot.done);
       btn.disabled = !playable;
       btn.setAttribute('aria-label', slot.done
-        ? `${spoken(card)}, ${card.name}. Resolved.`
+        ? t('card.resolved', { card: `${spoken(card)}, ${cardName(card)}` })
         : cardLabel(state, card, offersChoice ? 'choice' : 'direct'));
       btn.setAttribute('aria-keyshortcuts', String(index + 1));
 
@@ -270,7 +282,7 @@
           wrap.appendChild(badge);
         }
         badge.dataset.safe = String(dmg === 0);
-        badge.innerHTML = `<span class="sr-only">Damage if you take it now: </span>−${dmg}`;
+        badge.innerHTML = `<span class="sr-only">${t('card.threatLabel')}</span>−${dmg}`;
       } else if (badge) {
         badge.remove();
       }
@@ -286,14 +298,14 @@
           wrap.appendChild(engage);
         }
         engage.innerHTML = `
-          <p class="engage__title" id="engageTitle${index}">Fight ${card.suit}${card.label}</p>
+          <p class="engage__title" id="engageTitle${index}">${t('engage.title', { card: `${card.suit}${card.label}` })}</p>
           <button type="button" class="engage__btn" data-act="weapon" data-index="${index}">
-            <span>Use ${state.weapon.card.suit}${state.weapon.card.label}</span><b>−${armed}</b>
+            <span>${t('engage.useWeapon', { card: `${state.weapon.card.suit}${state.weapon.card.label}` })}</span><b>−${armed}</b>
           </button>
           <button type="button" class="engage__btn" data-act="bare" data-index="${index}">
-            <span>Bare hands</span><b>−${bare}</b>
+            <span>${t('engage.bare')}</span><b>−${bare}</b>
           </button>
-          <button type="button" class="engage__cancel" data-act="cancel">Cancel</button>`;
+          <button type="button" class="engage__cancel" data-act="cancel">${t('engage.cancel')}</button>`;
       } else if (engage) {
         engage.remove();
       }
@@ -337,15 +349,43 @@
     el.room.setAttribute(
       'aria-label',
       state.status === 'playing'
-        ? `Room ${state.turn}. ${open} ${open === 1 ? 'card' : 'cards'} face up, `
-          + `${state.resolved} of ${Math.min(C.CARDS_TO_RESOLVE, open + state.resolved)} resolved.`
-        : `Room ${state.turn}. The run is over.`,
+        ? t('room.label', {
+          turn: state.turn,
+          open: t('room.openCards', { n: open }),
+          done: state.resolved,
+          need: Math.min(C.CARDS_TO_RESOLVE, open + state.resolved),
+        })
+        : t('room.labelOver', { turn: state.turn }),
     );
   }
 
   /* ------------------------------------------------------------------ *
    * Chronicle
    * ------------------------------------------------------------------ */
+
+  /**
+   * Render one chronicle entry from its key and params.
+   *
+   * Two params are themselves translatable rather than literal: a card's
+   * flavour name and a ruleset's name. The engine stores the id alongside the
+   * English so this can look up the current language without the engine ever
+   * having to know about one.
+   */
+  function logText(entry) {
+    if (!entry.key) return entry.text || '';   // tolerate a stray old entry
+    const p = entry.params || {};
+    const params = { ...p };
+    if (p.id && p.name) params.name = td(`card.${p.id}`, p.name);
+    if (p.preset) params.name = presetName(p.preset);
+    return t(entry.key, params);
+  }
+
+  /** Re-render the whole chronicle, e.g. after a language change. */
+  function redrawLog(state) {
+    el.log.replaceChildren();
+    lastLogId = 0;
+    renderLog(state);
+  }
 
   function renderLog(state) {
     const newest = state.log.length ? state.log[state.log.length - 1].id : 0;
@@ -364,7 +404,7 @@
       li.className = 'log__row';
       li.dataset.kind = entry.kind;
       li.innerHTML = `<span class="log__turn" aria-hidden="true">${entry.turn}</span><span class="log__text"></span>`;
-      li.querySelector('.log__text').textContent = entry.text;
+      li.querySelector('.log__text').textContent = logText(entry);
       frag.appendChild(li);
     }
     el.log.appendChild(frag);
@@ -393,11 +433,11 @@
           <span class="pip pip--tl" aria-hidden="true">${card.label}${Art.glyph(card.suit, 11)}</span>
           <span class="pip pip--br" aria-hidden="true">${card.label}${Art.glyph(card.suit, 11)}</span>
           ${Art.face(card)}
-          <span class="card__name"><b>${card.name}</b><i>strength ${card.rank}</i></span>
+          <span class="card__name"><b>${cardName(card)}</b><i>${t('card.strength', { n: card.rank })}</i></span>
         </div>
       </div>
       <figcaption class="trophy__cap">
-        <span class="sr-only">${spoken(card)}, ${card.name}, strength ${card.rank}. </span>${caption}
+        <span class="sr-only">${spoken(card)}, ${cardName(card)}, ${t('card.strength', { n: card.rank })}. </span>${caption}
       </figcaption>
     </figure>`;
   }
@@ -405,13 +445,15 @@
   function showEnd(state) {
     const won = state.status === 'won';
     el.endModal.dataset.result = won ? 'won' : 'lost';
-    el.endEyebrow.textContent = won ? 'You walked out' : 'You did not walk out';
-    el.endTitle.textContent = won ? 'Dungeon cleared' : `Slain by ${state.killer ? state.killer.name : 'the dark'}`;
+    el.endEyebrow.textContent = won ? t('end.wonEyebrow') : t('end.lostEyebrow');
+    el.endTitle.textContent = won
+      ? t('end.wonTitle')
+      : (state.killer ? t('end.lostTitle', { name: cardName(state.killer) }) : t('end.lostTitleDark'));
     // Show the monster that finished you. `killer` is a full card object and is
     // saved with the run, so this survives a reload on a finished game; older
     // saves may not carry it, hence the guard.
     if (!won && state.killer) {
-      el.endCard.innerHTML = staticCard(state.killer, 'dealt the final blow');
+      el.endCard.innerHTML = staticCard(state.killer, t('end.killerCaption'));
       el.endCard.hidden = false;
     } else {
       el.endCard.replaceChildren();
@@ -420,8 +462,8 @@
 
     el.endScore.textContent = state.score > 0 ? `+${state.score}` : String(state.score);
     el.endDetail.textContent = won
-      ? `You finished with ${state.health} of ${C.MAX_HEALTH} health after ${state.turn} rooms. Your score is the health you kept.`
-      : `${Engine.remainingMonsterValue(state)} points of monster were still down there after ${state.turn} rooms — that total, negated, is your score.`;
+      ? t('end.wonDetail', { n: state.health, max: C.MAX_HEALTH, turns: state.turn })
+      : t('end.lostDetail', { n: Engine.remainingMonsterValue(state), turns: state.turn });
     if (!el.endModal.open) el.endModal.showModal();
   }
 
@@ -453,15 +495,21 @@
     container.appendChild(frag);
   }
 
-  const MOTION_OPTIONS = [
-    { id: 'system', name: 'System', blurb: 'Follow your operating system’s reduced-motion setting.' },
-    { id: 'reduced', name: 'Reduced', blurb: 'No card flips, no shake, no stagger.' },
-    { id: 'full', name: 'Full', blurb: 'Always animate, whatever the system says.' },
+  const motionOptions = () => [
+    { id: 'system', name: t('set.motionSystem'), blurb: t('set.motionSystemBlurb') },
+    { id: 'reduced', name: t('set.motionReduced'), blurb: t('set.motionReducedBlurb') },
+    { id: 'full', name: t('set.motionFull'), blurb: t('set.motionFullBlurb') },
   ];
 
+  const languageOptions = () => Object.entries(I18n.LANGS)
+    .map(([id, meta]) => ({ id, name: meta.label, blurb: '' }));
+
   function renderSettings() {
-    choiceGroup(el.presetChoices, 'preset', Object.values(C.PRESETS), Prefs.get('preset'));
-    choiceGroup(el.motionChoices, 'motion', MOTION_OPTIONS, Prefs.get('motion'));
+    choiceGroup(el.langChoices, 'lang', languageOptions(), I18n.getLang());
+    choiceGroup(el.presetChoices, 'preset', Object.values(C.PRESETS).map((preset) => ({
+      id: preset.id, name: presetName(preset.id), blurb: presetBlurb(preset.id),
+    })), Prefs.get('preset'));
+    choiceGroup(el.motionChoices, 'motion', motionOptions(), Prefs.get('motion'));
     el.showThreatToggle.checked = Prefs.get('showThreat');
     el.coachToggle.checked = Prefs.get('coach');
     el.soundToggle.checked = Prefs.get('sound');
@@ -474,24 +522,24 @@
 
   const WHEN = (ms) => {
     const mins = Math.round((Date.now() - ms) / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1) return t('when.now');
+    if (mins < 60) return t('when.min', { n: mins });
     const hours = Math.round(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
+    if (hours < 24) return t('when.hour', { n: hours });
     const days = Math.round(hours / 24);
-    return days === 1 ? 'yesterday' : `${days}d ago`;
+    return days === 1 ? t('when.yesterday') : t('when.days', { n: days });
   };
 
   function renderStats(state) {
     const s = Stats.all();
     const rate = Stats.winRate();
     const cells = [
-      ['Runs', s.games],
-      ['Won', s.wins],
-      ['Win rate', rate === null ? '—' : `${rate.toFixed(0)}%`],
-      ['Best score', s.bestScore === null ? '—' : (s.bestScore > 0 ? `+${s.bestScore}` : s.bestScore)],
-      ['Streak', s.currentStreak],
-      ['Longest streak', s.longestStreak],
+      [t('rec.runs'), s.games],
+      [t('rec.won'), s.wins],
+      [t('rec.winRate'), rate === null ? '—' : `${rate.toFixed(0)}%`],
+      [t('rec.best'), s.bestScore === null ? '—' : (s.bestScore > 0 ? `+${s.bestScore}` : s.bestScore)],
+      [t('rec.streak'), s.currentStreak],
+      [t('rec.longest'), s.longestStreak],
     ];
     el.scoreboard.replaceChildren();
     const frag = document.createDocumentFragment();
@@ -503,8 +551,8 @@
     }
     el.scoreboard.appendChild(frag);
 
-    renderRuns(el.boardList, bestRuns(s.history), 'No finished runs yet. Your best ten will collect here.', true);
-    renderRuns(el.historyList, s.history, 'Nothing played yet.', false);
+    renderRuns(el.boardList, bestRuns(s.history), t('rec.emptyBoard'), true);
+    renderRuns(el.historyList, s.history, t('rec.emptyHistory'), false);
     renderTrophies(state);
   }
 
@@ -531,16 +579,19 @@
       li.className = 'history__row';
       li.dataset.status = run.status;
       if (ranked) li.dataset.rank = String(i + 1);
-      const preset = C.PRESETS[run.preset] ? C.PRESETS[run.preset].name : run.preset;
       li.innerHTML = `
         ${ranked ? `<span class="history__rank" aria-hidden="true">${i + 1}</span>` : ''}
         <span class="history__score">${run.score > 0 ? `+${run.score}` : run.score}</span>
         <span class="history__meta">
-          <b>${run.status === 'won' ? 'Cleared' : `Fell in room ${run.turns}`}</b>
-          <i>${preset} · seed <code>${run.seed}</code> · ${WHEN(run.at)}</i>
+          <b>${run.status === 'won' ? t('rec.cleared') : t('rec.fell', { n: run.turns })}</b>
+          <i>${t('rec.rowMeta', {
+            preset: presetName(run.preset),
+            seed: run.seed,
+            when: WHEN(run.at),
+          })}</i>
         </span>
         <button type="button" class="btn btn--sm" data-replay="${run.seed}" data-preset="${run.preset}">
-          Replay<span class="sr-only"> the dungeon from seed ${run.seed}</span>
+          ${t('rec.replay')}<span class="sr-only">${t('rec.replayAria', { seed: run.seed })}</span>
         </button>`;
       rows.appendChild(li);
     });
@@ -555,7 +606,7 @@
     const context = { stats: Stats.all(), state: state || {}, event: { type: 'view' } };
     const list = Achievements.all(context);
     const { unlocked, total } = Achievements.count();
-    el.trophyCount.textContent = `${unlocked} of ${total}`;
+    el.trophyCount.textContent = t('rec.trophyCount', { n: unlocked, total });
 
     const frag = document.createDocumentFragment();
     for (const a of list) {
@@ -570,11 +621,11 @@
       li.innerHTML = `
         <span class="trophy-mark" aria-hidden="true">${a.unlocked ? '★' : '☆'}</span>
         <span class="trophy-body">
-          <b>${a.title}</b>
-          <i>${a.desc}</i>
+          <b>${td(`ach.${a.id}.title`, a.title)}</b>
+          <i>${td(`ach.${a.id}.desc`, a.desc)}</i>
           ${bar}
         </span>
-        <span class="sr-only">${a.unlocked ? 'Unlocked' : 'Locked'}</span>`;
+        <span class="sr-only">${a.unlocked ? t('rec.unlocked') : t('rec.locked')}</span>`;
       frag.appendChild(li);
     }
     el.trophyList.replaceChildren(frag);
@@ -595,8 +646,8 @@
     node.innerHTML = `
       <span class="toast__mark" aria-hidden="true">★</span>
       <span class="toast__body">
-        <b>${achievement.title}</b>
-        <i>${achievement.desc}</i>
+        <b>${td(`ach.${achievement.id}.title`, achievement.title)}</b>
+        <i>${td(`ach.${achievement.id}.desc`, achievement.desc)}</i>
       </span>`;
     el.toasts.appendChild(node);
 
@@ -661,6 +712,6 @@
 
   window.ScoundrelUI = Object.freeze({
     el, render, reset, showEnd, setChoosing, getChoosing, renderDebug,
-    renderSettings, renderStats, staticCard, toast, bestRuns,
+    renderSettings, renderStats, staticCard, toast, bestRuns, redrawLog, cardName,
   });
 })();

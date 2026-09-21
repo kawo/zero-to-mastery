@@ -46,8 +46,8 @@
     /** Runs kept in the history list. */
     HISTORY_LIMIT: 25,
 
-    STORAGE_KEY: 'scoundrel:save:v1',
-    SAVE_VERSION: 1,
+    STORAGE_KEY: 'scoundrel:save:v2',
+    SAVE_VERSION: 2,   // v2: chronicle stores keys, not sentences
     /** Chronicle entries kept in memory / in the save. */
     LOG_LIMIT: 120,
   };

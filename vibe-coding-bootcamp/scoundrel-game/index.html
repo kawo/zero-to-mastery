@@ -17,12 +17,12 @@
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<a class="skip-link" href="#room">Skip to the room</a>
+<a class="skip-link" href="#room" data-i18n="app.skip">Skip to the room</a>
 
 <div class="app" id="app" data-status="playing">
 
   <!-- ================= HUD ================= -->
-  <header class="hud" aria-label="Status">
+  <header class="hud" aria-label="Status" data-i18n-attr="aria-label:app.status">
     <div class="hud__brand">
       <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
         <g fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round">
@@ -34,127 +34,127 @@
       </svg>
       <div class="hud__titles">
         <h1>Scoundrel</h1>
-        <p>A dungeon of 44 cards</p>
+        <p data-i18n="app.tagline">A dungeon of 44 cards</p>
       </div>
     </div>
 
     <!-- Health -->
     <div class="gauge" id="healthGauge">
       <div class="gauge__top">
-        <span class="gauge__label">Health</span>
+        <span class="gauge__label" data-i18n="hud.health">Health</span>
         <span class="gauge__value"><output id="healthValue" aria-live="off">20</output><span class="gauge__max">/20</span></span>
       </div>
       <div class="meter" role="meter" aria-labelledby="healthLabelText" aria-valuemin="0" aria-valuemax="20" aria-valuenow="20" id="healthMeter">
         <div class="meter__fill" id="healthFill"></div>
       </div>
-      <span class="sr-only" id="healthLabelText">Health</span>
+      <span class="sr-only" id="healthLabelText" data-i18n="hud.health">Health</span>
     </div>
 
     <!-- Weapon -->
     <div class="panel panel--weapon" id="weaponPanel" data-empty="true">
-      <span class="panel__label">Weapon</span>
+      <span class="panel__label" data-i18n="hud.weapon">Weapon</span>
       <div class="panel__body" id="weaponBody">
-        <span class="panel__empty">Bare hands</span>
+        <span class="panel__empty" data-i18n="hud.bareHands">Bare hands</span>
       </div>
     </div>
 
     <!-- Counters -->
     <dl class="counters">
-      <div class="counter"><dt>Room</dt><dd id="turnCount">1</dd></div>
-      <div class="counter"><dt>Deck</dt><dd id="deckCount">44</dd></div>
-      <div class="counter"><dt>Discard</dt><dd id="discardCount">0</dd></div>
+      <div class="counter"><dt data-i18n="hud.room">Room</dt><dd id="turnCount">1</dd></div>
+      <div class="counter"><dt data-i18n="hud.deck">Deck</dt><dd id="deckCount">44</dd></div>
+      <div class="counter"><dt data-i18n="hud.discard">Discard</dt><dd id="discardCount">0</dd></div>
     </dl>
 
     <button type="button" class="btn btn--avoid" id="avoidBtn" aria-describedby="avoidHint">
       <span class="btn__key" aria-hidden="true">A</span>
-      <span>Avoid room</span>
+      <span data-i18n="hud.avoid">Avoid room</span>
     </button>
-    <p class="sr-only" id="avoidHint">Send all four cards to the bottom of the deck. You cannot avoid two rooms in a row.</p>
+    <p class="sr-only" id="avoidHint" data-i18n="hud.avoidHint">Send all four cards to the bottom of the deck. You cannot avoid two rooms in a row.</p>
   </header>
 
   <!-- ================= ROOM ================= -->
   <main class="board">
     <section class="room-wrap" aria-labelledby="roomHeading">
       <div class="room-head">
-        <h2 id="roomHeading">The Room</h2>
-        <p class="room-hint" id="roomHint">Resolve three of the four cards.</p>
+        <h2 id="roomHeading" data-i18n="room.heading">The Room</h2>
+        <p class="room-hint" id="roomHint" data-i18n="room.hintDefault">Resolve three of the four cards.</p>
       </div>
-      <ul class="room" id="room" aria-label="Room cards"></ul>
+      <ul class="room" id="room" aria-label="Room cards" data-i18n-attr="aria-label:room.cards"></ul>
     </section>
 
     <!-- ================= LOG ================= -->
     <section class="log-wrap" aria-labelledby="logHeading">
-      <h2 id="logHeading">Chronicle</h2>
+      <h2 id="logHeading" data-i18n="log.heading">Chronicle</h2>
       <ol class="log" id="log" role="log" aria-live="polite" aria-relevant="additions" tabindex="0" aria-labelledby="logHeading"></ol>
     </section>
   </main>
 
   <!-- ================= CONTROLS ================= -->
   <footer class="controls">
-    <button type="button" class="btn" id="newGameBtn"><span class="btn__key" aria-hidden="true">N</span><span>New game</span></button>
-    <button type="button" class="btn" id="restartBtn"><span class="btn__key" aria-hidden="true">R</span><span>Restart dungeon</span></button>
-    <button type="button" class="btn" id="rulesBtn"><span class="btn__key" aria-hidden="true">?</span><span>Rules</span></button>
-    <button type="button" class="btn" id="statsBtn"><span class="btn__key" aria-hidden="true">T</span><span>Record</span></button>
-    <button type="button" class="btn" id="settingsBtn"><span class="btn__key" aria-hidden="true">S</span><span>Settings</span></button>
-    <p class="seed-readout">Seed <code id="seedReadout">—</code> <span class="seed-preset" id="presetReadout"></span></p>
+    <button type="button" class="btn" id="newGameBtn"><span class="btn__key" aria-hidden="true">N</span><span data-i18n="ctl.newGame">New game</span></button>
+    <button type="button" class="btn" id="restartBtn"><span class="btn__key" aria-hidden="true">R</span><span data-i18n="ctl.restart">Restart dungeon</span></button>
+    <button type="button" class="btn" id="rulesBtn"><span class="btn__key" aria-hidden="true">?</span><span data-i18n="ctl.rules">Rules</span></button>
+    <button type="button" class="btn" id="statsBtn"><span class="btn__key" aria-hidden="true">T</span><span data-i18n="ctl.record">Record</span></button>
+    <button type="button" class="btn" id="settingsBtn"><span class="btn__key" aria-hidden="true">S</span><span data-i18n="ctl.settings">Settings</span></button>
+    <p class="seed-readout"><span data-i18n="hud.seed">Seed</span> <code id="seedReadout">—</code> <span class="seed-preset" id="presetReadout"></span></p>
   </footer>
 </div>
 
 <!-- ================= RULES MODAL ================= -->
 <dialog class="modal" id="rulesModal" aria-labelledby="rulesTitle">
   <form method="dialog" class="modal__close-form">
-    <button class="modal__close" value="close" aria-label="Close rules">&times;</button>
+    <button class="modal__close" value="close" aria-label="Close rules" data-i18n-attr="aria-label:rules.close">&times;</button>
   </form>
-  <h2 id="rulesTitle">How to play Scoundrel</h2>
+  <h2 id="rulesTitle" data-i18n="rules.title">How to play Scoundrel</h2>
   <div class="modal__body prose">
-    <p>Clear all 44 cards and you walk out. Reach <strong>0 health</strong> and you don't. You start at 20.</p>
+    <p data-i18n-html="rules.lead">Clear all 44 cards and you walk out. Reach <strong>0 health</strong> and you don't. You start at 20.</p>
 
-    <h3>The deck</h3>
+    <h3 data-i18n="rules.deck">The deck</h3>
     <ul>
-      <li><b class="t-monster">26 monsters</b> — ♣ and ♠. J 11, Q 12, K 13, A 14.</li>
-      <li><b class="t-weapon">9 weapons</b> — ♦2–♦10.</li>
-      <li><b class="t-potion">9 potions</b> — ♥2–♥10.</li>
+      <li data-i18n-html="rules.deckMonsters"><b class="t-monster">26 monsters</b> — ♣ and ♠. J 11, Q 12, K 13, A 14.</li>
+      <li data-i18n-html="rules.deckWeapons"><b class="t-weapon">9 weapons</b> — ♦2–♦10.</li>
+      <li data-i18n-html="rules.deckPotions"><b class="t-potion">9 potions</b> — ♥2–♥10.</li>
     </ul>
 
-    <h3>Each room</h3>
-    <p>Four cards are dealt. Either:</p>
+    <h3 data-i18n="rules.each">Each room</h3>
+    <p data-i18n="rules.eachLead">Four cards are dealt. Either:</p>
     <ul>
-      <li><b>Avoid</b> — all four slide under the deck. Never twice in a row.</li>
-      <li><b>Face it</b> — resolve any three, in any order. The fourth leads the next room.</li>
+      <li data-i18n-html="rules.avoid"><b>Avoid</b> — all four slide under the deck. Never twice in a row.</li>
+      <li data-i18n-html="rules.face"><b>Face it</b> — resolve any three, in any order. The fourth leads the next room.</li>
     </ul>
 
-    <h3>Cards</h3>
+    <h3 data-i18n="rules.cards">Cards</h3>
     <ul>
-      <li><b class="t-weapon">♦ Weapon</b> — equips at once with a fresh cap, discarding your old blade and everything stacked on it.</li>
-      <li><b class="t-potion">♥ Potion</b> — heals its value, max 20. <b>Only the first each room works</b>; the rest are poured out.</li>
-      <li><b class="t-monster">♣ ♠ Monster</b> — bare-handed costs its full value. With a weapon, <code>monster − weapon</code> (min 0) — the blade always kills, and the monster stacks on it.</li>
+      <li data-i18n-html="rules.cardWeapon"><b class="t-weapon">♦ Weapon</b> — equips at once with a fresh cap, discarding your old blade and everything stacked on it.</li>
+      <li data-i18n-html="rules.cardPotion"><b class="t-potion">♥ Potion</b> — heals its value, max 20. <b>Only the first each room works</b>; the rest are poured out.</li>
+      <li data-i18n-html="rules.cardMonster"><b class="t-monster">♣ ♠ Monster</b> — bare-handed costs its full value. With a weapon, <code>monster − weapon</code> (min 0) — the blade always kills, and the monster stacks on it.</li>
     </ul>
 
-    <h3>The weapon rule</h3>
-    <p>A blade dulls: after a kill it may only fight monsters <b>of that value or lower</b>.</p>
+    <h3 data-i18n="rules.weaponRule">The weapon rule</h3>
+    <p data-i18n-html="rules.weaponLead">A blade dulls: after a kill it may only fight monsters <b>of that value or lower</b>.</p>
     <div class="example">
-      <p>Equip <span class="chip">♦7</span>, then:</p>
+      <p data-i18n-html="rules.exLead">Equip <span class="chip">♦7</span>, then:</p>
       <ol>
-        <li><span class="chip">♠10</span> → take <b>3</b>, cap becomes <b>10</b></li>
-        <li><span class="chip">♣10</span> → allowed, 10 ≤ 10. Take <b>3</b></li>
-        <li><span class="chip">♣4</span> → take <b>0</b>, but the cap drops to <b>4</b></li>
-        <li><span class="chip">♠9</span> → refused. Bare-hand it, or leave it for the next room.</li>
+        <li data-i18n-html="rules.ex1"><span class="chip">♠10</span> → take <b>3</b>, cap becomes <b>10</b></li>
+        <li data-i18n-html="rules.ex2"><span class="chip">♣10</span> → allowed, 10 ≤ 10. Take <b>3</b></li>
+        <li data-i18n-html="rules.ex3"><span class="chip">♣4</span> → take <b>0</b>, but the cap drops to <b>4</b></li>
+        <li data-i18n-html="rules.ex4"><span class="chip">♠9</span> → refused. Bare-hand it, or leave it for the next room.</li>
       </ol>
     </div>
 
-    <h3>Score</h3>
+    <h3 data-i18n="rules.score">Score</h3>
     <ul>
-      <li><b>Survived</b> — the health you kept.</li>
-      <li><b>Died</b> — minus every monster still down there, the one that killed you included.</li>
+      <li data-i18n-html="rules.scoreWon"><b>Survived</b> — the health you kept.</li>
+      <li data-i18n-html="rules.scoreLost"><b>Died</b> — minus every monster still down there, the one that killed you included.</li>
     </ul>
 
-    <h3>Keyboard</h3>
+    <h3 data-i18n="rules.keyboard">Keyboard</h3>
     <ul class="keys">
-      <li><kbd>1</kbd>–<kbd>4</kbd> pick a card &middot; <kbd>←</kbd> <kbd>→</kbd> move between them</li>
-      <li><kbd>A</kbd> avoid the room</li>
-      <li><kbd>N</kbd> new game &middot; <kbd>R</kbd> restart the same dungeon</li>
-      <li><kbd>S</kbd> settings &middot; <kbd>T</kbd> your record</li>
-      <li><kbd>?</kbd> these rules &middot; <kbd>Esc</kbd> close / cancel</li>
+      <li data-i18n-html="rules.k1"><kbd>1</kbd>–<kbd>4</kbd> pick a card &middot; <kbd>←</kbd> <kbd>→</kbd> move between them</li>
+      <li data-i18n-html="rules.k2"><kbd>A</kbd> avoid the room</li>
+      <li data-i18n-html="rules.k3"><kbd>N</kbd> new game &middot; <kbd>R</kbd> restart the same dungeon</li>
+      <li data-i18n-html="rules.k4"><kbd>S</kbd> settings &middot; <kbd>T</kbd> your record</li>
+      <li data-i18n-html="rules.k5"><kbd>?</kbd> these rules &middot; <kbd>Esc</kbd> close / cancel</li>
     </ul>
   </div>
 </dialog>
@@ -162,61 +162,67 @@
 <!-- ================= END-OF-RUN MODAL ================= -->
 <dialog class="modal modal--end" id="endModal" aria-labelledby="endTitle">
   <div class="end">
-    <p class="end__eyebrow" id="endEyebrow">The dungeon</p>
+    <p class="end__eyebrow" id="endEyebrow">&nbsp;</p>
     <h2 id="endTitle">Cleared</h2>
     <!-- Filled by ui.js with the monster that landed the killing blow. -->
     <div class="end__card" id="endCard" hidden></div>
-    <p class="end__score"><span class="sr-only">Score</span><output id="endScore">0</output></p>
+    <p class="end__score"><span class="sr-only" data-i18n="end.score">Score</span><output id="endScore">0</output></p>
     <p class="end__detail" id="endDetail"></p>
     <div class="end__actions">
-      <button type="button" class="btn btn--primary" id="endNewBtn">New dungeon</button>
-      <button type="button" class="btn" id="endRetryBtn">Retry this one</button>
-      <button type="button" class="btn btn--ghost" id="endCloseBtn">Look at the table</button>
+      <button type="button" class="btn btn--primary" id="endNewBtn" data-i18n="end.newGame">New dungeon</button>
+      <button type="button" class="btn" id="endRetryBtn" data-i18n="end.retry">Retry this one</button>
+      <button type="button" class="btn btn--ghost" id="endCloseBtn" data-i18n="end.close">Look at the table</button>
     </div>
   </div>
 </dialog>
 
 <!-- ================= WELCOME (first run only) ================= -->
 <dialog class="modal modal--welcome" id="welcomeModal" aria-labelledby="welcomeTitle">
-  <p class="end__eyebrow">A solo card game</p>
-  <h2 id="welcomeTitle">Welcome to the dungeon</h2>
+  <p class="end__eyebrow" data-i18n="welcome.eyebrow">A solo card game</p>
+  <h2 id="welcomeTitle" data-i18n="welcome.title">Welcome to the dungeon</h2>
   <div class="modal__body prose">
-    <p>Three things and you can play:</p>
+    <p data-i18n="welcome.lead">Three things and you can play:</p>
     <ol class="welcome__steps">
-      <li><b>Four cards, pick three.</b> The one you leave follows you into the next room.</li>
-      <li><b>♦ is your weapon, ♥ heals, ♣ ♠ hurt.</b> Each monster shows what it will cost you before you touch it.</li>
-      <li><b>Your blade dulls.</b> After a kill it can only fight something that size or smaller — so don't waste a big weapon on a small monster.</li>
+      <li data-i18n-html="welcome.s1"><b>Four cards, pick three.</b> The one you leave follows you into the next room.</li>
+      <li data-i18n-html="welcome.s2"><b>♦ is your weapon, ♥ heals, ♣ ♠ hurt.</b> Each monster shows what it will cost you before you touch it.</li>
+      <li data-i18n-html="welcome.s3"><b>Your blade dulls.</b> After a kill it can only fight something that size or smaller — so don't waste a big weapon on a small monster.</li>
     </ol>
-    <p class="welcome__note">You start at 20 health. Clear all 44 cards to win.</p>
+    <p class="welcome__note" data-i18n="welcome.note">You start at 20 health. Clear all 44 cards to win.</p>
   </div>
   <div class="end__actions">
-    <button type="button" class="btn btn--primary" id="welcomeStartBtn">Start playing</button>
-    <button type="button" class="btn" id="welcomeRulesBtn">Full rules</button>
+    <button type="button" class="btn btn--primary" id="welcomeStartBtn" data-i18n="welcome.start">Start playing</button>
+    <button type="button" class="btn" id="welcomeRulesBtn" data-i18n="welcome.rules">Full rules</button>
   </div>
 </dialog>
 
 <!-- ================= SETTINGS ================= -->
 <dialog class="modal" id="settingsModal" aria-labelledby="settingsTitle">
   <form method="dialog" class="modal__close-form">
-    <button class="modal__close" value="close" aria-label="Close settings">&times;</button>
+    <button class="modal__close" value="close" aria-label="Close settings" data-i18n-attr="aria-label:set.close">&times;</button>
   </form>
-  <h2 id="settingsTitle">Settings</h2>
+  <h2 id="settingsTitle" data-i18n="set.title">Settings</h2>
   <div class="modal__body">
 
     <fieldset class="field">
-      <legend>Ruleset</legend>
-      <p class="field__hint">Applies to the next new game. A run in progress keeps the rules it was dealt with.</p>
+      <legend data-i18n="set.language">Language</legend>
+      <p class="field__hint" data-i18n="set.languageHint">Applies straight away, including the chronicle already written.</p>
+      <div class="choices" id="langChoices"></div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend data-i18n="set.ruleset">Ruleset</legend>
+      <p class="field__hint" data-i18n="set.rulesetHint">Applies to the next new game. A run in progress keeps the rules it was dealt with.</p>
       <div class="choices" id="presetChoices"></div>
     </fieldset>
 
     <fieldset class="field">
-      <legend>Motion</legend>
-      <p class="field__hint">“System” follows your operating system’s reduced-motion setting.</p>
+      <legend data-i18n="set.motion">Motion</legend>
+      <p class="field__hint" data-i18n="set.motionHint">“System” follows your operating system’s reduced-motion setting.</p>
       <div class="choices" id="motionChoices"></div>
     </fieldset>
 
     <fieldset class="field">
-      <legend>Feel</legend>
+      <legend data-i18n="set.feel">Feel</legend>
       <label class="switch">
         <input type="checkbox" id="soundToggle" />
         <span class="switch__box" aria-hidden="true"></span>
@@ -230,7 +236,7 @@
     </fieldset>
 
     <fieldset class="field">
-      <legend>Help</legend>
+      <legend data-i18n="set.help">Help</legend>
       <label class="switch">
         <input type="checkbox" id="showThreatToggle" />
         <span class="switch__box" aria-hidden="true"></span>
@@ -244,17 +250,17 @@
     </fieldset>
 
     <fieldset class="field">
-      <legend>Deal a specific dungeon</legend>
-      <p class="field__hint">Seeds are any text. The same seed always deals the same 44 cards.</p>
+      <legend data-i18n="set.seed">Deal a specific dungeon</legend>
+      <p class="field__hint" data-i18n="set.seedHint">Seeds are any text. The same seed always deals the same 44 cards.</p>
       <form class="seed-form" id="settingsSeedForm">
-        <label class="sr-only" for="settingsSeedInput">Seed</label>
-        <input id="settingsSeedInput" name="seed" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. goblin" />
-        <button class="btn btn--sm" type="submit">Deal it</button>
+        <label class="sr-only" for="settingsSeedInput" data-i18n="hud.seed">Seed</label>
+        <input id="settingsSeedInput" name="seed" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. goblin" data-i18n-attr="placeholder:set.seedPlaceholder" />
+        <button class="btn btn--sm" type="submit" data-i18n="set.seedGo">Deal it</button>
       </form>
     </fieldset>
 
     <p class="field__danger">
-      <button type="button" class="btn btn--sm btn--ghost" id="resetPrefsBtn">Reset settings</button>
+      <button type="button" class="btn btn--sm btn--ghost" id="resetPrefsBtn" data-i18n="set.reset">Reset settings</button>
     </p>
   </div>
 </dialog>
@@ -262,27 +268,27 @@
 <!-- ================= RECORD / STATS ================= -->
 <dialog class="modal" id="statsModal" aria-labelledby="statsTitle">
   <form method="dialog" class="modal__close-form">
-    <button class="modal__close" value="close" aria-label="Close record">&times;</button>
+    <button class="modal__close" value="close" aria-label="Close record" data-i18n-attr="aria-label:rec.close">&times;</button>
   </form>
-  <h2 id="statsTitle">Your record</h2>
+  <h2 id="statsTitle" data-i18n="rec.title">Your record</h2>
   <div class="modal__body">
     <dl class="scoreboard" id="scoreboard"></dl>
 
-    <h3 id="boardHeading">Best runs</h3>
-    <p class="field__hint">
+    <h3 id="boardHeading" data-i18n="rec.bestRuns">Best runs</h3>
+    <p class="field__hint" data-i18n="rec.bestRunsHint">
       Your own top ten, kept in this browser. A shared, trustworthy leaderboard
       would need a server, and this game deliberately has none.
     </p>
     <div class="history" id="boardList"></div>
 
-    <h3>Recent runs</h3>
+    <h3 data-i18n="rec.recent">Recent runs</h3>
     <div class="history" id="historyList"></div>
 
-    <h3>Trophies <span class="trophy-count" id="trophyCount"></span></h3>
+    <h3><span data-i18n="rec.trophies">Trophies</span> <span class="trophy-count" id="trophyCount"></span></h3>
     <ul class="trophies" id="trophyList"></ul>
 
     <p class="field__danger">
-      <button type="button" class="btn btn--sm btn--ghost" id="resetStatsBtn">Clear record</button>
+      <button type="button" class="btn btn--sm btn--ghost" id="resetStatsBtn" data-i18n="rec.clear">Clear record</button>
     </p>
   </div>
 </dialog>
@@ -293,17 +299,18 @@
 
 <!-- ================= DEBUG (hidden) ================= -->
 <aside class="debug" id="debugPanel" hidden aria-label="Debug">
-  <h2>Debug</h2>
+  <h2 data-i18n="dbg.title">Debug</h2>
   <form id="seedForm" class="debug__row">
-    <label for="seedInput">Seed</label>
+    <label for="seedInput" data-i18n="hud.seed">Seed</label>
     <input id="seedInput" name="seed" type="text" autocomplete="off" spellcheck="false" />
-    <button class="btn btn--sm" type="submit">Deal</button>
+    <button class="btn btn--sm" type="submit" data-i18n="dbg.deal">Deal</button>
   </form>
-  <p class="debug__row"><button class="btn btn--sm" type="button" id="peekBtn" aria-expanded="false">Peek at the deck</button></p>
+  <p class="debug__row"><button class="btn btn--sm" type="button" id="peekBtn" aria-expanded="false" data-i18n="dbg.peek">Peek at the deck</button></p>
   <ol class="debug__deck" id="debugDeck" hidden></ol>
-  <p class="debug__note">Toggle with <kbd>`</kbd> or <code>?debug=1</code></p>
+  <p class="debug__note" data-i18n-html="dbg.note">Toggle with <kbd>`</kbd> or <code>?debug=1</code></p>
 </aside>
 
+<script src="js/i18n.js"></script>
 <script src="js/config.js"></script>
 <script src="js/prefs.js"></script>
 <script src="js/stats.js"></script>

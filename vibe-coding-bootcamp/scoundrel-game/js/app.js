@@ -9,6 +9,7 @@
   'use strict';
 
   const missing = [
+    ['ScoundrelI18n', 'js/i18n.js'],
     ['ScoundrelConfig', 'js/config.js'],
     ['ScoundrelPrefs', 'js/prefs.js'],
     ['ScoundrelStats', 'js/stats.js'],
@@ -39,6 +40,8 @@
   const Achievements = window.ScoundrelAchievements;
   const Audio = window.ScoundrelAudio;
   const Fx = window.ScoundrelParticles;
+  const I18n = window.ScoundrelI18n;
+  const t = I18n.t;
   const C = window.ScoundrelConfig;
   const el = UI.el;
 
@@ -212,7 +215,11 @@
     return coached;
   }
 
-  function coach(id, text) {
+  /**
+   * Push a one-off tip into the chronicle, stored as a key like every other
+   * entry so it re-translates when the language changes.
+   */
+  function coach(id, params) {
     if (!Prefs.get('coach') || !state || state.status !== 'playing') return;
     const seen = coachSeen();
     if (seen.has(id)) return;
@@ -220,26 +227,26 @@
     try {
       window.localStorage.setItem(COACH_KEY, JSON.stringify([...seen]));
     } catch { /* a lost tip is not worth breaking the turn over */ }
-    state.log.push({ id: (state.logSeq += 1), text: `Tip: ${text}`, kind: 'coach', turn: state.turn });
+    state.log.push({
+      id: (state.logSeq += 1),
+      key: `coach.${id}`,
+      params: params || null,
+      kind: 'coach',
+      turn: state.turn,
+    });
   }
 
   /** Watch what just happened and teach the rule behind it. */
   function coachOn(before) {
     if (!state.weapon) {
-      if (before.health > state.health) {
-        coach('bare', 'with no weapon you take a monster’s full value. A ♦ card equips instantly.');
-      }
+      if (before.health > state.health) coach('bare');
     } else if (!before.weapon || before.weapon.card.id !== state.weapon.card.id) {
-      coach('equipped', 'your blade fights anything until its first kill. After that it is capped by what it killed, and the cap only falls — so spend it on something big.');
+      coach('equipped');
     } else if (state.weapon.lastSlain !== null && before.weapon.lastSlain === null) {
-      coach('capped', `the blade is now capped at ${state.weapon.lastSlain}. Anything bigger has to be fought bare-handed, or left for the next room.`);
+      coach('capped', { cap: state.weapon.lastSlain });
     }
-    if (state.potionUsed && !before.potionUsed) {
-      coach('potion', 'only one potion works per room. A second ♥ is worth more left behind as your carry-over card.');
-    }
-    if (Engine.canAvoid(state) && state.turn >= 2) {
-      coach('avoid', 'Avoid sends all four cards to the bottom of the deck — it buys time, it does not remove them. You cannot avoid twice running.');
-    }
+    if (state.potionUsed && !before.potionUsed) coach('potion');
+    if (Engine.canAvoid(state) && state.turn >= 2) coach('avoid');
   }
 
   /* ------------------------------------------------------------------ *
@@ -347,17 +354,18 @@
   function openStats() { UI.renderStats(state); el.statsModal.showModal(); }
 
   el.settingsModal.addEventListener('change', (event) => {
-    const t = event.target;
-    if (t.name === 'preset') Prefs.set('preset', t.value);
-    else if (t.name === 'motion') Prefs.set('motion', t.value);
-    else if (t.id === 'showThreatToggle') { Prefs.set('showThreat', t.checked); UI.render(state); }
-    else if (t.id === 'coachToggle') Prefs.set('coach', t.checked);
-    else if (t.id === 'soundToggle') {
-      Prefs.set('sound', t.checked);
-      if (t.checked) { Audio.unlock(); Audio.play('flip'); } // confirm it works
-    } else if (t.id === 'particlesToggle') {
-      Prefs.set('particles', t.checked);
-      if (t.checked) Fx.burst(el.avoidBtn, 'gold', 0.4);
+    const target = event.target;
+    if (target.name === 'lang') I18n.setLang(target.value);
+    else if (target.name === 'preset') Prefs.set('preset', target.value);
+    else if (target.name === 'motion') Prefs.set('motion', target.value);
+    else if (target.id === 'showThreatToggle') { Prefs.set('showThreat', target.checked); UI.render(state); }
+    else if (target.id === 'coachToggle') Prefs.set('coach', target.checked);
+    else if (target.id === 'soundToggle') {
+      Prefs.set('sound', target.checked);
+      if (target.checked) { Audio.unlock(); Audio.play('flip'); } // confirm it works
+    } else if (target.id === 'particlesToggle') {
+      Prefs.set('particles', target.checked);
+      if (target.checked) Fx.burst(el.avoidBtn, 'gold', 0.4);
       else Fx.clear();
     }
   });
@@ -380,10 +388,10 @@
     // Two-step: clearing a record is not undoable, so make it deliberate.
     if (btn.dataset.armed !== 'true') {
       btn.dataset.armed = 'true';
-      btn.textContent = 'Clear record and trophies?';
+      btn.textContent = t('rec.clearConfirm');
       window.setTimeout(() => {
         btn.dataset.armed = 'false';
-        btn.textContent = 'Clear record';
+        btn.textContent = t('rec.clear');
       }, 4000);
       return;
     }
@@ -392,7 +400,7 @@
     Stats.reset();
     Achievements.reset();
     btn.dataset.armed = 'false';
-    btn.textContent = 'Clear record';
+    btn.textContent = t('rec.clear');
     UI.renderStats(state);
   });
 
@@ -430,6 +438,22 @@
       if (event.target === dialog) dialog.close();
     });
   }
+
+  /*
+   * A language change repaints everything that holds text: the static page via
+   * i18n.apply(), then the parts this file renders. The chronicle is rebuilt
+   * from scratch because its entries are keys — the history you have already
+   * written comes back in the new language rather than staying behind.
+   */
+  I18n.onChange(() => {
+    if (!state) return;
+    UI.redrawLog(state);
+    UI.render(state);
+    UI.renderSettings();
+    if (el.statsModal.open) UI.renderStats(state);
+    if (state.status !== 'playing' && el.endModal.open) UI.showEnd(state);
+    el.peekBtn.textContent = el.debugDeck.hidden ? t('dbg.peek') : t('dbg.hide');
+  });
 
   /* ------------------------------------------------------------------ *
    * Keyboard
@@ -529,7 +553,7 @@
     const open = el.debugDeck.hidden;
     el.debugDeck.hidden = !open;
     event.currentTarget.setAttribute('aria-expanded', String(open));
-    event.currentTarget.textContent = open ? 'Hide the deck' : 'Peek at the deck';
+    event.currentTarget.textContent = open ? t('dbg.hide') : t('dbg.peek');
   });
 
   /* ------------------------------------------------------------------ *
@@ -539,6 +563,9 @@
   // Eleven illustrations cover the whole deck; fetch them before the first
   // flip so no card turns over to an empty rectangle.
   window.ScoundrelArt.preload();
+
+  // Translate the static markup before anything is rendered on top of it.
+  I18n.apply();
 
   // Browsers refuse to start an AudioContext before the player has interacted
   // with the page. Create it on the first gesture, once.
@@ -574,6 +601,7 @@
     debug: toggleDebug,
     stats: () => Stats.all(),
     prefs: () => Prefs.all(),
+    lang: (next) => (next ? I18n.setLang(next) : I18n.getLang()),
     achievements: () => Achievements.all({ stats: Stats.all(), state, event: { type: 'view' } }),
   };
 })();

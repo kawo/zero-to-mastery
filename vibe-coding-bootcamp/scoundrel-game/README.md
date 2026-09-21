@@ -105,7 +105,7 @@ test framework — the harness builds a fake `window`, evaluates the browser
 modules into it, and exercises the real code.
 
 ```
-node tests/engine.test.js          # 99 assertions, ~3s
+node tests/engine.test.js          # 124 assertions, ~3s
 node tests/engine.test.js --full   # adds the beam-search winnability check, ~1 min
 ```
 
@@ -124,6 +124,11 @@ Plus a 4000-game fuzz run, cycling all three rulesets, checking that health stay
 in range, no card is ever lost or duplicated, and no position can get stuck. The
 harness stubs LocalStorage in memory so prefs, stats and trophies are exercised
 for real.
+
+Translations are covered structurally rather than by eye: every English key has
+a French one and vice versa, the `{placeholders}` match in every pair, all 44
+cards and 15 trophies have French, plural selection is asserted in both
+languages, and the engine is checked to emit only keys — never rendered text.
 
 Audio and particles are not covered: they are WebAudio and canvas, and testing
 them headlessly would test the mock rather than the sound.
@@ -149,6 +154,7 @@ favicon.svg .png        the spade mark, filled solid so it survives 16px
 apple-touch-icon.png    180x180 for iOS home screens
 assets/cards/           the eleven card illustrations (2.5 MB total)
 js/config.js            rules constants, rulesets, card tables, art mapping, deck
+js/i18n.js              English and French, plus the data-i18n machinery
 js/prefs.js             player settings (own storage key)
 js/stats.js             lifetime record and run history (own storage key)
 js/achievements.js      trophy definitions and unlock checks
@@ -232,6 +238,29 @@ the stats module, because the state is what gets saved: finish a run, close the
 tab, come back, and the end screen shows again — but the run must not count
 twice.
 
+### Languages
+
+English and French, switchable in Settings and applied without a reload.
+
+The page detects the browser's language on a first visit and remembers your
+choice after that. Static markup is translated through `data-i18n` attributes;
+everything built in JavaScript goes through `t(key, params)`.
+
+**The chronicle stores keys, not sentences.** Engine log entries are
+`{ key, params }`, rendered at display time — so switching language re-translates
+the history you have already written instead of leaving a wall of the old one
+above the new. That also keeps the engine free of any notion of language, which
+is why it can still be tested in Node with no DOM.
+
+Game data — 44 card names, 15 trophies, 3 rulesets — keeps its English next to
+the thing it describes and only the French lives in `i18n.js`, keyed by id. Adding
+a card means adding one name in `config.js`, not editing two files in lockstep;
+a missing translation falls back to English rather than showing a raw key.
+
+Plurals are handled per language: English pluralises at 1, **French treats 0 as
+singular too**. The tests caught a real bug here — the French singular hard-coded
+"1 carte", so zero cards read as one.
+
 ### Polish
 
 **Sound** is synthesised from oscillators and a noise buffer — there are no
@@ -286,6 +315,7 @@ the others with it:
 | `scoundrel:stats:v1` | lifetime record and history |
 | `scoundrel:achievements:v1` | unlocked trophies |
 | `scoundrel:coached:v1` | which one-off tips have been shown |
+| `scoundrel:lang:v1` | the chosen language |
 
 A save from an older build is discarded rather than migrated — but your settings
 and your record survive it. Every read is wrapped: private windows, blocked site

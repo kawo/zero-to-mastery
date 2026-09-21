@@ -24,7 +24,7 @@
  *   score       null | number
  *   killer      null | Card    the monster that finished you, kept for scoring
  *   avoidsUsed  number    rooms fled; potionsDrunk/potionsWasted/monstersSlain likewise
- *   log         Entry[]   { text, kind, turn }
+ *   log         Entry[]   { id, key, params, kind, turn } — keys, not sentences
  *
  * A note on `room`: resolved cards stay in the array with done = true until the
  * room ends. That keeps the four slots visually stable while you work through
@@ -59,13 +59,20 @@
   };
 
   /**
-   * Append to the chronicle. Entries carry a monotonic id so the renderer can
-   * append only what is new — which is what keeps the aria-live region from
-   * re-announcing the whole history every time you play a card.
+   * Append to the chronicle.
+   *
+   * Entries store a translation KEY and its parameters, never rendered text.
+   * The engine has no business knowing what language the page is in, and it
+   * means switching language re-translates the history you have already
+   * written rather than leaving a wall of the old one.
+   *
+   * Entries also carry a monotonic id so the renderer can append only what is
+   * new — which keeps the aria-live region from re-announcing everything each
+   * time you play a card.
    */
-  function log(state, text, kind = 'info') {
+  function log(state, key, params, kind = 'info') {
     state.logSeq = (state.logSeq || 0) + 1;
-    state.log.push({ id: state.logSeq, text, kind, turn: state.turn });
+    state.log.push({ id: state.logSeq, key, params: params || null, kind, turn: state.turn });
     if (state.log.length > C.LOG_LIMIT) state.log.splice(0, state.log.length - C.LOG_LIMIT);
   }
 
@@ -107,9 +114,9 @@
       logSeq: 0,
       startedAt: Date.now(),
     };
-    log(state, `You step into the dungeon. 44 cards, seed ${usedSeed}.`, 'start');
+    log(state, 'log.start', { seed: usedSeed }, 'start');
     if (presetId !== C.DEFAULT_PRESET) {
-      log(state, `Ruleset: ${C.PRESETS[presetId].name}.`, 'muted');
+      log(state, 'log.ruleset', { preset: presetId }, 'muted');
     }
     beginRoom(state);
     return state;
@@ -149,13 +156,11 @@
     }
 
     const carried = state.room.filter((slot) => slot.dealtOn < state.turn).length;
-    log(
-      state,
-      carried > 0
-        ? `Room ${state.turn}. ${cardText(state.room[0].card)} followed you in.`
-        : `Room ${state.turn}. Four cards face up.`,
-      'room',
-    );
+    if (carried > 0) {
+      log(state, 'log.roomCarried', { turn: state.turn, card: cardText(state.room[0].card) }, 'room');
+    } else {
+      log(state, 'log.roomFresh', { turn: state.turn }, 'room');
+    }
   }
 
   /**
@@ -182,7 +187,7 @@
     state.avoidedLast = true;
     state.avoidsUsed = (state.avoidsUsed || 0) + 1;
 
-    log(state, `Avoided the room — ${cards.map(cardText).join(' ')} slid under the deck.`, 'avoid');
+    log(state, 'log.avoided', { cards: cards.map(cardText).join(' ') }, 'avoid');
     beginRoom(state);
     return true;
   }
@@ -237,11 +242,13 @@
     if (state.weapon) {
       // The old blade and every monster stacked on it leave the table together.
       state.discard.push(state.weapon.card, ...state.weapon.stack);
-      log(state, `Dropped ${cardText(state.weapon.card)} and its ${state.weapon.stack.length} trophies.`, 'muted');
+      log(state, 'log.dropped', {
+        card: cardText(state.weapon.card), n: state.weapon.stack.length,
+      }, 'muted');
     }
     // A new weapon always starts with no history, so its cap is open again.
     state.weapon = { card, lastSlain: null, stack: [] };
-    log(state, `Equipped ${cardText(card)} — ${card.name}.`, 'weapon');
+    log(state, 'log.equipped', { card: cardText(card), id: card.id, name: card.name }, 'weapon');
   }
 
   function drink(state, card, outcome) {
@@ -251,7 +258,7 @@
       // makes "which three do I play" a real decision when two hearts show up.
       state.discard.push(card);
       outcome.wasted = true;
-      log(state, `Poured out ${cardText(card)} — you can only stomach one potion a room.`, 'muted');
+      log(state, 'log.poured', { card: cardText(card) }, 'muted');
       return;
     }
     const before = state.health;
@@ -262,13 +269,13 @@
 
     const healed = state.health - before;
     outcome.healed = healed;
-    log(
-      state,
-      healed === card.rank
-        ? `Drank ${cardText(card)} — healed ${healed}.`
-        : `Drank ${cardText(card)} — healed ${healed}, the rest spilled (capped at ${C.MAX_HEALTH}).`,
-      'potion',
-    );
+    if (healed === card.rank) {
+      log(state, 'log.drank', { card: cardText(card), n: healed }, 'potion');
+    } else {
+      log(state, 'log.drankSpill', {
+        card: cardText(card), n: healed, max: C.MAX_HEALTH,
+      }, 'potion');
+    }
   }
 
   function fight(state, card, mode, outcome) {
@@ -279,7 +286,7 @@
       hurt(state, card.rank, card);
       outcome.bareHanded = true;
       outcome.damage = card.rank;
-      log(state, `Fought ${cardText(card)} bare-handed — took ${card.rank} damage.`, 'damage');
+      log(state, 'log.bare', { card: cardText(card), n: card.rank }, 'damage');
       return;
     }
 
@@ -301,13 +308,11 @@
     outcome.clean = damage === 0;
     outcome.slain = slain;
 
-    log(
-      state,
-      damage === 0
-        ? `${cardText(weapon.card)} cut down ${cardText(card)} clean. Blade now capped at ${weapon.lastSlain}.`
-        : `${cardText(weapon.card)} killed ${cardText(card)} — took ${damage} damage. Blade now capped at ${weapon.lastSlain}.`,
-      damage === 0 ? 'kill' : 'damage',
-    );
+    const shared = {
+      weapon: cardText(weapon.card), card: cardText(card), cap: weapon.lastSlain,
+    };
+    if (damage === 0) log(state, 'log.killClean', shared, 'kill');
+    else log(state, 'log.killBloody', { ...shared, n: damage }, 'damage');
   }
 
   /**
@@ -393,18 +398,18 @@
   function win(state) {
     state.status = 'won';
     state.score = state.health; // survived: your score is what you walked out with
-    log(state, `The dungeon is empty. You walk out with ${state.health} health. Score ${state.score}.`, 'win');
+    log(state, 'log.win', { n: state.health, score: state.score }, 'win');
   }
 
   function lose(state) {
     state.status = 'lost';
     state.health = 0;
     state.score = -remainingMonsterValue(state);
-    log(
-      state,
-      `${state.killer ? cardText(state.killer) : 'The dungeon'} finishes you. Score ${state.score}.`,
-      'lose',
-    );
+    if (state.killer) {
+      log(state, 'log.lose', { card: cardText(state.killer), score: state.score }, 'lose');
+    } else {
+      log(state, 'log.loseDark', { score: state.score }, 'lose');
+    }
   }
 
   /* ------------------------------------------------------------------ *

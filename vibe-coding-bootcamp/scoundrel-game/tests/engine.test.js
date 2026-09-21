@@ -31,7 +31,18 @@ function makeStorage() {
 const sandbox = { console, Math, Date, JSON };
 sandbox.window = sandbox;
 sandbox.localStorage = makeStorage();
+sandbox.navigator = { languages: ['en'] };
+// i18n.apply() walks the DOM; nothing here has one, and nothing here needs one.
+sandbox.document = { querySelectorAll: () => [], documentElement: {} };
 vm.createContext(sandbox);
+
+// i18n keeps its tables private. Expose them for the parity checks only — the
+// game itself has no reason to reach them.
+const i18nSrc = fs.readFileSync(path.join(ROOT, 'js/i18n.js'), 'utf8')
+  .replace('window.ScoundrelI18n = Object.freeze({',
+    'window.__i18nTables = { en, fr, frData };\n  window.ScoundrelI18n = Object.freeze({');
+vm.runInContext(i18nSrc, sandbox, { filename: 'js/i18n.js' });
+
 for (const file of ['js/config.js', 'js/prefs.js', 'js/stats.js', 'js/achievements.js', 'js/rng.js', 'js/engine.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, file), 'utf8'), sandbox, { filename: file });
 }
@@ -42,6 +53,8 @@ const E = sandbox.ScoundrelEngine;
 const Prefs = sandbox.ScoundrelPrefs;
 const Stats = sandbox.ScoundrelStats;
 const Ach = sandbox.ScoundrelAchievements;
+const I18n = sandbox.ScoundrelI18n;
+const { en } = sandbox.__i18nTables;
 
 let passed = 0;
 let failed = 0;
@@ -544,6 +557,98 @@ group('Resolve outcomes');
   check('a new run starts every tally at zero',
     fresh.avoidsUsed === 0 && fresh.potionsDrunk === 0
     && fresh.potionsWasted === 0 && fresh.monstersSlain === 0);
+}
+
+/* ===================================================================== *
+ * Translations
+ * ===================================================================== */
+
+group('Translations');
+{
+  const { en, fr, frData } = sandbox.__i18nTables;
+  const enKeys = Object.keys(en);
+  const frKeys = Object.keys(fr);
+
+  const untranslated = enKeys.filter((k) => !(k in fr));
+  check('every English key has a French translation',
+    untranslated.length === 0, untranslated.slice(0, 5));
+  const orphans = frKeys.filter((k) => !(k in en));
+  check('no French key without an English original', orphans.length === 0, orphans.slice(0, 5));
+
+  // A translation that drops or renames a {placeholder} renders a literal brace
+  // at someone, so the pairs have to agree.
+  const tokens = (v) => (String(v).match(/\{\w+\}/g) || []).sort().join(',');
+  const mismatched = enKeys.filter((k) => k in fr && tokens(en[k]) !== tokens(fr[k]));
+  check('placeholders match in every pair', mismatched.length === 0, mismatched.slice(0, 5));
+
+  // Game data: English lives next to the thing it describes, French lives in
+  // i18n keyed by id, so a new card can silently arrive with no translation.
+  const missingData = [];
+  for (const card of C.buildDeck()) {
+    if (!frData[`card.${card.id}`]) missingData.push(`card.${card.id}`);
+  }
+  for (const a of Ach.LIST) {
+    if (!frData[`ach.${a.id}.title`]) missingData.push(`ach.${a.id}.title`);
+    if (!frData[`ach.${a.id}.desc`]) missingData.push(`ach.${a.id}.desc`);
+  }
+  for (const id of Object.keys(C.PRESETS)) {
+    if (!frData[`preset.${id}`]) missingData.push(`preset.${id}`);
+    if (!frData[`preset.${id}.blurb`]) missingData.push(`preset.${id}.blurb`);
+  }
+  check('all 44 cards, 15 trophies and 3 rulesets have French',
+    missingData.length === 0, missingData.slice(0, 5));
+
+  check('the two tables are the same size', enKeys.length === frKeys.length,
+    { en: enKeys.length, fr: frKeys.length });
+}
+
+group('Translation lookup');
+{
+  I18n.setLang('en');
+  check('English is served when selected', I18n.t('hud.health') === 'Health');
+  check('a parameter is filled', I18n.t('hud.weaponCap', { n: 7 }) === 'max 7');
+  check('an unknown key returns itself', I18n.t('no.such.key') === 'no.such.key');
+  check('an unfilled placeholder is left alone',
+    I18n.t('room.lastFew', {}).includes('{n}'));
+
+  // Plurals: English pluralises at 1, French at 2.
+  check('English: 1 is singular', I18n.t('room.openCards', { n: 1 }) === '1 card');
+  check('English: 0 is plural', I18n.t('room.openCards', { n: 0 }) === '0 cards');
+  check('English: 2 is plural', I18n.t('room.openCards', { n: 2 }) === '2 cards');
+
+  I18n.setLang('fr');
+  check('French is served when selected', I18n.t('hud.health') === 'Vie');
+  check('French: 0 is singular', I18n.t('room.openCards', { n: 0 }) === '0 carte');
+  check('French: 1 is singular', I18n.t('room.openCards', { n: 1 }) === '1 carte');
+  check('French: 2 is plural', I18n.t('room.openCards', { n: 2 }) === '2 cartes');
+
+  check('td() translates game data', I18n.td('card.S14', 'Wyrm of Cinders') === 'Guivre des cendres');
+  check('td() falls back for an id with no translation',
+    I18n.td('card.NOPE', 'Something') === 'Something');
+
+  I18n.setLang('en');
+  check('td() returns the English when English is selected',
+    I18n.td('card.S14', 'Wyrm of Cinders') === 'Wyrm of Cinders');
+
+  check('setLang rejects a language that does not exist', I18n.setLang('xx') === false);
+  check('setLang is a no-op for the current language', I18n.setLang('en') === false);
+}
+
+group('Chronicle is language-independent');
+{
+  // The engine must store keys, never sentences — otherwise the history you
+  // have already written stays in the old language when you switch.
+  const s = E.create('i18n-log', 'standard');
+  E.resolve(s, 0, 'bare');
+  check('every entry carries a key', s.log.every((e) => typeof e.key === 'string' && e.key));
+  check('no entry carries rendered text', s.log.every((e) => e.text === undefined));
+  check('entries carry their params',
+    s.log.some((e) => e.params && Object.keys(e.params).length > 0));
+
+  const keys = new Set(s.log.map((e) => e.key));
+  const unknown = [...keys].filter((k) => !(k in en));
+  check('every key the engine emits exists in the tables',
+    unknown.length === 0, unknown);
 }
 
 /* ===================================================================== *

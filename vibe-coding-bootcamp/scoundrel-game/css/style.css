@@ -160,11 +160,15 @@ kbd {
   color: var(--bone);
   font-family: var(--font-display);
   font-size: 0.82rem;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-align: left;
   cursor: pointer;
   transition: border-color var(--speed), background var(--speed), transform var(--speed), color var(--speed);
 }
+
+/* A long translated label wraps rather than escaping the button. */
+.btn > span:not(.btn__key) { min-width: 0; overflow-wrap: break-word; }
 
 .btn:hover:not(:disabled) { border-color: var(--bone-3); background: linear-gradient(180deg, #16161f, var(--ink-3)); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
@@ -186,6 +190,7 @@ kbd {
   background: #000;
   font-size: 0.7rem;
   color: var(--bone-2);
+  flex: none;          /* the shortcut chip never squeezes */
 }
 
 .btn--primary { border-color: var(--gold); color: #f0e3c4; }
@@ -219,6 +224,10 @@ kbd {
   background: linear-gradient(180deg, rgb(16 16 24 / 88%), rgb(6 6 10 / 88%));
   box-shadow: var(--shadow);
 }
+
+/* Let every panel shrink below its content width instead of forcing the row
+   wider than the card it sits in. */
+.hud > * { min-width: 0; }
 
 .hud__brand { display: flex; align-items: center; gap: 0.75rem; }
 
@@ -298,7 +307,7 @@ kbd {
 
 .panel--weapon[data-empty='false'] { border-color: #2e3d4d; }
 
-.panel__body { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.panel__body { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; min-width: 0; }
 .panel__empty { color: var(--bone-3); font-style: italic; }
 
 .weapon__card {
@@ -314,8 +323,8 @@ kbd {
 }
 .weapon__card .glyph { fill: none; stroke: currentColor; stroke-width: 6; }
 
-.weapon__meta { display: grid; line-height: 1.25; }
-.weapon__name { font-size: 0.9rem; }
+.weapon__meta { display: grid; line-height: 1.25; min-width: 0; }
+.weapon__name { font-size: 0.9rem; overflow-wrap: anywhere; }
 .weapon__cap {
   font-size: 0.72rem;
   letter-spacing: 0.1em;
@@ -335,7 +344,7 @@ kbd {
 }
 
 /* Counters */
-.counters { display: flex; gap: 1.25rem; margin: 0; }
+.counters { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin: 0; min-width: 0; }
 .counter { display: grid; gap: 0.1rem; }
 .counter dd { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
 
@@ -354,9 +363,20 @@ kbd {
   .btn--avoid { grid-area: avoid; justify-self: end; }
 }
 
-@media (min-width: 64rem) {
+/* Five across, but only once there is genuinely room for five.
+ *
+ * This used to start at 64rem, which fitted the English labels and nothing
+ * else: "Avoid room" is 10 characters, "Éviter la salle" is 15, and uppercase
+ * display type with letter-spacing makes that difference wider still. Below
+ * 72rem the two-row layout above is the honest answer — the weapon panel gets
+ * a full row and the button sits beside it with room to spare.
+ *
+ * The tracks can also all be squeezed (minmax(0, …) rather than auto), so a
+ * longer translation compresses the row instead of pushing out of the panel. */
+@media (min-width: 72rem) {
   .hud {
-    grid-template-columns: auto minmax(14rem, 22rem) minmax(16rem, 1fr) auto auto;
+    grid-template-columns:
+      minmax(0, auto) minmax(9rem, 16rem) minmax(10rem, 1fr) minmax(0, auto) minmax(0, auto);
     grid-template-areas: 'brand gauge weapon counters avoid';
   }
 }
@@ -928,7 +948,7 @@ kbd {
 
 .scoreboard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   gap: 0.5rem;
   margin: 0 0 1.5rem;
 }
@@ -944,6 +964,7 @@ kbd {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--bone-3);
+  overflow-wrap: break-word;   /* "Plus longue série" */
 }
 .scoreboard dd {
   margin: 0.15rem 0 0;
