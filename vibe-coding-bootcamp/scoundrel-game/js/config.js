@@ -65,29 +65,80 @@
 
   const label = (rank) => RANK_LABEL[rank] || String(rank);
 
-  /* Emblem picked by rank so the art escalates as the numbers do. */
-  const MONSTER_EMBLEM = (rank) =>
-    rank <= 4 ? 'vermin' : rank <= 7 ? 'wolf' : rank <= 10 ? 'goblin'
-      : rank === 11 ? 'wraith' : rank === 12 ? 'knight' : rank === 13 ? 'skull' : 'dragon';
+  /* ------------------------------------------------------------------ *
+   * Artwork
+   *
+   * There are eleven illustrations for forty-four cards, so each suit is cut
+   * into tiers by rank and the art escalates with the number. The tier
+   * boundaries and the file for each tier live in one table: to re-cut the
+   * deck, edit ART and nothing else.
+   *
+   * On the file names: `club-3` is drawn inside a SPADE outline, not a club —
+   * the only illustration whose frame disagrees with its name. It is used here
+   * as a club anyway, following the naming. Moving it to the spade list (and
+   * giving the clubs two tiers instead of three) is a two-line change below.
+   * ------------------------------------------------------------------ */
 
-  const WEAPON_EMBLEM = (rank) =>
-    rank <= 3 ? 'dagger' : rank <= 6 ? 'axe' : rank <= 8 ? 'crossbow' : 'sword';
+  const ART_DIR = 'assets/cards/';
 
-  /* Two bestiaries so ♣7 and ♠7 do not read as the same creature twice. */
+  /** [minRank, maxRank, file] per suit, weakest first. */
+  const ART = {
+    clubs: [
+      [2, 6, 'club-3.jpg'],    // wolf
+      [7, 10, 'club-2.png'],   // hooded wraith
+      [11, 14, 'club-1.png'],  // skeleton
+    ],
+    spades: [
+      [2, 6, 'spade-1.png'],   // goblin
+      [7, 10, 'spade-2.png'],  // armoured knight
+      [11, 14, 'spade-3.png'], // dragon
+    ],
+    diamonds: [
+      [2, 4, 'diamond-1.png'], // crossbow
+      [5, 7, 'diamond-2.jpg'], // war axe
+      [8, 10, 'diamond-3.png'],// winged sword
+    ],
+    hearts: [
+      [2, 10, 'heart.png'],    // potion flask
+    ],
+  };
+
+  /** The card back. */
+  const ART_BACK = `${ART_DIR}deck.png`;
+
+  function artFor(suitKey, rank) {
+    const tier = ART[suitKey].find(([lo, hi]) => rank >= lo && rank <= hi);
+    return ART_DIR + (tier ? tier[2] : ART[suitKey][0][2]);
+  }
+
+  /*
+   * Names follow the pictures: a card showing a dragon is not called a spider.
+   * Each block of names matches one art tier above.
+   */
   const LORE = {
     clubs: {
-      2: 'Sewer Rat', 3: 'Cave Bat', 4: 'Rot Grub', 5: 'Dire Wolf', 6: 'Moor Hound',
-      7: 'Black Lurcher', 8: 'Goblin Cutter', 9: 'Hobgoblin', 10: 'Ogre',
-      11: 'The Shrouded', 12: 'Grave Knight', 13: 'Bone Lord', 14: 'Elder Wyrm',
+      // wolf
+      2: 'Starved Wolf', 3: 'Moor Hound', 4: 'Grey Stalker', 5: 'Dire Wolf', 6: 'Black Lurcher',
+      // wraith
+      7: 'Pale Shade', 8: 'The Veiled', 9: 'Hollow Mourner', 10: 'The Shrouded',
+      // skeleton
+      11: 'Bone Sentry', 12: 'Barrow Wight', 13: 'Bone Lord', 14: 'The Marrow King',
     },
     spades: {
-      2: 'Crypt Spider', 3: 'Carrion Crow', 4: 'Grave Worm', 5: 'Winter Wolf', 6: 'Barrow Beast',
-      7: 'Ash Stalker', 8: 'Gutter Goblin', 9: 'Fen Troll', 10: 'Cave Giant',
-      11: 'The Silent Veil', 12: 'Iron Revenant', 13: 'Pale King', 14: 'Wyrm of Cinders',
+      // goblin
+      2: 'Gutter Goblin', 3: 'Night Creeper', 4: 'Cave Imp', 5: 'Goblin Cutter', 6: 'Hobgoblin',
+      // knight
+      7: 'Iron Sentinel', 8: 'Grave Knight', 9: 'Black Warden', 10: 'Iron Revenant',
+      // dragon
+      11: 'Ash Drake', 12: 'Cinder Wyrm', 13: 'Elder Wyrm', 14: 'Wyrm of Cinders',
     },
     diamonds: {
-      2: 'Chipped Knife', 3: 'Rusted Dagger', 4: 'Hand Axe', 5: 'Bearded Axe', 6: 'War Axe',
-      7: 'Hunting Crossbow', 8: 'Siege Crossbow', 9: 'Knight’s Sword', 10: 'Falcon Blade',
+      // crossbow
+      2: 'Light Crossbow', 3: 'Hunting Crossbow', 4: 'Siege Crossbow',
+      // axe
+      5: 'Hand Axe', 6: 'Bearded Axe', 7: 'War Axe',
+      // sword
+      8: 'Knight’s Sword', 9: 'Falcon Blade', 10: 'Eagle Greatsword',
     },
     hearts: {
       2: 'Sip of Rain', 3: 'Bitter Tonic', 4: 'Field Salve', 5: 'Vial of Mending',
@@ -117,8 +168,7 @@
       label: label(rank),
       kind,
       name: LORE[meta.key][rank],
-      emblem: kind === 'monster' ? MONSTER_EMBLEM(rank)
-        : kind === 'weapon' ? WEAPON_EMBLEM(rank) : 'flask',
+      art: artFor(meta.key, rank),
     };
   }
 
@@ -137,6 +187,10 @@
     ...RULES,
     SUITS,
     RANK_LABEL,
+    ART,
+    ART_DIR,
+    ART_BACK,
+    artFor,
     label,
     makeCard,
     buildDeck,

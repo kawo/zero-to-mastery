@@ -130,9 +130,10 @@ and can reveal the deck order.
 ```
 index.html              structure: HUD, room, chronicle, controls, modals
 css/style.css           the whole theme — tokens, layout, cards, animation, a11y
-js/config.js            rules constants, card tables, bestiary, deck builder
+assets/cards/           the eleven card illustrations (2.5 MB total)
+js/config.js            rules constants, card tables, art mapping, deck builder
 js/rng.js               seeded mulberry32 + Fisher–Yates
-js/art.js               card artwork as inline SVG
+js/art.js               card face/back markup + the inline suit outlines
 js/storage.js           LocalStorage save/load, wrapped against private mode
 js/engine.js            the rules: state, rooms, resolution, scoring (no DOM)
 js/ui.js                state → DOM (no rules)
@@ -203,12 +204,55 @@ the whole history.
 
 ### Visual design
 
-Silver line art on near-black, after engraved card decks — a drafted suit outline
-with a creature or object inside it, all of it inline SVG stroked with
-`currentColor` so the theme owns the palette. Card type tints the frame and the
-suit rather than repainting the art, which keeps the deck reading as one object.
+Engraved silver illustrations on near-black. The art files are full card faces —
+each carries its own suit outline, starfield and framing — so the only chrome
+drawn over them is the rank pips and the name plate, both sitting in the dark
+margins the illustrations leave at top and bottom. A two-stop gradient keeps that
+text legible without covering any of the drawing.
+
+The illustrations are greyscale, so card type is carried by the frame colour and
+the pips rather than by tinting the art. The small suit marks in the HUD, the
+pips and the chronicle stay inline SVG, stroked with `currentColor`, so they take
+their colour from CSS and stay sharp at any size.
+
 Everything is CSS custom properties on `:root`; the layout is mobile-first, 2×2
 room on phones, 4-across from 48rem, and a two-column table from 60rem.
+
+### The artwork
+
+Eleven illustrations cover forty-four cards, so each suit is cut into tiers by
+rank and the art escalates with the number:
+
+| Suit | 2–6 | 7–10 | J Q K A |
+| --- | --- | --- | --- |
+| ♣ Clubs | wolf | hooded wraith | skeleton |
+| ♠ Spades | goblin | armoured knight | dragon |
+
+| Suit | 2–4 | 5–7 | 8–10 |
+| --- | --- | --- | --- |
+| ♦ Diamonds | crossbow | war axe | winged sword |
+
+Hearts use the potion flask throughout, and `deck.png` is the card back. Card
+names follow the pictures — a card showing a dragon is not called a spider. The
+whole mapping is the `ART` table in [`js/config.js`](js/config.js); re-cutting the
+deck means editing that table and nothing else.
+
+**One caveat:** `club-3` is drawn inside a *spade* outline, not a club — the only
+file whose frame disagrees with its name. It is used as a club anyway, following
+the naming, so low clubs show a spade-shaped frame. Moving it to the spade list
+(leaving clubs with two tiers) is a two-line change in that same table.
+
+#### Optimisation
+
+The masters are 864×1184 and total **18.2 MB**, which is far too much to ship for
+cards that render a couple of hundred pixels wide. `assets/cards/` holds derived
+copies at 432×592, converted to 8-bit greyscale — which the art already was, so
+nothing is lost — for **2.45 MB** total. All eleven are preloaded on startup, so
+no card ever flips over to an empty rectangle.
+
+The masters are not in the repo. Keep them somewhere outside it; the two files
+that were already small enough (`club-3.jpg`, `diamond-2.jpg`) are byte-identical
+copies in `assets/cards/`.
 
 ---
 

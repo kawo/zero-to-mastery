@@ -265,6 +265,10 @@
    * Go
    * ------------------------------------------------------------------ */
 
+  // Eleven illustrations cover the whole deck; fetch them before the first
+  // flip so no card turns over to an empty rectangle.
+  window.ScoundrelArt.preload();
+
   const params = new URLSearchParams(window.location.search);
   if (params.has('debug')) toggleDebug(true);
 

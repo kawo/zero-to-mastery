@@ -447,56 +447,60 @@ kbd {
 }
 
 .face--back { transform: rotateY(180deg); background: #07070c; }
+.art--back { object-position: center; }
 
-.face--front {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  place-items: center;
-  padding: 0.4rem;
-  background:
-    radial-gradient(90% 70% at 50% 30%, rgb(28 28 40 / 70%), transparent 70%),
-    var(--card-face);
-}
+.face--front { background: var(--card-face); }
 
 /* Artwork ---------------------------------------------------------------- */
 
-.art { width: 100%; height: 100%; grid-row: 1; }
-.art--back { width: 100%; height: 100%; }
+/* The illustrations are whole card faces, so they fill the card and the chrome
+   sits on top of them. They are 432x592 greyscale; `cover` crops a sliver at
+   the sides on taller cards rather than letterboxing. */
+.art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
 
-.art__suit, .art__emblem, .back__frame, .back__motif, .glyph > g {
+/* The art already carries its own starfield, but its top and bottom margins are
+   near-black — this keeps the pips and the name plate legible over them without
+   hiding any of the drawing. */
+.face--front::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(4 4 8 / 72%) 0%, transparent 16%),
+    linear-gradient(0deg, rgb(4 4 8 / 88%) 0%, rgb(4 4 8 / 45%) 14%, transparent 26%);
+}
+
+.glyph > g {
   fill: none;
   stroke: currentColor;
+  stroke-width: 6;
   stroke-linejoin: round;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }
 
-.art__suit   { stroke-width: 1.6; opacity: 0.55; }
-.art__emblem { stroke-width: 1.9; }
-
-.art .ink      { fill: currentColor; }
-.art .ink-soft { fill: currentColor; opacity: 0.16; }
-
-.face--back { color: var(--bone-3); }
-.back__frame { stroke-width: 0.9; opacity: 0.55; }
-.back__motif { stroke-width: 1.1; opacity: 0.8; }
-.back__stars { fill: var(--bone-2); opacity: 0.5; }
-
-/* Per-type colour. The art stays largely bone; the type tints the frame,
-   the glow and the accents, so the deck still reads as one object. */
+/* Per-type colour. The illustrations are greyscale, so type is carried by the
+   frame and the pips rather than by repainting the art. */
 .card { color: var(--bone); }
-.card[data-kind='monster'] .face--front { border-color: #3a2228; color: #ded8d2; }
-.card[data-kind='weapon']  .face--front { border-color: #22303e; color: #d6e0ea; }
+.card[data-kind='monster'] .face--front { border-color: #3a2228; color: #f0dcdc; }
+.card[data-kind='weapon']  .face--front { border-color: #22303e; color: #dbe7f2; }
 .card[data-kind='potion']  .face--front { border-color: #1f3830; color: #d3e6da; }
-
-.card[data-kind='monster'] .art__suit { stroke: var(--monster); opacity: 0.45; }
-.card[data-kind='weapon']  .art__suit { stroke: var(--weapon);  opacity: 0.5; }
-.card[data-kind='potion']  .art__suit { stroke: var(--potion);  opacity: 0.5; }
 
 /* Pips & name ------------------------------------------------------------ */
 
 .pip {
   position: absolute;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 0.12rem;
@@ -504,18 +508,18 @@ kbd {
   font-size: clamp(0.72rem, 2.2vw, 0.95rem);
   line-height: 1;
   color: inherit;
+  text-shadow: 0 1px 3px #000;
 }
-.pip .glyph { fill: none; stroke: currentColor; stroke-width: 7; }
 .pip--tl { top: 0.4rem; left: 0.45rem; }
-.pip--br { bottom: 2.4rem; right: 0.45rem; transform: rotate(180deg); }
+.pip--br { bottom: 2.6rem; right: 0.45rem; transform: rotate(180deg); }
 
 .card__name {
-  grid-row: 2;
+  position: absolute;
+  z-index: 2;
+  inset: auto 0 0;
   display: grid;
   gap: 0.05rem;
-  width: 100%;
-  padding: 0.35rem 0.2rem 0.15rem;
-  border-top: 1px solid rgb(255 255 255 / 7%);
+  padding: 0.35rem 0.3rem 0.4rem;
   text-align: center;
 }
 .card__name b {
@@ -523,13 +527,15 @@ kbd {
   font-size: clamp(0.6rem, 1.9vw, 0.76rem);
   font-weight: 600;
   letter-spacing: 0.04em;
+  text-shadow: 0 1px 4px #000;
 }
 .card__name i {
   font-style: normal;
   font-size: clamp(0.55rem, 1.6vw, 0.66rem);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--bone-3);
+  color: var(--bone-2);
+  text-shadow: 0 1px 4px #000;
 }
 
 /* Threat badge ----------------------------------------------------------- */
