@@ -18,7 +18,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import HeadlinesList from './components/HeadlinesList';
+import HeadlinesList, { ErrorState, EmptyState, Skeleton } from './components/HeadlinesList';
+import Feed, { type MoreState } from './components/Feed';
+import { MOBILE_QUERY, useMediaQuery } from './lib/useMediaQuery';
 import {
   CATEGORIES,
   PAGE_SIZE,
@@ -83,6 +85,11 @@ export default function App({ lang, onLanguageChange }: AppProps) {
   const [favIndex, setFavIndex] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  /* Phones get a swipe-through feed; everything wider keeps the single card and
+     pager. Both read from the same page cache. */
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  const [moreState, setMoreState] = useState<MoreState>('idle');
+
   /* The categories parameter for the current selection: one category, or the
      reader's pinned topics as a comma list, which TheNewsApi ORs together. */
   const categories = categoriesFor(selection, topics);
@@ -107,6 +114,7 @@ export default function App({ lang, onLanguageChange }: AppProps) {
     setIndexInPage(0);
     setError(null);
     setLoading(true);
+    setMoreState('idle');
   }, [queryKey]);
 
   /* In-flight requests, so a fast category switch cannot have a stale response
@@ -126,9 +134,10 @@ export default function App({ lang, onLanguageChange }: AppProps) {
    * `background` is a prefetch: it must never touch the spinner or the error banner.
    */
   const load = useCallback(
-    async (target: number, background: boolean) => {
+    async (target: number, background: boolean): Promise<boolean> => {
       const requestKey = `${queryKey}|${target}`;
-      if (inFlight.current.has(requestKey)) return;
+      // Already on its way. Report success: the caller will see the page land.
+      if (inFlight.current.has(requestKey)) return true;
 
       const controller = new AbortController();
       inFlight.current.set(requestKey, controller);
@@ -150,12 +159,15 @@ export default function App({ lang, onLanguageChange }: AppProps) {
         });
         setFound(response.meta.found ?? 0);
         if (!background) setError(null);
+        return true;
       } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (err instanceof DOMException && err.name === 'AbortError') return false;
         // A failed prefetch is invisible on purpose: the reader has not asked
-        // for that page yet, and there is nothing useful to say about it.
-        if (background) return;
+        // for that page yet, and there is nothing useful to say about it. The
+        // feed still needs to know, though, so it can offer a retry.
+        if (background) return false;
         setError(err instanceof NewsError ? err.message : 'Unexpected error loading articles.');
+        return false;
       } finally {
         inFlight.current.delete(requestKey);
         if (!background) setLoading(false);
@@ -203,6 +215,44 @@ export default function App({ lang, onLanguageChange }: AppProps) {
   );
 
   const article = showFavorites ? favorite : liveArticle;
+
+  /* The feed is every page loaded so far, in order, stopping at the first gap.
+     Prefetching can fill a page out of sequence on desktop; a feed with a hole
+     in it would read as articles going missing, so it only ever grows forward
+     from page 1. */
+  const feedPages = useMemo(() => {
+    let n = 0;
+    while (pages.has(n + 1)) n += 1;
+    return n;
+  }, [pages]);
+
+  const feedArticles = useMemo(() => {
+    const out: Article[] = [];
+    for (let p = 1; p <= feedPages; p += 1) out.push(...(pages.get(p) ?? []));
+    return out;
+  }, [pages, feedPages]);
+
+  /* Fetch the next page for the feed. Guarded twice: here against a second call
+     while one is running, and in load() against the same page being asked for
+     twice. The feed's own observer debounces the scroll that triggers it. */
+  const loadMore = useCallback(async () => {
+    if (moreState === 'loading' || moreState === 'end') return;
+    const next = feedPages + 1;
+    if (found > 0 && (next - 1) * PAGE_SIZE >= found) {
+      setMoreState('end');
+      return;
+    }
+    setMoreState('loading');
+    const ok = await load(next, true);
+    setMoreState(ok ? 'idle' : 'error');
+  }, [moreState, feedPages, found, load]);
+
+  /* A short last page means there is nothing after it. */
+  useEffect(() => {
+    if (feedPages === 0) return;
+    const last = pages.get(feedPages);
+    if (last && last.length < PAGE_SIZE) setMoreState('end');
+  }, [feedPages, pages]);
   const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.uuid)), [favorites]);
   const isFavorite = article ? favoriteIds.has(article.uuid) : false;
 
@@ -605,27 +655,61 @@ export default function App({ lang, onLanguageChange }: AppProps) {
           </button>
         </aside>
 
-        <main className="content">
-          <HeadlinesList
-            article={article}
-            pageArticles={showFavorites ? favPageArticles : livePageArticles}
-            page={showFavorites ? Math.floor(favIndex / PAGE_SIZE) + 1 : page}
-            indexInPage={showFavorites ? favIndex % PAGE_SIZE : indexInPage}
-            found={showFavorites ? favorites.length : found}
-            loading={showFavorites ? false : loading}
-            error={showFavorites ? null : error}
-            isFavorite={isFavorite}
-            onToggleFavorite={toggleFavorite}
-            onFirst={goFirst}
-            onPrev={goPrev}
-            onNext={goNext}
-            onSelect={select}
-            onFilterSource={showFavorites ? undefined : filterToSource}
-            activeSource={filters.domains}
-            emptyMessage={
-              showFavorites ? t('state.favEmpty') : undefined
-            }
-          />
+        <main className={`content${isMobile ? ' content--feed' : ''}`}>
+          {isMobile ? (
+            /* Phones: swipe through full-height cards. The feed renders its own
+               loader for "more", but the first page still needs the full-height
+               skeleton, and an empty or failed query still needs saying. */
+            showFavorites ? (
+              favorites.length ? (
+                <Feed
+                  articles={favorites}
+                  total={favorites.length}
+                  moreState="idle"
+                  favoriteIds={favoriteIds}
+                  onToggleFavorite={toggleFavorite}
+                />
+              ) : (
+                <EmptyState message={t('state.favEmpty')} />
+              )
+            ) : loading && feedArticles.length === 0 ? (
+              <Skeleton className="card--feed" />
+            ) : error && feedArticles.length === 0 ? (
+              <ErrorState message={error} />
+            ) : feedArticles.length === 0 ? (
+              <EmptyState message={t('state.emptyBody')} />
+            ) : (
+              <Feed
+                articles={feedArticles}
+                total={found}
+                moreState={moreState}
+                onLoadMore={loadMore}
+                favoriteIds={favoriteIds}
+                onToggleFavorite={toggleFavorite}
+                onFilterSource={filterToSource}
+                activeSource={filters.domains}
+              />
+            )
+          ) : (
+            <HeadlinesList
+              article={article}
+              pageArticles={showFavorites ? favPageArticles : livePageArticles}
+              page={showFavorites ? Math.floor(favIndex / PAGE_SIZE) + 1 : page}
+              indexInPage={showFavorites ? favIndex % PAGE_SIZE : indexInPage}
+              found={showFavorites ? favorites.length : found}
+              loading={showFavorites ? false : loading}
+              error={showFavorites ? null : error}
+              isFavorite={isFavorite}
+              onToggleFavorite={toggleFavorite}
+              onFirst={goFirst}
+              onPrev={goPrev}
+              onNext={goNext}
+              onSelect={select}
+              onFilterSource={showFavorites ? undefined : filterToSource}
+              activeSource={filters.domains}
+              emptyMessage={showFavorites ? t('state.favEmpty') : undefined}
+            />
+          )}
         </main>
       </div>
     </div>

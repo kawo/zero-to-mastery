@@ -618,6 +618,129 @@ h2 {
   }
 }
 
+/* ---------- Mobile feed -------------------------------------------------- */
+
+/* Phones swipe through full-height cards rather than paging. The feed is its own
+   scroll container so scroll-snap has something definite to snap within, and
+   its height is the viewport minus the compact header above it. */
+.feed {
+  /* Header + page padding above, page padding below. The one number to adjust
+     if the header changes height. */
+  --feed-offset: 6rem;
+
+  height: calc(100dvh - var(--feed-offset));
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y mandatory;
+  border-radius: var(--radius);
+  scrollbar-width: none;
+}
+
+.feed::-webkit-scrollbar {
+  display: none;
+}
+
+.feed__item {
+  height: 100%;
+  padding-bottom: 0.75rem;
+  scroll-snap-align: start;
+  /* Without this a hard fling sails past several stories at once, which is the
+     opposite of reading them one at a time. */
+  scroll-snap-stop: always;
+  border-radius: var(--radius);
+}
+
+.feed__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The card fills its slot in the feed instead of sizing itself.
+
+   Two classes on purpose. The phone rules further down set `.card` to a 32rem
+   minimum, and at equal specificity the later rule would win — making cards
+   taller than their snap slot on a short screen, so each one would scroll
+   internally before snapping. `.feed .card--feed` outranks `.card` wherever it
+   sits in the file. */
+.feed .card--feed {
+  height: 100%;
+  min-height: 0;
+}
+
+/* A feed card has a fixed height — it fills its snap slot — so text cannot be
+   allowed to grow without limit, or a long headline plus summary is pushed
+   off the top of the card and cut. Clamp both; the full text is one tap away
+   behind "View Full Article". */
+.feed .card--feed .card__title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
+.feed .card--feed .card__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
+.feed__end {
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  min-height: 7rem;
+  padding: 1rem 0 1.5rem;
+  scroll-snap-align: end;
+}
+
+.feed__status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.feed__status[role='alert'] {
+  flex-direction: column;
+  color: var(--danger);
+}
+
+.feed__more {
+  min-width: 10rem;
+}
+
+/* A visible loader, not just a changed button label: the reader has swiped to
+   the end and needs to see that something is coming. */
+.feed__spinner {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 2px solid rgb(255 255 255 / 18%);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* A spinning ring becomes a steady one; the text beside it still says what is
+     happening. */
+  .feed__spinner {
+    animation: none;
+    border-color: var(--accent);
+  }
+}
+
 /* ---------- Pager -------------------------------------------------------- */
 
 .pager {
@@ -731,7 +854,14 @@ h2 {
   }
 
   .header__brand {
+    flex: 1;
     gap: 0.5rem;
+    min-width: 0;
+  }
+
+  /* The title's wrapper has to be allowed to shrink too, or the ellipsis below
+     never gets the chance to apply. */
+  .header__brand > div {
     min-width: 0;
   }
 
@@ -741,9 +871,16 @@ h2 {
     font-size: 0.8rem;
   }
 
+  /* One line, and cut short with an ellipsis rather than spilling out. With
+     nowrap alone, a title longer than its box — "Lecteur d'actualités" beside
+     "Afficher les filtres" needs ~417px on a 360px phone — does not wrap and
+     does not stop: it paints straight under the filters button. The button is
+     the control, so it keeps its width and the title gives way. */
   .header h1 {
     font-size: 1rem;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .header__brand p {

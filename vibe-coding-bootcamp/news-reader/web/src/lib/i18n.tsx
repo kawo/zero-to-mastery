@@ -89,6 +89,8 @@ const en = {
   'card.save': 'Save to Favorites',
   'card.saved': 'Saved to Favorites',
   'card.unknownSource': 'Unknown source',
+  'card.imageAlt': 'Illustration for: {title}',
+  'card.imageAltFallback': 'Article illustration',
   'card.sourceFilter': 'Show only articles from {source}',
   'card.sourceActive': 'Already showing only {source}',
 
@@ -97,6 +99,13 @@ const en = {
   'state.emptyBody': 'No articles matched. Try another category or search term.',
   'state.favEmpty': 'No saved articles yet. Use “Save to Favorites” on any story.',
   'state.loading': 'Loading articles…',
+
+  'feed.label': 'Articles',
+  'feed.loadMore': 'Load more',
+  'feed.loading': 'Loading more articles…',
+  'feed.error': 'Couldn’t load more articles.',
+  'feed.retry': 'Try again',
+  'feed.end': 'You’re all caught up.',
 
   'pager.label': 'Article navigation',
   'pager.first': 'First article',
@@ -164,6 +173,8 @@ const fr: Dictionary = {
   'card.save': 'Ajouter aux favoris',
   'card.saved': 'Ajouté aux favoris',
   'card.unknownSource': 'Source inconnue',
+  'card.imageAlt': 'Illustration de : {title}',
+  'card.imageAltFallback': 'Illustration de l’article',
   'card.sourceFilter': 'N’afficher que les articles de {source}',
   'card.sourceActive': 'Seuls les articles de {source} sont affichés',
 
@@ -172,6 +183,13 @@ const fr: Dictionary = {
   'state.emptyBody': 'Aucun article trouvé. Essayez une autre catégorie ou un autre mot-clé.',
   'state.favEmpty': 'Aucun article enregistré. Utilisez « Ajouter aux favoris » sur un article.',
   'state.loading': 'Chargement des articles…',
+
+  'feed.label': 'Articles',
+  'feed.loadMore': 'Charger plus',
+  'feed.loading': 'Chargement d’autres articles…',
+  'feed.error': 'Impossible de charger plus d’articles.',
+  'feed.retry': 'Réessayer',
+  'feed.end': 'Vous êtes à jour.',
 
   'pager.label': 'Navigation entre les articles',
   'pager.first': 'Premier article',
@@ -234,6 +252,8 @@ const es: Dictionary = {
   'card.save': 'Guardar en favoritos',
   'card.saved': 'Guardado en favoritos',
   'card.unknownSource': 'Fuente desconocida',
+  'card.imageAlt': 'Ilustración de: {title}',
+  'card.imageAltFallback': 'Ilustración del artículo',
   'card.sourceFilter': 'Mostrar solo artículos de {source}',
   'card.sourceActive': 'Ya se muestran solo los de {source}',
 
@@ -242,6 +262,13 @@ const es: Dictionary = {
   'state.emptyBody': 'Ningún artículo coincide. Prueba otra categoría u otra palabra.',
   'state.favEmpty': 'Aún no hay artículos guardados. Usa «Guardar en favoritos».',
   'state.loading': 'Cargando artículos…',
+
+  'feed.label': 'Artículos',
+  'feed.loadMore': 'Cargar más',
+  'feed.loading': 'Cargando más artículos…',
+  'feed.error': 'No se pudieron cargar más artículos.',
+  'feed.retry': 'Reintentar',
+  'feed.end': 'Estás al día.',
 
   'pager.label': 'Navegación entre artículos',
   'pager.first': 'Primer artículo',
@@ -304,6 +331,8 @@ const de: Dictionary = {
   'card.save': 'Zu Favoriten hinzufügen',
   'card.saved': 'In Favoriten gespeichert',
   'card.unknownSource': 'Unbekannte Quelle',
+  'card.imageAlt': 'Illustration zu: {title}',
+  'card.imageAltFallback': 'Artikelillustration',
   'card.sourceFilter': 'Nur Artikel von {source} zeigen',
   'card.sourceActive': 'Es werden bereits nur {source} gezeigt',
 
@@ -312,6 +341,13 @@ const de: Dictionary = {
   'state.emptyBody': 'Keine Treffer. Versuchen Sie eine andere Kategorie oder ein anderes Stichwort.',
   'state.favEmpty': 'Noch nichts gespeichert. Nutzen Sie „Zu Favoriten hinzufügen“.',
   'state.loading': 'Artikel werden geladen…',
+
+  'feed.label': 'Artikel',
+  'feed.loadMore': 'Mehr laden',
+  'feed.loading': 'Weitere Artikel werden geladen…',
+  'feed.error': 'Weitere Artikel konnten nicht geladen werden.',
+  'feed.retry': 'Erneut versuchen',
+  'feed.end': 'Sie sind auf dem neuesten Stand.',
 
   'pager.label': 'Artikelnavigation',
   'pager.first': 'Erster Artikel',

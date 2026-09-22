@@ -74,7 +74,12 @@ web/
     lib/newsapi.ts    the only place that talks to the network
     lib/preferences.ts  starred topics, last selection and language
     lib/i18n.tsx      en/fr/es/de dictionaries, provider and locale formatting
-    components/HeadlinesList.tsx   featured card + pager
+    lib/useMediaQuery.ts  picks the phone or desktop reader
+    components/
+      ArticleCard.tsx   one article; shared by both readers
+      Pager.tsx         « ‹ 1 2 3 › — the keyboard-accessible pager
+      HeadlinesList.tsx desktop: one card and the pager
+      Feed.tsx          phones: swipe-through snap feed with infinite loading
 ```
 
 ## How it behaves
@@ -154,6 +159,31 @@ switches to relevance ordering the moment `search` is present, which is how a
 search for "climate" came back led by an article from 2023 while the same query
 sorted by date leads with this morning's. Category browsing already defaulted to
 date, so this makes the ordering one rule rather than two.
+
+**On a phone, swipe.** Below 54rem the single card and pager give way to a
+feed of full-height cards. Scroll-snap stops exactly on each one — with
+`scroll-snap-stop: always`, so a hard fling cannot sail past several stories —
+which keeps the one-story-at-a-time idea while using the gesture a phone is
+built for. Desktop is unchanged.
+
+More articles load as you approach the end: an `IntersectionObserver` watches the
+bottom of the feed, one full card ahead so the next is usually ready before you
+reach it. It is debounced by 150ms, because a fast fling can cross the end of
+the list for a single frame on its way somewhere else, and on a per-day quota
+that request is not free. A visible spinner shows while loading; a failed load
+offers a retry; a short final page means the end, and says so.
+
+There is always a real **Load more** button at the bottom, not only as a
+fallback for browsers without `IntersectionObserver`: scrolling is not a keyboard
+interaction, and a reader who does not scroll should not have to discover that
+they could. The feed follows the WAI-ARIA feed pattern — `role="feed"`,
+`aria-busy` while loading, and each card carrying `aria-posinset` and
+`aria-setsize` — and every card is focusable. The desktop pager remains the
+keyboard-first way through.
+
+The feed only ever grows forward from page 1 and stops at the first missing
+page. Desktop prefetching can fill a page out of order; a feed with a hole in it
+would read as articles vanishing.
 
 **Paging.** Three articles arrive per request and the reader sees one, so a
 position is `(page, indexInPage)`. The pager shows « ‹ then three numbered dots
