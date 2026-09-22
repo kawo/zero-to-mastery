@@ -121,6 +121,12 @@ header, pager and padding, so a whole article and its controls fit one screen.
   minute, and a request per keystroke would empty it in a sitting.
 - The proxy caches responses for five minutes (`CACHE_TTL_MS`) on top of the
   client's cache. The client's does not survive a reload; this one does.
+- `Ctrl+C` stops both servers and, on Windows, everything they started:
+  each child is `npm.cmd` under a shell, and the node/vite process doing the
+  work is its *grandchild*, so a plain signal would orphan it still holding the
+  port. The shutdown handler uses `taskkill /T` there. If the parent is killed
+  outright rather than signalled, nothing can run that handler — recover with
+  `Get-NetTCPConnection -LocalPort 5176,5177 -State Listen | Stop-Process -Id { $_.OwningProcess } -Force`.
 - `placeholder.png` is generated, not photographed — see the comment at the top
   of the script that made it. Articles frequently arrive with no image, and a
   broken one swaps to the placeholder exactly once so a failing fallback cannot

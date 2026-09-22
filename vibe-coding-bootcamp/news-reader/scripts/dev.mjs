@@ -71,14 +71,38 @@ function pipe(stream, prefix, toStderr = false) {
 const children = [];
 let shuttingDown = false;
 
+/**
+ * Stop one child and everything it started.
+ *
+ * On Windows each child is `npm.cmd` running under a shell (see SPAWN_SHELL),
+ * and the node/vite process doing the actual work is its grandchild. Signalling
+ * the child kills the shell and orphans the grandchild, which keeps holding
+ * 5176/5177 — so the next `npm run dev` fails with EADDRINUSE. `taskkill /T`
+ * takes the whole tree. Elsewhere a signal already reaches the process group.
+ */
+function stop(child) {
+  if (child.killed || child.exitCode !== null) return;
+  if (!isWindows) {
+    child.kill('SIGTERM');
+    return;
+  }
+  try {
+    // Detached and stdio-ignored so this cannot keep our own event loop alive.
+    spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
+      stdio: 'ignore',
+      detached: true,
+    }).unref();
+  } catch {
+    child.kill('SIGTERM'); // better than leaving it running
+  }
+}
+
 function shutdown(code = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
-  for (const child of children) {
-    if (!child.killed) child.kill('SIGTERM');
-  }
+  for (const child of children) stop(child);
   // Give them a beat to exit cleanly, then leave regardless.
-  setTimeout(() => process.exit(code), 300).unref();
+  setTimeout(() => process.exit(code), 400).unref();
 }
 
 process.on('SIGINT', () => shutdown(0));
