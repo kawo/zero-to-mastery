@@ -27,6 +27,13 @@ export interface HeadlinesListProps {
   onPrev: () => void;
   onNext: () => void;
   onSelect: (indexInPage: number) => void;
+  /**
+   * Narrow to this article's source. Omitted in the favourites view, where
+   * filtering the live feed from a saved article would be a non-sequitur.
+   */
+  onFilterSource?: (domain: string) => void;
+  /** The source currently filtered on, if any. */
+  activeSource?: string;
   /** Shown instead of the pager when the favourites list is empty. */
   emptyMessage?: string;
 }
@@ -45,6 +52,8 @@ export default function HeadlinesList({
   onPrev,
   onNext,
   onSelect,
+  onFilterSource,
+  activeSource,
   emptyMessage,
 }: HeadlinesListProps) {
   if (loading) return <Skeleton />;
@@ -90,7 +99,26 @@ export default function HeadlinesList({
 
         <div className="card__panel">
           <div className="card__meta">
-            <span className="card__source">{article.source || 'Unknown source'}</span>
+            {/* The source doubles as a filter: it is the one piece of metadata
+                a reader is likely to want more of. */}
+            {onFilterSource && article.source ? (
+              <button
+                type="button"
+                className={`card__source card__source--action${
+                  activeSource === article.source ? ' is-active' : ''
+                }`}
+                onClick={() => onFilterSource(article.source)}
+                title={
+                  activeSource === article.source
+                    ? `Already showing only ${article.source}`
+                    : `Show only articles from ${article.source}`
+                }
+              >
+                {article.source}
+              </button>
+            ) : (
+              <span className="card__source">{article.source || 'Unknown source'}</span>
+            )}
             <span aria-hidden="true">·</span>
             <time dateTime={article.published_at}>{formatDate(article.published_at)}</time>
             {article.categories?.length ? (

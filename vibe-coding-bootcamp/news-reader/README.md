@@ -101,6 +101,27 @@ quota on half-typed words, and having results rearrange under you mid-word is it
 own kind of unpleasant. A committed search shows what it matched, with a Clear
 link beside it; picking a category also clears it.
 
+**Refine by date and source.** A From/To range and a source domain narrow
+whatever is selected — a search or a category alike — and are committed on Apply
+rather than as you type. Filtering is done upstream, so a narrowed query returns
+fewer articles rather than the client discarding most of a page: tech alone finds
+~1.38M, tech since yesterday finds 443, tech from bbc.co.uk finds 1,588.
+
+The source on each card is a button: pressing it shows only that publisher.
+Paste a full URL into the source box and the domain is taken from it.
+
+Filters are part of the cache key, so they survive pagination and changing one
+starts a clean set of pages.
+
+**There is no author filter.** TheNewsApi's articles carry no author field —
+`uuid, title, description, keywords, snippet, url, image_url, language,
+published_at, source, categories, relevance_score` and nothing else. Worse, the
+endpoint *silently ignores* parameters it does not recognise: sending
+`author=someone` returns the full unfiltered 1.38M, not an error. An author
+control would look like it worked while doing nothing, so there isn't one. Every
+filter that does exist is validated on the server for the same reason — an
+unchecked value produces a query that looks filtered and is not.
+
 **Search beats category.** Typing a search sends `search=` and drops the
 category entirely; clearing it goes back to `categories=`. The rule is applied in
 the client *and* again in the proxy, so the two can never both be sent.

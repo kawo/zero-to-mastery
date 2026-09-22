@@ -335,6 +335,71 @@ h2 {
   margin-top: 0.6rem;
 }
 
+/* ---------- Filters ------------------------------------------------------ */
+
+.filters {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.filters__dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.filters__date {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.filters__date > span {
+  font-size: 0.7rem;
+  color: var(--ink-3);
+}
+
+.filters__date .field__input,
+.filters__source .field__input {
+  padding: 0.45rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+/* The native date picker indicator is black-on-dark by default. */
+.filters__date input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
+.filters__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.card__source--action {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgb(255 255 255 / 25%);
+  cursor: pointer;
+  transition: color var(--speed);
+}
+
+.card__source--action:hover {
+  color: var(--accent);
+}
+
+.card__source--action.is-active {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
 /* ---------- Buttons ------------------------------------------------------ */
 
 .btn {

@@ -23,9 +23,12 @@ import {
   CATEGORIES,
   PAGE_SIZE,
   fetchNews,
+  filterKey,
+  hasFilters,
   NewsError,
   type Article,
   type Category,
+  type Filters,
 } from './lib/newsapi';
 import {
   MAX_TOPICS,
@@ -51,6 +54,12 @@ export default function App() {
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
 
+  /* Filters are committed, like the search: a half-typed domain or date should
+     not fire a request. `draft` is what the form holds, `filters` is what is
+     being asked for. */
+  const [filterDraft, setFilterDraft] = useState<Filters>({});
+  const [filters, setFilters] = useState<Filters>({});
+
   /* ---- position ---- */
   const [page, setPage] = useState(1);
   const [indexInPage, setIndexInPage] = useState(0);
@@ -71,8 +80,10 @@ export default function App() {
      reader's pinned topics as a comma list, which TheNewsApi ORs together. */
   const categories = categoriesFor(selection, topics);
 
-  /* The committed query. Changing it resets everything downstream. */
-  const queryKey = search ? `s:${search}` : selectionKey(selection, topics);
+  /* The committed query. Changing it resets everything downstream — which is
+     what carries the filters across pagination: the cache is keyed by this, so
+     paging never loses them and changing one starts a clean set of pages. */
+  const queryKey = `${search ? `s:${search}` : selectionKey(selection, topics)}|${filterKey(filters)}`;
 
   /* Persist what they picked, so the next visit opens where they left off. */
   useEffect(() => {
@@ -118,6 +129,7 @@ export default function App() {
           page: target,
           search: search || undefined,
           categories,
+          filters,
           signal: controller.signal,
         });
 
@@ -139,7 +151,7 @@ export default function App() {
         if (!background) setLoading(false);
       }
     },
-    [queryKey, search, categories],
+    [queryKey, search, categories, filters],
   );
 
   /* Load the page being read, unless it is already cached. */
@@ -275,6 +287,33 @@ export default function App() {
     event.preventDefault();
     setShowFavorites(false);
     setSearch(searchDraft.trim());
+  };
+
+  /* ---- filters ---- */
+
+  const applyFilters = (event: React.FormEvent) => {
+    event.preventDefault();
+    setShowFavorites(false);
+    // Trim to undefined rather than '' so an empty box is absent, not blank.
+    setFilters({
+      from: filterDraft.from || undefined,
+      to: filterDraft.to || undefined,
+      domains: filterDraft.domains?.trim() || undefined,
+    });
+    setFiltersOpen(false);
+  };
+
+  const clearFilters = () => {
+    setFilterDraft({});
+    setFilters({});
+  };
+
+  /** "More from this source", from the article on screen. */
+  const filterToSource = (domain: string) => {
+    const next = { ...filters, domains: domain };
+    setFilterDraft(next);
+    setFilters(next);
+    setShowFavorites(false);
   };
 
   const clearSearch = () => {
@@ -460,6 +499,63 @@ export default function App() {
                     : `My Topics combines ${topics.join(', ')}.`}
               </p>
             </nav>
+
+            {/* Narrowing, rather than choosing. These apply on top of whatever
+                is selected above — a search or a category alike. */}
+            <form className="filters" onSubmit={applyFilters}>
+              <h2 className="field__label">Refine</h2>
+
+              <div className="filters__dates">
+                <label className="filters__date">
+                  <span>From</span>
+                  <input
+                    type="date"
+                    className="field__input"
+                    value={filterDraft.from ?? ''}
+                    max={filterDraft.to || undefined}
+                    onChange={(e) => setFilterDraft((f) => ({ ...f, from: e.target.value }))}
+                  />
+                </label>
+                <label className="filters__date">
+                  <span>To</span>
+                  <input
+                    type="date"
+                    className="field__input"
+                    value={filterDraft.to ?? ''}
+                    min={filterDraft.from || undefined}
+                    onChange={(e) => setFilterDraft((f) => ({ ...f, to: e.target.value }))}
+                  />
+                </label>
+              </div>
+
+              <label className="filters__source">
+                <span className="sr-only">Source domain</span>
+                <input
+                  type="text"
+                  className="field__input"
+                  placeholder="Source, e.g. bbc.co.uk"
+                  value={filterDraft.domains ?? ''}
+                  onChange={(e) => setFilterDraft((f) => ({ ...f, domains: e.target.value }))}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </label>
+
+              <div className="filters__actions">
+                <button type="submit" className="btn btn--sm">Apply</button>
+                {hasFilters(filters) && (
+                  <button type="button" className="linkish" onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                )}
+              </div>
+
+              <p className="field__hint">
+                {hasFilters(filters)
+                  ? 'Filters apply to searches and categories alike.'
+                  : 'Narrow by date or source. Paste a URL and the domain is taken from it.'}
+              </p>
+            </form>
           </div>
 
           <button
@@ -492,6 +588,8 @@ export default function App() {
             onPrev={goPrev}
             onNext={goNext}
             onSelect={select}
+            onFilterSource={showFavorites ? undefined : filterToSource}
+            activeSource={filters.domains}
             emptyMessage={
               showFavorites
                 ? 'No saved articles yet. Use “Save to Favorites” on any story.'

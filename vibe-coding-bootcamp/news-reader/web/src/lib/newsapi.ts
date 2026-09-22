@@ -85,8 +85,37 @@ export interface FetchNewsOptions {
    * than several separate requests.
    */
   categories?: string;
+  /** Optional filters. Validated again on the server before being forwarded. */
+  filters?: Filters;
   signal?: AbortSignal;
 }
+
+/**
+ * Filters that apply to a search and to category browsing alike.
+ *
+ * There is deliberately no author filter: TheNewsApi's articles carry no author
+ * field, and the endpoint silently ignores parameters it does not recognise, so
+ * an author control would look like it worked while changing nothing.
+ */
+export interface Filters {
+  /** YYYY-MM-DD, inclusive. */
+  from?: string;
+  /** YYYY-MM-DD, inclusive. */
+  to?: string;
+  /** One domain, or several comma separated: "bbc.co.uk,reuters.com". */
+  domains?: string;
+}
+
+export const EMPTY_FILTERS: Filters = {};
+
+export const hasFilters = (f: Filters): boolean =>
+  Boolean(f.from || f.to || f.domains);
+
+/** Stable identity for a filter set, for cache keys. */
+export const filterKey = (f: Filters): string =>
+  [f.from ? `a:${f.from}` : '', f.to ? `b:${f.to}` : '', f.domains ? `d:${f.domains}` : '']
+    .filter(Boolean)
+    .join('|');
 
 /**
  * Fetch one page of articles.
@@ -98,6 +127,7 @@ export async function fetchNews({
   page,
   search,
   categories = DEFAULT_CATEGORY,
+  filters = EMPTY_FILTERS,
   signal,
 }: FetchNewsOptions): Promise<NewsResponse> {
   const params = new URLSearchParams({ page: String(page) });
@@ -105,6 +135,10 @@ export async function fetchNews({
   const term = (search ?? '').trim();
   if (term) params.set('search', term);
   else params.set('categories', categories);
+
+  if (filters.from) params.set('published_after', filters.from);
+  if (filters.to) params.set('published_before', filters.to);
+  if (filters.domains) params.set('domains', filters.domains);
 
   const url = `/api/news/all?${params.toString()}`;
 

@@ -38,6 +38,27 @@ const SORT = 'published_at';
    that mentions X in passing". */
 const SEARCH_FIELDS = 'title';
 
+/* A calendar date, as TheNewsApi wants it. Anything else is dropped rather than
+   forwarded: the upstream ignores parameters it does not understand, so junk
+   would silently widen the query instead of failing. */
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/* Domains only: letters, digits, dots and hyphens, comma separated. A pasted
+   URL is reduced to its host rather than rejected. */
+const DOMAIN = /^[a-z0-9.-]+$/;
+
+function cleanDomains(raw) {
+  return raw
+    .split(',')
+    .map((d) => d.trim().toLowerCase()
+      .replace(/^https?:\/\//, '')   // a pasted URL
+      .replace(/^www\./, '')
+      .replace(/\/.*$/, ''))         // anything after the host
+    .filter((d) => d && DOMAIN.test(d))
+    .slice(0, 10)                     // a longer list is a mistake, not a filter
+    .join(',');
+}
+
 const CATEGORIES = new Set([
   'tech', 'general', 'science', 'sports', 'business',
   'health', 'entertainment', 'politics', 'food', 'travel',
@@ -101,6 +122,14 @@ app.get('/api/news/all', async (req, res) => {
   const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
   const requested = typeof req.query.categories === 'string' ? req.query.categories.trim() : '';
 
+  /* Optional filters. Each is validated here rather than trusted, for the same
+     reason language and limit are pinned: TheNewsApi silently ignores anything
+     it cannot parse, so an unchecked value produces a query that looks filtered
+     and is not. */
+  const after = DATE.test(String(req.query.published_after ?? '')) ? String(req.query.published_after) : '';
+  const before = DATE.test(String(req.query.published_before ?? '')) ? String(req.query.published_before) : '';
+  const domains = typeof req.query.domains === 'string' ? cleanDomains(req.query.domains) : '';
+
   const params = new URLSearchParams({
     api_token: TOKEN,
     language: LANGUAGE,
@@ -119,6 +148,10 @@ app.get('/api/news/all', async (req, res) => {
     sort: SORT,
   });
 
+  if (after) params.set('published_after', after);
+  if (before) params.set('published_before', before);
+  if (domains) params.set('domains', domains);
+
   /* The brief's rule, enforced server-side so the two can never both be sent:
      a search replaces the category filter entirely. */
   if (search) {
@@ -134,7 +167,16 @@ app.get('/api/news/all', async (req, res) => {
   }
 
   // Cache key deliberately excludes the token.
-  const key = `${search ? `s:${search}:${SEARCH_FIELDS}` : `c:${params.get('categories')}`}|p:${page}|o:${SORT}`;
+  /* Every parameter that changes the answer belongs in the key, or a filtered
+     request would be served an unfiltered response from a moment earlier. */
+  const key = [
+    search ? `s:${search}:${SEARCH_FIELDS}` : `c:${params.get('categories')}`,
+    `p:${page}`,
+    `o:${SORT}`,
+    after ? `a:${after}` : '',
+    before ? `b:${before}` : '',
+    domains ? `d:${domains}` : '',
+  ].filter(Boolean).join('|');
   const cached = cacheGet(key);
   if (cached) {
     res.set('X-Cache', 'HIT');

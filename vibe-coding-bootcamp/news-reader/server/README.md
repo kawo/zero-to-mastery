@@ -43,6 +43,9 @@ Proxies TheNewsApi `/v1/news/all`.
 | `page`       | 1-based, defaults to 1                                        |
 | `search`     | When present, the category is dropped entirely, and `search_fields=title` is added |
 | `categories` | One of the ten known categories; unknown values fall back to `tech` |
+| `published_after`  | `YYYY-MM-DD`, inclusive. Anything else is dropped |
+| `published_before` | `YYYY-MM-DD`, inclusive. Anything else is dropped |
+| `domains`    | Up to 10 comma-separated hosts. A pasted URL is reduced to its host; invalid entries are dropped |
 
 `language=en`, `limit=3` and `sort=published_at` are fixed here rather than
 accepted from the client, so a crafted request cannot widen the query and burn
@@ -55,6 +58,13 @@ present, which returns years-old articles for a current topic. Pinning
 `search_fields=title` is added alongside any `search`. Without it TheNewsApi also
 matches the description, keywords and body, so a search returns everything that
 mentions the term rather than everything about it.
+
+Filters are validated here rather than passed through, because TheNewsApi
+silently ignores parameters it cannot parse: `published_after=yesterday` does not
+fail, it returns the whole unfiltered set. Dropping a bad value server-side is
+what keeps "filtered" from quietly meaning "not filtered".
+
+There is no author filter to add — the upstream returns no author field at all.
 
 ## Caching
 
