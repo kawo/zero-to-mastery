@@ -1,0 +1,567 @@
+/* web/src/styles.css
+   ==========================================================================
+   News Reader
+   Dark surfaces on #333, panels a shade lighter than the header.
+   Mobile-first; the sidebar becomes a fixed left rail at 860px.
+   ========================================================================== */
+
+:root {
+  --bg: #333;
+  --header: #2b2b2b;
+  --panel: #3c3c3c;
+  --panel-2: #454545;
+  --line: #4e4e4e;
+
+  --ink: #f2f2f2;
+  --ink-2: #bdbdbd;
+  --ink-3: #8f8f8f;
+
+  --accent: #e8b84b;
+  --accent-ink: #1d1a12;
+  --danger: #e2766c;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 14px 34px -14px rgb(0 0 0 / 65%);
+  --shadow-lg: 0 24px 60px -20px rgb(0 0 0 / 75%);
+  --speed: 180ms;
+
+  /* Space the card must leave for the header, pager and page padding, so the
+     reader never has to scroll to reach the controls. */
+  --chrome: 15rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(90rem 50rem at 15% -10%, #3d3d3d 0%, transparent 60%),
+    linear-gradient(180deg, #363636 0%, #303030 55%, #2c2c2c 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:where(a, button, input):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Shell -------------------------------------------------------- */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  max-width: 88rem;
+  margin: 0 auto;
+  padding: 1rem;
+  gap: 1rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--header);
+  box-shadow: var(--shadow);
+}
+
+.header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header__mark {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 1rem;
+}
+
+.header h1 {
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+
+.header__brand p {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-3);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---------- Sidebar ------------------------------------------------------ */
+
+.sidebar {
+  display: none;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.sidebar.is-open {
+  display: flex;
+}
+
+.sidebar__body {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.field__label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.field__input {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #2f2f2f;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.field__input::placeholder {
+  color: var(--ink-3);
+}
+
+.field__hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.76rem;
+  color: var(--ink-3);
+}
+
+.categories ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: 0.42rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.84rem;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: background var(--speed), color var(--speed), border-color var(--speed);
+}
+
+.chip:hover:not(:disabled) {
+  background: #515151;
+  color: var(--ink);
+}
+
+.chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---------- Buttons ------------------------------------------------------ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--speed), border-color var(--speed), transform var(--speed);
+}
+
+.btn:hover {
+  background: #515151;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn--primary:hover {
+  background: #f0c661;
+}
+
+.btn--ghost {
+  background: rgb(255 255 255 / 6%);
+}
+
+.btn--ghost.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn--favorites {
+  margin-top: auto;
+  width: 100%;
+}
+
+.btn--favorites.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.header__filters-toggle {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+/* ---------- Content ------------------------------------------------------ */
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  min-height: 26rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow-lg);
+}
+
+.card__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* The overlay panel sits on top of this, so the image is darkened rather than
+     competing with the text. */
+  filter: brightness(0.62) saturate(0.9);
+}
+
+/* The overlay text panel: readable over any photograph, light or dark. */
+.card__panel {
+  position: relative;
+  padding: 1.4rem;
+  background: linear-gradient(180deg, rgb(28 28 28 / 0%) 0%, rgb(26 26 26 / 88%) 38%, rgb(22 22 22 / 97%) 100%);
+}
+
+.card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.78rem;
+  color: var(--ink-3);
+}
+
+.card__source {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.card__tag {
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: rgb(232 184 75 / 18%);
+  color: var(--accent);
+  text-transform: capitalize;
+}
+
+.card__title {
+  font-size: clamp(1.3rem, 1rem + 1.6vw, 2rem);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.card__text {
+  margin: 0.7rem 0 0;
+  max-width: 62ch;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.1rem;
+}
+
+/* ---------- Empty and error states --------------------------------------- */
+
+.state {
+  display: grid;
+  place-content: center;
+  gap: 0.5rem;
+  min-height: 26rem;
+  padding: 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.state p {
+  margin: 0;
+  max-width: 44ch;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.state--error h2 {
+  color: var(--danger);
+}
+
+/* ---------- Loading skeleton --------------------------------------------- */
+
+.card--skeleton {
+  justify-content: flex-end;
+}
+
+.skeleton__image {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, #3a3a3a 30%, #464646 50%, #3a3a3a 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton__line {
+  height: 0.85rem;
+  margin-top: 0.6rem;
+  border-radius: 6px;
+  background: linear-gradient(100deg, #4a4a4a 30%, #575757 50%, #4a4a4a 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton__line--meta {
+  width: 40%;
+  height: 0.7rem;
+}
+
+.skeleton__line--title {
+  height: 1.6rem;
+  margin-top: 0.9rem;
+}
+
+.skeleton__line.short {
+  width: 55%;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ---------- Pager -------------------------------------------------------- */
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.pager__dots {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pager__btn,
+.pager__dot {
+  display: grid;
+  place-items: center;
+  min-width: 2.6rem;
+  height: 2.6rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--speed), color var(--speed), border-color var(--speed);
+}
+
+.pager__btn:hover:not(:disabled),
+.pager__dot:hover:not(:disabled) {
+  background: #515151;
+}
+
+.pager__dot.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.pager__btn:disabled,
+.pager__dot:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---------- Desktop ------------------------------------------------------ */
+
+@media (min-width: 54rem) {
+  .app {
+    padding: 1.25rem;
+  }
+
+  .header__filters-toggle {
+    /* Filters are always visible on desktop, so the toggle has no job. */
+    display: none;
+  }
+
+  .layout {
+    grid-template-columns: 19rem minmax(0, 1fr);
+  }
+
+  .sidebar {
+    /* `.is-open` is a mobile concern; on desktop the rail is simply always there. */
+    display: flex;
+    position: sticky;
+    top: 1.25rem;
+    align-self: start;
+    max-height: calc(100dvh - 2.5rem);
+  }
+
+  .card {
+    /* Fill the viewport minus the header, pager and padding, so the whole
+       article and its controls sit on one screen. */
+    min-height: calc(100dvh - var(--chrome));
+  }
+
+  .state {
+    min-height: calc(100dvh - var(--chrome));
+  }
+
+  .card__panel {
+    padding: 1.8rem 2rem;
+  }
+}
+
+/* ---------- Mobile ------------------------------------------------------- */
+
+@media (max-width: 53.999rem) {
+  .card {
+    /* Taller on a phone so the text panel has room without the card scrolling
+       away from the pager underneath it. */
+    min-height: 32rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

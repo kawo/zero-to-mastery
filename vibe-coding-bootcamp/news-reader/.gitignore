@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Secrets — never commit a real token.
+# .env.example is tracked on purpose; every other .env variant is not.
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Logs and editor noise
+*.log
+npm-debug.log*
+.DS_Store
+.vscode/
+.idea/
