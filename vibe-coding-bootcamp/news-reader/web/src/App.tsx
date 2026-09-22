@@ -39,11 +39,18 @@ import {
   toggleTopic,
   type Selection,
 } from './lib/preferences';
+import { LANGUAGES, LANG_CODES, useI18n, type Lang } from './lib/i18n';
 import './styles.css';
 
 const FAVORITES_KEY = 'news-reader:favorites:v1';
 
-export default function App() {
+export interface AppProps {
+  lang: Lang;
+  onLanguageChange: (lang: Lang) => void;
+}
+
+export default function App({ lang, onLanguageChange }: AppProps) {
+  const { t } = useI18n();
   /* Read once. Everything after this is React state; preferences are written
      back on change rather than read again. */
   const stored = useRef(loadPreferences()).current;
@@ -83,12 +90,14 @@ export default function App() {
   /* The committed query. Changing it resets everything downstream — which is
      what carries the filters across pagination: the cache is keyed by this, so
      paging never loses them and changing one starts a clean set of pages. */
-  const queryKey = `${search ? `s:${search}` : selectionKey(selection, topics)}|${filterKey(filters)}`;
+  const queryKey = `${search ? `s:${search}` : selectionKey(selection, topics)}|${filterKey(filters)}|${lang}`;
 
-  /* Persist what they picked, so the next visit opens where they left off. */
+  /* Persist what they picked, so the next visit opens where they left off.
+     `lang` is included because this writes the whole record: omitting it would
+     reset the language every time a topic was pinned. */
   useEffect(() => {
-    savePreferences({ topics, last: selection });
-  }, [topics, selection]);
+    savePreferences({ topics, last: selection, lang });
+  }, [topics, selection, lang]);
 
   /* A new query invalidates the cache and puts the reader back at article 1. */
   useEffect(() => {
@@ -130,6 +139,7 @@ export default function App() {
           search: search || undefined,
           categories,
           filters,
+          language: lang,
           signal: controller.signal,
         });
 
@@ -151,7 +161,7 @@ export default function App() {
         if (!background) setLoading(false);
       }
     },
-    [queryKey, search, categories, filters],
+    [queryKey, search, categories, filters, lang],
   );
 
   /* Load the page being read, unless it is already cached. */
@@ -370,8 +380,8 @@ export default function App() {
             ◆
           </span>
           <div>
-            <h1>News Reader</h1>
-            <p>One story at a time</p>
+            <h1>{t('app.title')}</h1>
+            <p>{t('app.tagline')}</p>
           </div>
         </div>
 
@@ -382,7 +392,7 @@ export default function App() {
           aria-expanded={filtersOpen}
           aria-controls="filters"
         >
-          {filtersOpen ? 'Hide Filters' : 'Show Filters'}
+          {filtersOpen ? t('filters.hide') : t('filters.show')}
         </button>
       </header>
 
@@ -390,12 +400,32 @@ export default function App() {
         <aside
           id="filters"
           className={`sidebar${filtersOpen ? ' is-open' : ''}`}
-          aria-label="Filters"
+          aria-label={t('refine.label')}
         >
           <div className="sidebar__body">
+            {/* One control for both: the interface and the news it fetches. */}
+            <div className="field">
+              <label className="field__label" htmlFor="language">
+                {t('language.label')}
+              </label>
+              <select
+                id="language"
+                className="field__input"
+                value={lang}
+                onChange={(event) => onLanguageChange(event.target.value as Lang)}
+              >
+                {LANG_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {LANGUAGES[code].label}
+                  </option>
+                ))}
+              </select>
+              <p className="field__hint">{t('language.hint')}</p>
+            </div>
+
             <div className="field">
               <label className="field__label" htmlFor="search">
-                Search
+                {t('search.label')}
               </label>
               {/* A real <form>, so Enter submits for free and mobile keyboards
                   show a "Search" key instead of a newline. */}
@@ -404,31 +434,31 @@ export default function App() {
                   id="search"
                   className="field__input"
                   type="search"
-                  placeholder="Search headlines…"
+                  placeholder={t('search.placeholder')}
                   value={searchDraft}
                   onChange={(event) => setSearchDraft(event.target.value)}
                   autoComplete="off"
                 />
-                <button type="submit" className="btn btn--search" aria-label="Search headlines">
+                <button type="submit" className="btn btn--search" aria-label={t('search.submit')}>
                   <span aria-hidden="true">⏎</span>
                 </button>
               </form>
               <p className="field__hint">
                 {search ? (
                   <>
-                    Showing headlines matching <strong>{search}</strong>.{' '}
+                    {t('search.hintActive', { term: search })}{' '}
                     <button type="button" className="linkish" onClick={clearSearch}>
-                      Clear
+                      {t('search.clear')}
                     </button>
                   </>
                 ) : (
-                  'Press Enter to search headlines, or browse by category.'
+                  t('search.hintIdle')
                 )}
               </p>
             </div>
 
-            <nav className="categories" aria-label="Categories">
-              <h2 className="field__label">Categories</h2>
+            <nav className="categories" aria-label={t('categories.label')}>
+              <h2 className="field__label">{t('categories.label')}</h2>
 
               {topics.length > 0 && (
                 <button
@@ -442,7 +472,7 @@ export default function App() {
                   }
                 >
                   <span aria-hidden="true">★</span>
-                  My Topics
+                  {t('categories.myTopics')}
                   <span className="chip__count">{topics.length}</span>
                 </button>
               )}
@@ -463,7 +493,7 @@ export default function App() {
                         onClick={() => pickCategory(name)}
                         aria-current={active ? 'true' : undefined}
                       >
-                        {name}
+                        {t(`category.${name}` as Parameters<typeof t>[0])}
                       </button>
                       {/* A separate control, not a nested one: selecting a
                           category and pinning it are different intents. */}
@@ -475,15 +505,17 @@ export default function App() {
                         disabled={!pinned && atTopicCap}
                         title={
                           pinned
-                            ? `Remove ${name} from My Topics`
+                            ? t('categories.pinRemove', { name })
                             : atTopicCap
-                              ? `My Topics is full (${MAX_TOPICS} maximum)`
-                              : `Add ${name} to My Topics`
+                              ? t('categories.pinFull', { max: MAX_TOPICS })
+                              : t('categories.pinAdd', { name })
                         }
                       >
                         <span aria-hidden="true">{pinned ? '★' : '☆'}</span>
                         <span className="sr-only">
-                          {pinned ? `Remove ${name} from My Topics` : `Add ${name} to My Topics`}
+                          {pinned
+                            ? t('categories.pinRemove', { name })
+                            : t('categories.pinAdd', { name })}
                         </span>
                       </button>
                     </li>
@@ -493,21 +525,21 @@ export default function App() {
 
               <p className="field__hint">
                 {topics.length === 0
-                  ? 'Star a category to build a My Topics feed.'
+                  ? t('categories.hintEmpty')
                   : atTopicCap
-                    ? `My Topics is full — ${MAX_TOPICS} is the maximum.`
-                    : `My Topics combines ${topics.join(', ')}.`}
+                    ? t('categories.hintFull', { max: MAX_TOPICS })
+                    : t('categories.hintMix', { list: topics.join(', ') })}
               </p>
             </nav>
 
             {/* Narrowing, rather than choosing. These apply on top of whatever
                 is selected above — a search or a category alike. */}
             <form className="filters" onSubmit={applyFilters}>
-              <h2 className="field__label">Refine</h2>
+              <h2 className="field__label">{t('refine.label')}</h2>
 
               <div className="filters__dates">
                 <label className="filters__date">
-                  <span>From</span>
+                  <span>{t('refine.from')}</span>
                   <input
                     type="date"
                     className="field__input"
@@ -517,7 +549,7 @@ export default function App() {
                   />
                 </label>
                 <label className="filters__date">
-                  <span>To</span>
+                  <span>{t('refine.to')}</span>
                   <input
                     type="date"
                     className="field__input"
@@ -529,11 +561,11 @@ export default function App() {
               </div>
 
               <label className="filters__source">
-                <span className="sr-only">Source domain</span>
+                <span className="sr-only">{t('refine.source')}</span>
                 <input
                   type="text"
                   className="field__input"
-                  placeholder="Source, e.g. bbc.co.uk"
+                  placeholder={t('refine.sourcePlaceholder')}
                   value={filterDraft.domains ?? ''}
                   onChange={(e) => setFilterDraft((f) => ({ ...f, domains: e.target.value }))}
                   autoComplete="off"
@@ -542,18 +574,16 @@ export default function App() {
               </label>
 
               <div className="filters__actions">
-                <button type="submit" className="btn btn--sm">Apply</button>
+                <button type="submit" className="btn btn--sm">{t('refine.apply')}</button>
                 {hasFilters(filters) && (
                   <button type="button" className="linkish" onClick={clearFilters}>
-                    Clear filters
+                    {t('refine.clear')}
                   </button>
                 )}
               </div>
 
               <p className="field__hint">
-                {hasFilters(filters)
-                  ? 'Filters apply to searches and categories alike.'
-                  : 'Narrow by date or source. Paste a URL and the domain is taken from it.'}
+                {hasFilters(filters) ? t('refine.hintActive') : t('refine.hintIdle')}
               </p>
             </form>
           </div>
@@ -569,7 +599,9 @@ export default function App() {
             aria-pressed={showFavorites}
           >
             <span aria-hidden="true">★</span>
-            {showFavorites ? 'Back to News' : `Favorites (${favorites.length})`}
+            {showFavorites
+              ? t('favorites.back')
+              : t('favorites.open', { count: favorites.length })}
           </button>
         </aside>
 
@@ -591,9 +623,7 @@ export default function App() {
             onFilterSource={showFavorites ? undefined : filterToSource}
             activeSource={filters.domains}
             emptyMessage={
-              showFavorites
-                ? 'No saved articles yet. Use “Save to Favorites” on any story.'
-                : undefined
+              showFavorites ? t('state.favEmpty') : undefined
             }
           />
         </main>

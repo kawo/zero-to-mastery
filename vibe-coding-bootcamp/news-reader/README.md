@@ -72,7 +72,8 @@ web/
     App.tsx           query, paging, cache, prefetch, favourites
     styles.css
     lib/newsapi.ts    the only place that talks to the network
-    lib/preferences.ts  starred topics and last selection, in localStorage
+    lib/preferences.ts  starred topics, last selection and language
+    lib/i18n.tsx      en/fr/es/de dictionaries, provider and locale formatting
     components/HeadlinesList.tsx   featured card + pager
 ```
 
@@ -100,6 +101,22 @@ Enter, or on the button beside the field. Live search would spend a daily-metere
 quota on half-typed words, and having results rearrange under you mid-word is its
 own kind of unpleasant. A committed search shows what it matched, with a Clear
 link beside it; picking a category also clears it.
+
+**Four languages.** English, French, Spanish and German — one picker changes
+both the interface and the news, since TheNewsApi carries real volume in all
+four (en ~11.1M articles, es ~7.0M, de ~1.7M, fr ~1.3M). A reader who wants
+French chrome around English news is a real case but a rarer one, and two
+controls would be a worse default for everyone else. The choice is remembered,
+and a first visit follows the browser's own language.
+
+Dates are formatted for the chosen locale via `Intl`.
+
+Translations are hand-rolled rather than react-i18next: there are about fifty
+strings and no plural rules worth a formatter, and `Key` is derived from the
+English dictionary so a missing or misspelt key is a *compile error* rather than
+a string that renders as itself. If this grows ICU messages or a translator
+workflow, swapping `lib/i18n.tsx` for i18next is the right move and nothing else
+changes.
 
 **Refine by date and source.** A From/To range and a source domain narrow
 whatever is selected — a search or a category alike — and are committed on Apply

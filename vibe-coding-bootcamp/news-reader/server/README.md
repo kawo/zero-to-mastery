@@ -41,15 +41,18 @@ Proxies TheNewsApi `/v1/news/all`.
 | Query        | Notes                                                        |
 | ------------ | ------------------------------------------------------------ |
 | `page`       | 1-based, defaults to 1                                        |
+| `language`   | `en`, `fr`, `es` or `de`; anything else falls back to `en`     |
 | `search`     | When present, the category is dropped entirely, and `search_fields=title` is added |
 | `categories` | One of the ten known categories; unknown values fall back to `tech` |
 | `published_after`  | `YYYY-MM-DD`, inclusive. Anything else is dropped |
 | `published_before` | `YYYY-MM-DD`, inclusive. Anything else is dropped |
 | `domains`    | Up to 10 comma-separated hosts. A pasted URL is reduced to its host; invalid entries are dropped |
 
-`language=en`, `limit=3` and `sort=published_at` are fixed here rather than
-accepted from the client, so a crafted request cannot widen the query and burn
-the daily quota faster.
+`limit=3` and `sort=published_at` are fixed here rather than accepted from the
+client, so a crafted request cannot widen the query and burn the daily quota
+faster. `language` is now chosen by the reader — the original brief pinned it to
+English — but it is validated against the four supported values rather than
+forwarded.
 
 The sort matters: TheNewsApi orders by `relevance_score` whenever `search` is
 present, which returns years-old articles for a current topic. Pinning
@@ -78,10 +81,17 @@ reload, which the client's cache does not.
 
 | Status  | Returned as                                                       |
 | ------- | ----------------------------------------------------------------- |
-| 429     | `rate_limited` — daily request limit reached                       |
+| 402     | `quota_exhausted` — the daily limit, which is the one a free-plan user actually hits |
+| 429     | `rate_limited` — too many requests at once                         |
 | 401/403 | `auth_failed` — check `THENEWSAPI_TOKEN`                           |
 | 502     | `upstream_timeout` / `upstream_unreachable`                        |
 | 500     | `missing_token` — no token configured                              |
 
 Errors are logged without the request URL, because the request URL carries the
 token.
+
+On 402 versus 429: the original brief specified 429 for "daily request limit
+reached", but TheNewsApi answers an exhausted daily quota with
+`402 usage_limit_reached`. 429 is the per-second rate limit — a different and
+much shorter problem. Handling only 429 meant the one error a free-plan user is
+certain to meet eventually fell through to a generic "responded with 402".

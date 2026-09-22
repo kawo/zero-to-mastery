@@ -12,6 +12,7 @@
  */
 
 import { CATEGORIES, DEFAULT_CATEGORY, type Category } from './newsapi';
+import { detectLang, isLang, type Lang } from './i18n';
 
 const KEY = 'news-reader:preferences:v1';
 
@@ -26,11 +27,17 @@ export interface Preferences {
   topics: Category[];
   /** Restored on the next visit. */
   last: Selection;
+  /** Interface and content language. */
+  lang: Lang;
 }
 
+/* `lang` has no fixed default: an unset preference means "whatever the browser
+   asked for", which is the only sensible first impression for a reader who has
+   never chosen. */
 export const DEFAULTS: Preferences = {
   topics: [],
   last: { kind: 'category', category: DEFAULT_CATEGORY },
+  lang: 'en',
 };
 
 const isCategory = (value: unknown): value is Category =>
@@ -43,11 +50,12 @@ const isCategory = (value: unknown): value is Category =>
 export function loadPreferences(): Preferences {
   try {
     const raw = window.localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULTS };
+    if (!raw) return { ...DEFAULTS, lang: detectLang() };
 
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return { ...DEFAULTS };
+    if (!parsed || typeof parsed !== 'object') return { ...DEFAULTS, lang: detectLang() };
     const record = parsed as Record<string, unknown>;
+    const lang: Lang = isLang(record.lang) ? record.lang : detectLang();
 
     // Unknown or removed categories are dropped rather than sent to the API.
     const topics = Array.isArray(record.topics)
@@ -64,9 +72,9 @@ export function loadPreferences(): Preferences {
       last = { kind: 'category', category: stored.category };
     }
 
-    return { topics, last };
+    return { topics, last, lang };
   } catch {
-    return { ...DEFAULTS };
+    return { ...DEFAULTS, lang: detectLang() };
   }
 }
 

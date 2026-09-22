@@ -7,7 +7,8 @@
  */
 
 import type { Article } from '../lib/newsapi';
-import { absoluteNumber, formatDate, PAGE_SIZE } from '../lib/newsapi';
+import { absoluteNumber, PAGE_SIZE } from '../lib/newsapi';
+import { useI18n } from '../lib/i18n';
 
 const PLACEHOLDER = '/placeholder.png';
 
@@ -56,12 +57,14 @@ export default function HeadlinesList({
   activeSource,
   emptyMessage,
 }: HeadlinesListProps) {
+  const { t, formatDate } = useI18n();
+
   if (loading) return <Skeleton />;
 
   if (error) {
     return (
       <div className="state state--error" role="alert">
-        <h2>Something went wrong</h2>
+        <h2>{t('state.errorTitle')}</h2>
         <p>{error}</p>
       </div>
     );
@@ -70,8 +73,8 @@ export default function HeadlinesList({
   if (!article) {
     return (
       <div className="state" role="status">
-        <h2>Nothing to read</h2>
-        <p>{emptyMessage ?? 'No articles matched. Try another category or search term.'}</p>
+        <h2>{t('state.emptyTitle')}</h2>
+        <p>{emptyMessage ?? t('state.emptyBody')}</p>
       </div>
     );
   }
@@ -110,14 +113,14 @@ export default function HeadlinesList({
                 onClick={() => onFilterSource(article.source)}
                 title={
                   activeSource === article.source
-                    ? `Already showing only ${article.source}`
-                    : `Show only articles from ${article.source}`
+                    ? t('card.sourceActive', { source: article.source })
+                    : t('card.sourceFilter', { source: article.source })
                 }
               >
                 {article.source}
               </button>
             ) : (
-              <span className="card__source">{article.source || 'Unknown source'}</span>
+              <span className="card__source">{article.source || t('card.unknownSource')}</span>
             )}
             <span aria-hidden="true">·</span>
             <time dateTime={article.published_at}>{formatDate(article.published_at)}</time>
@@ -141,7 +144,7 @@ export default function HeadlinesList({
               target="_blank"
               rel="noopener noreferrer"
             >
-              View Full Article
+              {t('card.viewFull')}
             </a>
 
             <button
@@ -151,19 +154,19 @@ export default function HeadlinesList({
               aria-pressed={isFavorite}
             >
               <span aria-hidden="true">{isFavorite ? '★' : '☆'}</span>
-              {isFavorite ? 'Saved to Favorites' : 'Save to Favorites'}
+              {isFavorite ? t('card.saved') : t('card.save')}
             </button>
           </div>
         </div>
       </article>
 
-      <nav className="pager" aria-label="Article navigation">
+      <nav className="pager" aria-label={t('pager.label')}>
         <button
           type="button"
           className="pager__btn"
           onClick={onFirst}
           disabled={isFirst}
-          aria-label="First article"
+          aria-label={t('pager.first')}
         >
           «
         </button>
@@ -172,7 +175,7 @@ export default function HeadlinesList({
           className="pager__btn"
           onClick={onPrev}
           disabled={isFirst}
-          aria-label="Previous article"
+          aria-label={t('pager.prev')}
         >
           ‹
         </button>
@@ -190,7 +193,7 @@ export default function HeadlinesList({
                   onClick={() => onSelect(slot)}
                   disabled={!exists}
                   aria-current={active ? 'true' : undefined}
-                  aria-label={`Article ${label}`}
+                  aria-label={t('pager.article', { n: label })}
                 >
                   {label}
                 </button>
@@ -204,7 +207,7 @@ export default function HeadlinesList({
           className="pager__btn"
           onClick={onNext}
           disabled={isLast}
-          aria-label="Next article"
+          aria-label={t('pager.next')}
         >
           ›
         </button>
@@ -215,9 +218,10 @@ export default function HeadlinesList({
 
 /** Full-height placeholder shown while a new query loads. */
 function Skeleton() {
+  const { t } = useI18n();
   return (
     <div className="card card--skeleton" role="status" aria-live="polite">
-      <span className="sr-only">Loading articles…</span>
+      <span className="sr-only">{t('state.loading')}</span>
       <div className="skeleton__image" />
       <div className="card__panel">
         <div className="skeleton__line skeleton__line--meta" />

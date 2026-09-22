@@ -87,6 +87,8 @@ export interface FetchNewsOptions {
   categories?: string;
   /** Optional filters. Validated again on the server before being forwarded. */
   filters?: Filters;
+  /** Content language: 'en' | 'fr' | 'es' | 'de'. Validated on the server. */
+  language?: string;
   signal?: AbortSignal;
 }
 
@@ -128,9 +130,11 @@ export async function fetchNews({
   search,
   categories = DEFAULT_CATEGORY,
   filters = EMPTY_FILTERS,
+  language,
   signal,
 }: FetchNewsOptions): Promise<NewsResponse> {
   const params = new URLSearchParams({ page: String(page) });
+  if (language) params.set('language', language);
 
   const term = (search ?? '').trim();
   if (term) params.set('search', term);

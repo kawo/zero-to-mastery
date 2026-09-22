@@ -25,11 +25,15 @@ const PORT = Number(process.env.PORT) || 5177;
 const TOKEN = process.env.THENEWSAPI_TOKEN || '';
 const UPSTREAM = 'https://api.thenewsapi.com/v1/news/all';
 
-/* Fixed by the brief: English only, three articles per page. Sending them from
-   here rather than trusting the client means a crafted request cannot widen
-   the query and burn the daily quota faster. */
-const LANGUAGE = 'en';
+/* Three articles per page, fixed here rather than trusted from the client: a
+   crafted request cannot widen the query and burn the daily quota faster. */
 const LIMIT = 3;
+
+/* Language is no longer pinned to English as the original brief had it — the
+   app offers the four languages TheNewsApi carries real volume in. It is still
+   validated rather than forwarded: an unknown value falls back to English. */
+const LANGUAGE = 'en';
+const LANGUAGES = new Set(['en', 'fr', 'es', 'de']);
 /* published_at | relevance_score — see the note where this is used. */
 const SORT = 'published_at';
 /* Which parts of an article a search term has to match. TheNewsApi also offers
@@ -130,9 +134,12 @@ app.get('/api/news/all', async (req, res) => {
   const before = DATE.test(String(req.query.published_before ?? '')) ? String(req.query.published_before) : '';
   const domains = typeof req.query.domains === 'string' ? cleanDomains(req.query.domains) : '';
 
+  const requestedLanguage = String(req.query.language ?? '').toLowerCase();
+  const language = LANGUAGES.has(requestedLanguage) ? requestedLanguage : LANGUAGE;
+
   const params = new URLSearchParams({
     api_token: TOKEN,
-    language: LANGUAGE,
+    language,
     limit: String(LIMIT),
     page: String(page),
     /* Newest first, always.
@@ -173,6 +180,7 @@ app.get('/api/news/all', async (req, res) => {
     search ? `s:${search}:${SEARCH_FIELDS}` : `c:${params.get('categories')}`,
     `p:${page}`,
     `o:${SORT}`,
+    `l:${language}`,
     after ? `a:${after}` : '',
     before ? `b:${before}` : '',
     domains ? `d:${domains}` : '',
@@ -211,12 +219,26 @@ app.get('/api/news/all', async (req, res) => {
   }
 });
 
-/** Human-readable messages for the statuses the brief calls out. */
+/**
+ * Human-readable messages for the statuses that actually occur.
+ *
+ * Note the 402. The brief specified 429 for "daily request limit reached", but
+ * TheNewsApi answers an exhausted quota with `402 usage_limit_reached` — 429 is
+ * for hitting the per-second rate, which is a different and much shorter
+ * problem. Handling only 429 meant the one error a free-plan user is certain to
+ * see eventually fell through to the generic "responded with 402".
+ */
 function describeUpstreamError(status) {
+  if (status === 402) {
+    return {
+      error: 'quota_exhausted',
+      message: 'Daily request limit reached. TheNewsApi’s free plan allows a limited number of requests per day — the count resets tomorrow, or you can upgrade your plan.',
+    };
+  }
   if (status === 429) {
     return {
       error: 'rate_limited',
-      message: 'Daily request limit reached. TheNewsApi free plan allows a limited number of requests per day — try again tomorrow, or upgrade your plan.',
+      message: 'Too many requests at once. Wait a moment and try again.',
     };
   }
   if (status === 401 || status === 403) {
