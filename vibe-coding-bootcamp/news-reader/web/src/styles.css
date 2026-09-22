@@ -270,6 +270,71 @@ h2 {
   cursor: not-allowed;
 }
 
+/* ---------- Topics ------------------------------------------------------- */
+
+/* Selecting a category and pinning it are separate intents, so they are
+   separate controls sitting side by side rather than one nested in the other. */
+.topic {
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
+}
+
+.topic__pin {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--ink-3);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--speed), border-color var(--speed), background var(--speed);
+}
+
+.topic__pin:hover:not(:disabled) {
+  background: #515151;
+  color: var(--accent);
+}
+
+.topic__pin.is-pinned {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.topic__pin:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.chip--topics {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin-bottom: 0.6rem;
+  justify-content: center;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.chip__count {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 28%);
+  font-size: 0.75rem;
+}
+
+.chip--topics.is-active .chip__count {
+  background: rgb(0 0 0 / 18%);
+}
+
+.categories .field__hint {
+  margin-top: 0.6rem;
+}
+
 /* ---------- Buttons ------------------------------------------------------ */
 
 .btn {

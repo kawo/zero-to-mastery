@@ -21,20 +21,33 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import HeadlinesList from './components/HeadlinesList';
 import {
   CATEGORIES,
-  DEFAULT_CATEGORY,
   PAGE_SIZE,
   fetchNews,
   NewsError,
   type Article,
   type Category,
 } from './lib/newsapi';
+import {
+  MAX_TOPICS,
+  categoriesFor,
+  loadPreferences,
+  savePreferences,
+  selectionKey,
+  toggleTopic,
+  type Selection,
+} from './lib/preferences';
 import './styles.css';
 
 const FAVORITES_KEY = 'news-reader:favorites:v1';
 
 export default function App() {
+  /* Read once. Everything after this is React state; preferences are written
+     back on change rather than read again. */
+  const stored = useRef(loadPreferences()).current;
+
   /* ---- query ---- */
-  const [category, setCategory] = useState<Category>(DEFAULT_CATEGORY);
+  const [topics, setTopics] = useState<Category[]>(stored.topics);
+  const [selection, setSelection] = useState<Selection>(stored.last);
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
 
@@ -54,8 +67,17 @@ export default function App() {
   const [favIndex, setFavIndex] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  /* The categories parameter for the current selection: one category, or the
+     reader's pinned topics as a comma list, which TheNewsApi ORs together. */
+  const categories = categoriesFor(selection, topics);
+
   /* The committed query. Changing it resets everything downstream. */
-  const queryKey = search ? `s:${search}` : `c:${category}`;
+  const queryKey = search ? `s:${search}` : selectionKey(selection, topics);
+
+  /* Persist what they picked, so the next visit opens where they left off. */
+  useEffect(() => {
+    savePreferences({ topics, last: selection });
+  }, [topics, selection]);
 
   /* A new query invalidates the cache and puts the reader back at article 1. */
   useEffect(() => {
@@ -95,7 +117,7 @@ export default function App() {
         const response = await fetchNews({
           page: target,
           search: search || undefined,
-          category,
+          categories,
           signal: controller.signal,
         });
 
@@ -117,7 +139,7 @@ export default function App() {
         if (!background) setLoading(false);
       }
     },
-    [queryKey, search, category],
+    [queryKey, search, categories],
   );
 
   /* Load the page being read, unless it is already cached. */
@@ -263,13 +285,43 @@ export default function App() {
 
   /* ---- filters ---- */
 
-  const pickCategory = (next: Category) => {
+  /* Picking anything from the sidebar clears a running search: the two are
+     mutually exclusive, and leaving a search committed would make the tap look
+     like it did nothing. */
+  const choose = (next: Selection) => {
     setSearchDraft('');
     setSearch('');
-    setCategory(next);
+    setSelection(next);
     setShowFavorites(false);
     setFiltersOpen(false);
   };
+
+  const pickCategory = (next: Category) => choose({ kind: 'category', category: next });
+
+  /**
+   * Pin or unpin a topic.
+   *
+   * Unpinning the last one while reading the topic mix would leave the reader
+   * on a feed with nothing in it, so the selection falls back to the category
+   * that was just unpinned — the thing they were most recently looking at.
+   */
+  const pinTopic = (name: Category) => {
+    const next = toggleTopic(topics, name);
+    if (next === topics) return; // at the cap
+    setTopics(next);
+    if (selection.kind === 'topics' && next.length === 0) {
+      setSelection({ kind: 'category', category: name });
+    }
+  };
+
+  const atTopicCap = topics.length >= MAX_TOPICS;
+
+  /* Pinned topics first, each group otherwise in its original order, so the
+     list is predictable rather than reshuffling as things are pinned. */
+  const orderedCategories = useMemo(
+    () => [...CATEGORIES].sort((a, b) => Number(topics.includes(b)) - Number(topics.includes(a))),
+    [topics],
+  );
 
   return (
     <div className="app">
@@ -338,11 +390,34 @@ export default function App() {
 
             <nav className="categories" aria-label="Categories">
               <h2 className="field__label">Categories</h2>
+
+              {topics.length > 0 && (
+                <button
+                  type="button"
+                  className={`chip chip--topics${
+                    !search && !showFavorites && selection.kind === 'topics' ? ' is-active' : ''
+                  }`}
+                  onClick={() => choose({ kind: 'topics' })}
+                  aria-current={
+                    !search && !showFavorites && selection.kind === 'topics' ? 'true' : undefined
+                  }
+                >
+                  <span aria-hidden="true">★</span>
+                  My Topics
+                  <span className="chip__count">{topics.length}</span>
+                </button>
+              )}
+
               <ul>
-                {CATEGORIES.map((name) => {
-                  const active = !search && !showFavorites && name === category;
+                {orderedCategories.map((name) => {
+                  const active =
+                    !search
+                    && !showFavorites
+                    && selection.kind === 'category'
+                    && name === selection.category;
+                  const pinned = topics.includes(name);
                   return (
-                    <li key={name}>
+                    <li key={name} className="topic">
                       <button
                         type="button"
                         className={`chip${active ? ' is-active' : ''}`}
@@ -351,10 +426,39 @@ export default function App() {
                       >
                         {name}
                       </button>
+                      {/* A separate control, not a nested one: selecting a
+                          category and pinning it are different intents. */}
+                      <button
+                        type="button"
+                        className={`topic__pin${pinned ? ' is-pinned' : ''}`}
+                        onClick={() => pinTopic(name)}
+                        aria-pressed={pinned}
+                        disabled={!pinned && atTopicCap}
+                        title={
+                          pinned
+                            ? `Remove ${name} from My Topics`
+                            : atTopicCap
+                              ? `My Topics is full (${MAX_TOPICS} maximum)`
+                              : `Add ${name} to My Topics`
+                        }
+                      >
+                        <span aria-hidden="true">{pinned ? '★' : '☆'}</span>
+                        <span className="sr-only">
+                          {pinned ? `Remove ${name} from My Topics` : `Add ${name} to My Topics`}
+                        </span>
+                      </button>
                     </li>
                   );
                 })}
               </ul>
+
+              <p className="field__hint">
+                {topics.length === 0
+                  ? 'Star a category to build a My Topics feed.'
+                  : atTopicCap
+                    ? `My Topics is full — ${MAX_TOPICS} is the maximum.`
+                    : `My Topics combines ${topics.join(', ')}.`}
+              </p>
             </nav>
           </div>
 

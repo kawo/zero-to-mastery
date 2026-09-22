@@ -77,9 +77,14 @@ const MESSAGES: Record<number, string> = {
 
 export interface FetchNewsOptions {
   page: number;
-  /** When set, the category is not sent at all — the brief's search/category rule. */
+  /** When set, the categories are not sent at all — the brief's search/category rule. */
   search?: string;
-  category?: Category;
+  /**
+   * One category, or several as a comma list. TheNewsApi treats a list as OR,
+   * which is what makes a reader's pinned topics a single combined feed rather
+   * than several separate requests.
+   */
+  categories?: string;
   signal?: AbortSignal;
 }
 
@@ -92,14 +97,14 @@ export interface FetchNewsOptions {
 export async function fetchNews({
   page,
   search,
-  category = DEFAULT_CATEGORY,
+  categories = DEFAULT_CATEGORY,
   signal,
 }: FetchNewsOptions): Promise<NewsResponse> {
   const params = new URLSearchParams({ page: String(page) });
 
   const term = (search ?? '').trim();
   if (term) params.set('search', term);
-  else params.set('categories', category);
+  else params.set('categories', categories);
 
   const url = `/api/news/all?${params.toString()}`;
 

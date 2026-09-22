@@ -72,10 +72,28 @@ web/
     App.tsx           query, paging, cache, prefetch, favourites
     styles.css
     lib/newsapi.ts    the only place that talks to the network
+    lib/preferences.ts  starred topics and last selection, in localStorage
     components/HeadlinesList.tsx   featured card + pager
 ```
 
 ## How it behaves
+
+**My Topics.** Star up to six categories and they combine into one feed.
+TheNewsApi treats a comma list of categories as OR, so this is a single request
+rather than several stitched together — no extra quota, no interleaving.
+
+Be aware of the skew: results are sorted by date across the whole union, and the
+categories are wildly different sizes (business alone has ~5.4M articles against
+tech's ~1.4M). A mix containing business will mostly *show* business, because
+that is genuinely what was published most recently. Evening that out would mean
+one request per topic, which multiplies a daily-metered quota by the number of
+topics.
+
+**Preferences persist.** The starred topics and whatever you were last reading —
+a category, or the topic mix — are kept in `localStorage` and restored on the
+next visit. Unpinning your last topic while reading the mix drops you back to
+that category rather than onto an empty feed. The storage key is touched in one
+file, so moving this behind an account later means swapping two functions.
 
 **Searching is explicit.** Nothing happens while you type — the query runs on
 Enter, or on the button beside the field. Live search would spend a daily-metered
