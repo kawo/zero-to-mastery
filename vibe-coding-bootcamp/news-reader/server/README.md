@@ -44,8 +44,13 @@ Proxies TheNewsApi `/v1/news/all`.
 | `search`     | When present, the category is dropped entirely                |
 | `categories` | One of the ten known categories; unknown values fall back to `tech` |
 
-`language=en` and `limit=3` are fixed here rather than accepted from the client,
-so a crafted request cannot widen the query and burn the daily quota faster.
+`language=en`, `limit=3` and `sort=published_at` are fixed here rather than
+accepted from the client, so a crafted request cannot widen the query and burn
+the daily quota faster.
+
+The sort matters: TheNewsApi orders by `relevance_score` whenever `search` is
+present, which returns years-old articles for a current topic. Pinning
+`published_at` makes search and category browsing agree on newest-first.
 
 ## Caching
 

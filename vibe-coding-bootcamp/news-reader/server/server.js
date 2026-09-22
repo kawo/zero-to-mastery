@@ -30,6 +30,8 @@ const UPSTREAM = 'https://api.thenewsapi.com/v1/news/all';
    the query and burn the daily quota faster. */
 const LANGUAGE = 'en';
 const LIMIT = 3;
+/* published_at | relevance_score — see the note where this is used. */
+const SORT = 'published_at';
 
 const CATEGORIES = new Set([
   'tech', 'general', 'science', 'sports', 'business',
@@ -99,6 +101,17 @@ app.get('/api/news/all', async (req, res) => {
     language: LANGUAGE,
     limit: String(LIMIT),
     page: String(page),
+    /* Newest first, always.
+
+       TheNewsApi sorts by relevance_score as soon as `search` is present, which
+       is how a search for "climate" comes back led by an article from 2023
+       while the same query sorted by date leads with this morning's. A news
+       reader that answers a search with three-year-old stories reads as broken,
+       so recency is pinned here rather than left to the upstream default.
+
+       Category browsing already defaults to published_at, so this changes
+       nothing there — it just makes the ordering one rule instead of two. */
+    sort: SORT,
   });
 
   /* The brief's rule, enforced server-side so the two can never both be sent:
@@ -114,7 +127,7 @@ app.get('/api/news/all', async (req, res) => {
   }
 
   // Cache key deliberately excludes the token.
-  const key = `${search ? `s:${search}` : `c:${params.get('categories')}`}|p:${page}`;
+  const key = `${search ? `s:${search}` : `c:${params.get('categories')}`}|p:${page}|o:${SORT}`;
   const cached = cacheGet(key);
   if (cached) {
     res.set('X-Cache', 'HIT');

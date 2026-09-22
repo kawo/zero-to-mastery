@@ -81,6 +81,12 @@ web/
 category entirely; clearing it goes back to `categories=`. The rule is applied in
 the client *and* again in the proxy, so the two can never both be sent.
 
+**Newest first, always.** The proxy pins `sort=published_at`. TheNewsApi
+switches to relevance ordering the moment `search` is present, which is how a
+search for "climate" came back led by an article from 2023 while the same query
+sorted by date leads with this morning's. Category browsing already defaulted to
+date, so this makes the ordering one rule rather than two.
+
 **Paging.** Three articles arrive per request and the reader sees one, so a
 position is `(page, indexInPage)`. The pager shows « ‹ then three numbered dots
 carrying **absolute** article numbers — page 3 is labelled 7, 8, 9 — then ›.
