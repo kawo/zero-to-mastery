@@ -589,6 +589,43 @@ h2 {
 /* ---------- Mobile ------------------------------------------------------- */
 
 @media (max-width: 53.999rem) {
+  /* One compact line.
+
+     The desktop header stacks a title over a tagline next to a 2.4rem mark,
+     which is three rows' worth of height on a phone where the article is the
+     point. The tagline is decoration and goes; everything else shrinks until
+     the mark, the title and the filters button sit on a single row. */
+  .header {
+    padding: 0.5rem 0.7rem;
+    gap: 0.6rem;
+  }
+
+  .header__brand {
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .header__mark {
+    width: 1.85rem;
+    height: 1.85rem;
+    font-size: 0.8rem;
+  }
+
+  .header h1 {
+    font-size: 1rem;
+    white-space: nowrap;
+  }
+
+  .header__brand p {
+    display: none;
+  }
+
+  .header__filters-toggle {
+    flex: none;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.78rem;
+  }
+
   .card {
     /* Taller on a phone so the text panel has room without the card scrolling
        away from the pager underneath it. */
