@@ -32,6 +32,11 @@ const LANGUAGE = 'en';
 const LIMIT = 3;
 /* published_at | relevance_score — see the note where this is used. */
 const SORT = 'published_at';
+/* Which parts of an article a search term has to match. TheNewsApi also offers
+   description, keywords and main_text; restricting to the title is what makes a
+   search behave like "find me headlines about X" rather than "find me anything
+   that mentions X in passing". */
+const SEARCH_FIELDS = 'title';
 
 const CATEGORIES = new Set([
   'tech', 'general', 'science', 'sports', 'business',
@@ -118,6 +123,8 @@ app.get('/api/news/all', async (req, res) => {
      a search replaces the category filter entirely. */
   if (search) {
     params.set('search', search);
+    // Only meaningful alongside `search`, so it is set here rather than above.
+    params.set('search_fields', SEARCH_FIELDS);
   } else {
     const categories = requested
       .split(',')
@@ -127,7 +134,7 @@ app.get('/api/news/all', async (req, res) => {
   }
 
   // Cache key deliberately excludes the token.
-  const key = `${search ? `s:${search}` : `c:${params.get('categories')}`}|p:${page}|o:${SORT}`;
+  const key = `${search ? `s:${search}:${SEARCH_FIELDS}` : `c:${params.get('categories')}`}|p:${page}|o:${SORT}`;
   const cached = cacheGet(key);
   if (cached) {
     res.set('X-Cache', 'HIT');

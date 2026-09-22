@@ -300,7 +300,7 @@ export default function App() {
                 id="search"
                 className="field__input"
                 type="search"
-                placeholder="Search all news…"
+                placeholder="Search headlines…"
                 value={searchDraft}
                 onChange={(event) => {
                   setSearchDraft(event.target.value);
@@ -310,7 +310,7 @@ export default function App() {
               />
               <p className="field__hint">
                 {search
-                  ? 'Searching across every category.'
+                  ? 'Matching headlines only, across every category.'
                   : 'Leave empty to browse by category.'}
               </p>
             </div>

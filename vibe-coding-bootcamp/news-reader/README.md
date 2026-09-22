@@ -81,6 +81,12 @@ web/
 category entirely; clearing it goes back to `categories=`. The rule is applied in
 the client *and* again in the proxy, so the two can never both be sent.
 
+**Search matches headlines only.** The proxy pins `search_fields=title`.
+TheNewsApi otherwise searches the description, keywords and body too, which turns
+a search for "climate" into every article that mentions it in passing — matches
+drop from ~463,000 to ~44,000 once the title is the only field, and the results
+are about the thing you asked for rather than merely adjacent to it.
+
 **Newest first, always.** The proxy pins `sort=published_at`. TheNewsApi
 switches to relevance ordering the moment `search` is present, which is how a
 search for "climate" came back led by an article from 2023 while the same query
