@@ -185,10 +185,50 @@ h2 {
   color: var(--ink-3);
 }
 
+.field__search {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.field__search .field__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn--search {
+  flex: none;
+  padding: 0 0.85rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .field__hint {
   margin: 0.45rem 0 0;
   font-size: 0.76rem;
   color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.field__hint strong {
+  color: var(--ink-2);
+}
+
+/* A button that reads as a link: the action is secondary, but it must still be
+   a button, because it acts on this page rather than going anywhere. */
+.linkish {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.linkish:hover {
+  color: #f0c661;
 }
 
 .categories ul {

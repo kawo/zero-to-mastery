@@ -77,6 +77,12 @@ web/
 
 ## How it behaves
 
+**Searching is explicit.** Nothing happens while you type — the query runs on
+Enter, or on the button beside the field. Live search would spend a daily-metered
+quota on half-typed words, and having results rearrange under you mid-word is its
+own kind of unpleasant. A committed search shows what it matched, with a Clear
+link beside it; picking a category also clears it.
+
 **Search beats category.** Typing a search sends `search=` and drops the
 category entirely; clearing it goes back to `categories=`. The rule is applied in
 the client *and* again in the proxy, so the two can never both be sent.
@@ -129,8 +135,6 @@ header, pager and padding, so a whole article and its controls fit one screen.
 
 - **Node 18+.** The brief said 16, but the proxy uses the global `fetch` and
   `AbortSignal.timeout`, and Node 16 went end-of-life in September 2023.
-- Searching is debounced by 400ms. The free plan is metered per day, not per
-  minute, and a request per keystroke would empty it in a sitting.
 - The proxy caches responses for five minutes (`CACHE_TTL_MS`) on top of the
   client's cache. The client's does not survive a reload; this one does.
 - `Ctrl+C` stops both servers and, on Windows, everything they started:

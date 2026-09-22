@@ -31,7 +31,6 @@ import {
 import './styles.css';
 
 const FAVORITES_KEY = 'news-reader:favorites:v1';
-const SEARCH_DEBOUNCE_MS = 400;
 
 export default function App() {
   /* ---- query ---- */
@@ -57,13 +56,6 @@ export default function App() {
 
   /* The committed query. Changing it resets everything downstream. */
   const queryKey = search ? `s:${search}` : `c:${category}`;
-
-  /* Debounce typing so a search does not fire a request per keystroke — the
-     free plan is metered per day, not per minute. */
-  useEffect(() => {
-    const id = window.setTimeout(() => setSearch(searchDraft.trim()), SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(id);
-  }, [searchDraft]);
 
   /* A new query invalidates the cache and puts the reader back at article 1. */
   useEffect(() => {
@@ -251,6 +243,24 @@ export default function App() {
     [showFavorites, favIndex, favorites.length, livePageArticles.length],
   );
 
+  /* ---- search ---- */
+
+  /* Searching is deliberate rather than live. Typing no longer queries: a
+     request per keystroke spends a daily-metered quota on half-typed words, and
+     results rearranging under the reader mid-word is its own kind of unpleasant.
+     Enter (or the button) commits; nothing else does. */
+  const submitSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+    setShowFavorites(false);
+    setSearch(searchDraft.trim());
+  };
+
+  const clearSearch = () => {
+    setSearchDraft('');
+    setSearch('');
+    setShowFavorites(false);
+  };
+
   /* ---- filters ---- */
 
   const pickCategory = (next: Category) => {
@@ -296,22 +306,33 @@ export default function App() {
               <label className="field__label" htmlFor="search">
                 Search
               </label>
-              <input
-                id="search"
-                className="field__input"
-                type="search"
-                placeholder="Search headlines…"
-                value={searchDraft}
-                onChange={(event) => {
-                  setSearchDraft(event.target.value);
-                  setShowFavorites(false);
-                }}
-                autoComplete="off"
-              />
+              {/* A real <form>, so Enter submits for free and mobile keyboards
+                  show a "Search" key instead of a newline. */}
+              <form className="field__search" onSubmit={submitSearch} role="search">
+                <input
+                  id="search"
+                  className="field__input"
+                  type="search"
+                  placeholder="Search headlines…"
+                  value={searchDraft}
+                  onChange={(event) => setSearchDraft(event.target.value)}
+                  autoComplete="off"
+                />
+                <button type="submit" className="btn btn--search" aria-label="Search headlines">
+                  <span aria-hidden="true">⏎</span>
+                </button>
+              </form>
               <p className="field__hint">
-                {search
-                  ? 'Matching headlines only, across every category.'
-                  : 'Leave empty to browse by category.'}
+                {search ? (
+                  <>
+                    Showing headlines matching <strong>{search}</strong>.{' '}
+                    <button type="button" className="linkish" onClick={clearSearch}>
+                      Clear
+                    </button>
+                  </>
+                ) : (
+                  'Press Enter to search headlines, or browse by category.'
+                )}
               </p>
             </div>
 
@@ -327,7 +348,6 @@ export default function App() {
                         className={`chip${active ? ' is-active' : ''}`}
                         onClick={() => pickCategory(name)}
                         aria-current={active ? 'true' : undefined}
-                        disabled={Boolean(search)}
                       >
                         {name}
                       </button>
