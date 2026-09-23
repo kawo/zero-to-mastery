@@ -12,6 +12,9 @@ import { api, ApiError, queryKeys } from '@/lib/api';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { cn } from '@/lib/utils';
 
+/** Categories shown on phones before "More" (about two rows at 360-400px) */
+const CHIPS_ON_PHONE = 5;
+
 const chipClass = (active: boolean) =>
   cn(
     'shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground',
@@ -29,6 +32,7 @@ export default function Home() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [surprising, setSurprising] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   useDocumentTitle(query ? `"${query}"` : category || undefined);
 
@@ -62,7 +66,10 @@ export default function Home() {
     }
   };
 
-  const heading = query ? `Results for "${query}"` : category ? `${category} recipes` : 'Recipes to try';
+  // Chips past the phone limit, not counting the selected one (always shown)
+  const hiddenOnPhone = (categories.data ?? []).filter((item, index) => index >= CHIPS_ON_PHONE && item.name !== category).length;
+
+  const heading = query ?`Results for "${query}"` : category ? `${category} recipes` : 'Recipes to try';
   const count = results.data?.length ?? 0;
 
   return (
@@ -102,23 +109,38 @@ export default function Home() {
             </Button>
           </p>
         ) : (
-          // Scrolls sideways on small screens instead of wrapping onto many rows
-          <div role="group" aria-label="Filter by category" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:px-0">
+          // On phones only the first few chips show, plus a More toggle; the
+          // selected category is always shown. Wider screens show them all.
+          <div id="category-chips" role="group" aria-label="Filter by category" className="flex flex-wrap gap-2">
             <button type="button" className={chipClass(!category)} aria-pressed={!category} onClick={() => pickCategory('')}>
               All
             </button>
-            {categories.data?.map(item => (
+            {categories.data?.map((item, index) => {
+              const collapsed = !showAllCategories && index >= CHIPS_ON_PHONE && item.name !== category;
+              return (
+                <button
+                  key={item.name}
+                  type="button"
+                  className={cn(chipClass(item.name === category), collapsed && 'hidden sm:inline-block')}
+                  aria-pressed={item.name === category}
+                  onClick={() => pickCategory(item.name)}
+                  title={item.description ? item.description.slice(0, 160) : undefined}
+                >
+                  {item.name}
+                </button>
+              );
+            })}
+            {hiddenOnPhone > 0 && (
               <button
-                key={item.name}
                 type="button"
-                className={chipClass(item.name === category)}
-                aria-pressed={item.name === category}
-                onClick={() => pickCategory(item.name)}
-                title={item.description ? item.description.slice(0, 160) : undefined}
+                className={cn(chipClass(false), 'border-dashed text-muted-foreground sm:hidden')}
+                aria-expanded={showAllCategories}
+                aria-controls="category-chips"
+                onClick={() => setShowAllCategories(value => !value)}
               >
-                {item.name}
+                {showAllCategories ? 'Fewer' : `More (${hiddenOnPhone})`}
               </button>
-            ))}
+            )}
           </div>
         )}
       </section>
