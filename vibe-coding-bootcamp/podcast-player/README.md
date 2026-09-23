@@ -1,35 +1,43 @@
 # Podcast Player
 
-This project is a podcast player built using the Podcast Index API and a Node.js server, deployed on Render. The player allows users to search for podcasts, browse episodes, and play audio directly in the browser.
+A podcast player that runs in the browser. It uses the [Podcast Index API](https://podcastindex.org/) for search and a small Node.js/Express server. You can search for podcasts, subscribe to their RSS feeds, stream or download episodes for offline listening, and control playback from your lock screen. It can be installed as a Progressive Web App.
 
 ## Features
 
-- **Search Podcasts:** Find podcasts by title, author, or keyword using the Podcast Index API.
-- **Browse Episodes:** View episodes of selected podcasts with details like title, description, and duration.
-- **Audio Playback:** Listen to podcast episodes directly within the app with controls to play, pause, and skip.
-- **Persistent State:** Save and load playback state, including the current episode, progress, and queue, using local storage.
-- **Favorites:** Mark podcasts as favorites; favorites are saved in local storage and shown on app startup.
-- **Progressive Web App (PWA):** Installable on supported devices for offline use.
-- **Lazy Loading:** Efficiently loads podcast images and episode details as you scroll.
+- **Search:** find podcasts by title, author or keyword through Podcast Index. Your past searches are kept in a dropdown.
+- **Library:** your subscriptions, shown when the app opens. There are three ways to subscribe:
+  - click the ★ on a search result
+  - paste an RSS or Atom feed URL (`feed://` links and URLs without a scheme also work)
+  - import an OPML file from another podcast app
 
-## Installation
+  Click a podcast to see its episodes, 50 at a time. Feeds not checked in the last hour refresh when you open the Library. **Refresh all** re-checks every feed, and **Export OPML** saves your subscriptions to move them elsewhere.
+- **Offline downloads:** download any episode from its card and follow its progress. You can pause, resume and delete downloads, and the **Downloads** view lists them all. An interrupted download picks up from the last saved byte instead of starting over. Downloaded episodes play without a connection.
+- **Playback:** play and pause, skip 15 seconds, click the progress bar to seek, and build a queue.
+- **Lock-screen and media-key controls:** the episode title, podcast and artwork appear on the lock screen and in the system media controls. Play, pause, seek and headset or keyboard media keys all work. Starting an episode in one tab pauses any other tab.
+- **Picks up where you left off:** the current episode, your position and your queue are restored when you come back.
+- **Installable (PWA):** the app files are cached, so the app opens offline, and so do your Library and Downloads.
 
-1. Clone the repository:
+Private feeds (Patreon, Supercast and similar) work when the feed URL contains an access token, which is how those services usually provide them. Feeds that ask for a username and password aren't supported. The app shows an error saying the feed needs a login.
+
+## Getting started
+
+Requires **Node.js 18 or later**.
+
+1. Clone the repository and go to the project folder:
    ```bash
-   git clone https://github.com/JacintoDesign/podcast-player.git
+   git clone https://github.com/kawo/zero-to-mastery.git
+   cd zero-to-mastery/vibe-coding-bootcamp/podcast-player
    ```
 
-2. Navigation to the project directory:
-   ```bash
-   cd podcast-player
-   ```
-
-3. Install dependencies
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-4. Sign up for your own API Key & Secret at Podcast Index, then create your own .env file in the root folder and add the following:
+3. Get a free API key and secret from [Podcast Index](https://api.podcastindex.org/), then create a `.env` file from the example and fill it in:
+   ```bash
+   cp .env.example .env
+   ```
    ```bash
    AUTH_KEY='your_api_key'
    SECRET_KEY='your_api_secret'
@@ -37,43 +45,80 @@ This project is a podcast player built using the Podcast Index API and a Node.js
    API_ENDPOINT='https://api.podcastindex.org/api/1.0'
    ```
 
-## Usage
-
-1. Start the server:
+4. Start the server:
    ```bash
    npm start
    ```
 
-The app will be available at http://localhost:3000.
+The app runs at http://localhost:3000. Set `PORT` to use a different port.
+
+The service worker checks the network first, so a normal reload picks up code changes. If you ran an older copy of the app on the same address, reload once so the new service worker takes over.
+
+## Project structure
+
+```
+server.js                 Express server: serves public/ and the API routes below
+public/
+  index.html              Page layout
+  style.css               Styles, including the phone/tablet layout (under 1025px)
+  script.js               Main UI: search, cards, Library views, player, queue, Media Session
+  subscriptions.js        Library: feed fetching and RSS/Atom parsing, OPML, IndexedDB storage
+  downloads.js            Offline downloads: chunked, resumable storage in IndexedDB
+  service-worker.js       Caches the app files so it opens offline
+  manifest.json           PWA manifest
+```
+
+## Server routes
+
+| Route | Purpose |
+|---|---|
+| `GET /api/search?q=` | Search Podcast Index |
+| `GET /api/episodes?feedId=&max=` | Episodes for a podcast, by iTunes ID |
+| `GET /api/podcast?itunesId=` | Podcast details (including its feed URL), by iTunes ID |
+| `GET /api/feed?url=` | Fetches an RSS/Atom feed and returns it as text for the browser to parse |
+| `GET /api/audio?url=` | Streams episode audio for downloads and passes `Range` headers through for resuming |
+
+The browser can't fetch feeds and audio directly, because most podcast hosts don't allow cross-origin requests. So `/api/feed` and `/api/audio` fetch them on its behalf. Because these routes fetch any URL they're given, they:
+- only connect to public addresses, checked when the connection is made and again after every redirect
+- only pass audio through (`/api/audio`)
+- limit feeds to 50 MB and 20 seconds (`/api/feed`)
+- never log feed URLs, since private ones contain access tokens
+
+## Where data is stored
+
+Everything is stored in the browser. There are no user accounts and no server-side database.
+
+| What | Where |
+|---|---|
+| Library (subscriptions and their episodes) | IndexedDB `podcast-library` |
+| Downloaded audio | IndexedDB `podcast-downloads`, in 1 MB chunks |
+| Queue, current episode and position, search history | localStorage |
+
+Favorites from older versions of the app are moved into the Library automatically.
 
 ## Deployment
 
-The project is deployed on Render. To deploy your own version:
+The project can be deployed on [Render](https://render.com/) or any host that runs Node.js:
 
-1. **Fork the repository** and connect it to your Render account.
-2. **Set up environment variables** on Render with your API key and secret.
-3. **Deploy the project** using Render's deployment tools.
+1. Connect the repository to your Render account. Set the root directory to `vibe-coding-bootcamp/podcast-player`.
+2. Add the environment variables from `.env` in Render's dashboard.
+3. Use `npm install` as the build command and `npm start` as the start command.
 
-## Functionality
+Downloads and feed refreshes pass through your server. A 50 MB episode means 50 MB in and 50 MB out, so check your host's bandwidth limits.
 
-- **Search:** Enter a keyword to search for podcasts.
-- **Browse:** Click on a podcast to view its episodes.
-- **Play:** Select an episode to start listening.
-- **Queue:** Manage your episode queue and save your progress.
-- **Favorites:** Click the star on a podcast card to add/remove it from your favorites. Favorited podcasts appear in the main list when you open the app.
+## Technologies used
 
-## Technologies Used
-
-- **Node.js:** Backend server
-- **Express:** Web framework for Node.js
-- **Podcast Index API:** Podcast search and episode retrieval
-- **Render:** Deployment platform
-- **JavaScript:** Frontend functionality
-- **HTML & CSS:** User interface
-- **Local Storage:** Persistent state management
+- **Node.js and Express:** server and API routes
+- **Podcast Index API:** podcast search and episode lookup
+- **Vanilla JavaScript, HTML and CSS:** the interface, with no framework and no build step
+- **IndexedDB and localStorage:** the Library, downloads and playback state
+- **Service Worker and Web App Manifest:** installable app that opens offline
+- **Media Session API:** lock-screen and media-key controls
+- **Font Awesome:** icons
 
 ## Acknowledgements
 
+- Forked from [JacintoDesign/podcast-player](https://github.com/JacintoDesign/podcast-player).
 - [Podcast Index](https://podcastindex.org/) for providing the podcast data.
 - [Render](https://render.com/) for hosting and deployment.
-- [Podcast Icon](https://www.flaticon.com/free-icons/podcast) Podcast icons created by Flat Icons - Flaticon
+- [Podcast Icon](https://www.flaticon.com/free-icons/podcast): podcast icons created by Flat Icons - Flaticon.

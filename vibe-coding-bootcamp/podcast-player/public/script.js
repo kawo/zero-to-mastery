@@ -2,62 +2,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchInput');
     const searchButton = document.getElementById('searchButton');
     const resetButton = document.getElementById('resetButton');
-    const favoritesButton = document.getElementById('favoritesButton');
     const downloadsButton = document.getElementById('downloadsButton');
+    const libraryButton = document.getElementById('libraryButton');
     const searchHistory = document.getElementById('searchHistory');
     const loader = document.getElementById('loader');
     const responseContainer = document.getElementById('response');
     const queueContainer = document.querySelector('.queue');
 
-    // Favorites ---------------------------------- //
-    let favoritePodcasts = [];
-
-    function getFavoritesFromStorage() {
+    // Favorites -> Library ------------------------ //
+    // Favorites used to be a separate list in localStorage; they now live in
+    // the Library as subscriptions. This moves any that are left, and keeps the
+    // ones that can't be moved yet (offline, feed down) to retry next visit.
+    // Returns how many were moved.
+    async function migrateFavorites() {
+        let favorites;
         try {
-            return JSON.parse(localStorage.getItem('favoritePodcasts')) || [];
-        } catch (e) {
-            return [];
+            favorites = JSON.parse(localStorage.getItem('favoritePodcasts')) || [];
+        } catch (error) {
+            favorites = [];
         }
-    }
 
-    function saveFavoritesToStorage() {
-        localStorage.setItem('favoritePodcasts', JSON.stringify(favoritePodcasts));
-    }
-
-    function isFavorited(podcast) {
-        return favoritePodcasts.some(p => p.itunesId === podcast.itunesId);
-    }
-
-    function toggleFavorite(podcast, iconEl) {
-        if (isFavorited(podcast)) {
-            favoritePodcasts = favoritePodcasts.filter(p => p.itunesId !== podcast.itunesId);
-            if (iconEl) {
-                iconEl.classList.remove('fas', 'favorited');
-                iconEl.classList.add('far');
+        const remaining = [];
+        for (const favorite of favorites) {
+            try {
+                // Favorites saved before subscriptions existed have no feed URL
+                let feedUrl = favorite.url;
+                if (!feedUrl) {
+                    const response = await fetch(`/api/podcast?itunesId=${encodeURIComponent(favorite.itunesId)}`);
+                    if (!response.ok) throw new Error(`Podcast lookup failed (${response.status})`);
+                    const data = await response.json();
+                    feedUrl = data.feed && data.feed.url;
+                    if (!feedUrl) throw new Error('Podcast Index has no feed for it');
+                }
+                await Subscriptions.subscribe(feedUrl);
+            } catch (error) {
+                console.error(`Could not move favorite "${favorite.title}" to the Library:`, error);
+                remaining.push(favorite);
             }
+        }
+
+        if (remaining.length) {
+            localStorage.setItem('favoritePodcasts', JSON.stringify(remaining));
         } else {
-            const toSave = {
-                itunesId: podcast.itunesId,
-                image: podcast.image,
-                title: podcast.title,
-                description: podcast.description,
-                episodeCount: podcast.episodeCount,
-                newestItemPubdate: podcast.newestItemPubdate
-            };
-            favoritePodcasts.push(toSave);
-            if (iconEl) {
-                iconEl.classList.remove('far');
-                iconEl.classList.add('fas', 'favorited');
-            }
+            localStorage.removeItem('favoritePodcasts');
         }
-        saveFavoritesToStorage();
-
-        // If viewing favorites list, remove card on unfavorite
-        if (responseContainer.dataset.view === 'favorites' && !isFavorited(podcast)) {
-            const cardEl = iconEl?.closest('.card');
-            if (cardEl) cardEl.remove();
-            if (favoritePodcasts.length === 0) loadFavoritesIntoMainList();
-        }
+        return favorites.length - remaining.length;
     }
 
     // Reset Dropdown & Input
@@ -128,6 +117,50 @@ document.addEventListener('DOMContentLoaded', () => {
         return date.toLocaleDateString();
     }
 
+    // Episode descriptions are HTML written by whoever runs the feed, so only
+    // simple formatting survives, and links can only point at web pages
+    const ALLOWED_TAGS = new Set(['P', 'BR', 'A', 'B', 'STRONG', 'I', 'EM', 'UL', 'OL', 'LI']);
+    const DROPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'TEMPLATE', 'NOSCRIPT']);
+
+    function sanitizeHtml(html) {
+        // A parsed document is inert: nothing in it runs or loads
+        const doc = new DOMParser().parseFromString(String(html), 'text/html');
+        const fragment = document.createDocumentFragment();
+
+        const copyChildren = (source, target) => {
+            source.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    target.appendChild(document.createTextNode(node.textContent));
+                    return;
+                }
+                if (node.nodeType !== Node.ELEMENT_NODE || DROPPED_TAGS.has(node.tagName)) return;
+                if (!ALLOWED_TAGS.has(node.tagName)) {
+                    copyChildren(node, target);
+                    return;
+                }
+                const el = document.createElement(node.tagName.toLowerCase());
+                if (node.tagName === 'A') {
+                    const href = node.getAttribute('href');
+                    try {
+                        const url = new URL(href, location.href);
+                        if (url.protocol === 'http:' || url.protocol === 'https:') {
+                            el.href = url.href;
+                            el.target = '_blank';
+                            el.rel = 'noopener noreferrer';
+                        }
+                    } catch (error) {
+                        // Leave the link text without a link
+                    }
+                }
+                target.appendChild(el);
+                copyChildren(node, el);
+            });
+        };
+
+        copyChildren(doc.body, fragment);
+        return fragment;
+    }
+
     // Show loading animation
     function showLoader() {
         loader.style.display = 'flex';
@@ -149,6 +182,15 @@ document.addEventListener('DOMContentLoaded', () => {
         img.src = fallbackImage;
         return img;
     }
+
+    // Any card image that fails to load (common with feed artwork) falls back
+    // to the default. Error events don't bubble, so this listens in the capture phase
+    responseContainer.addEventListener('error', event => {
+        const img = event.target;
+        if (img.tagName === 'IMG' && img.getAttribute('src') && !img.src.endsWith('/default-podcast.png')) {
+            handleFallbackImage(img);
+        }
+    }, true);
 
     // Set up to load podcast / episode images
     function handleImageLoad(limit) {
@@ -262,25 +304,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = document.createElement('div');
         content.className = 'card-content';
     
-        // Header with title and favorite star
+        // Header with title and Library star
         const header = document.createElement('div');
         header.className = 'card-header';
 
         const title = document.createElement('h3');
         title.innerText = podcast.title;
 
-        const favBtnIcon = document.createElement('i');
-        const favored = isFavorited(podcast);
-        favBtnIcon.className = `${favored ? 'fas favorited' : 'far'} fa-star favorite-icon`;
-        favBtnIcon.title = favored ? 'Remove Favorite' : 'Add Favorite';
-        favBtnIcon.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleFavorite(podcast, favBtnIcon);
-            favBtnIcon.title = isFavorited(podcast) ? 'Remove Favorite' : 'Add Favorite';
-        });
-
         header.appendChild(title);
-        header.appendChild(favBtnIcon);
+        if (podcast.url) header.appendChild(createLibraryStar(podcast.url));
     
         const description = document.createElement('p');
         description.innerText = podcast.description;
@@ -305,34 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
         return card;
     }
-
-    // Load Favorites into main list (on startup and from the Favorites button)
-    function loadFavoritesIntoMainList() {
-        favoritePodcasts = getFavoritesFromStorage();
-        responseContainer.textContent = '';
-        responseContainer.dataset.view = 'favorites';
-        loader.style.display = 'none';
-        // If we didn't show loader, ensure container is visible
-        responseContainer.style.display = 'flex';
-
-        if (favoritePodcasts.length === 0) {
-            responseContainer.innerText = 'No favorites yet. Search for a podcast and click its star to add it here.';
-            return;
-        }
-
-        favoritePodcasts.forEach((podcast, index) => {
-            const card = createCard(podcast);
-            responseContainer.appendChild(card);
-            if (index >= 25) {
-                const imgEl = card.querySelector('img');
-                imgEl.dataset.src = imgEl.src;
-                imgEl.src = '';
-            }
-        });
-        handleImageLoad(25);
-    }
-
-    favoritesButton.addEventListener('click', loadFavoritesIntoMainList);
 
     // Downloads ------------------------------------ //
     function downloadPercent(record) {
@@ -496,6 +500,312 @@ document.addEventListener('DOMContentLoaded', () => {
 
     downloadsButton.addEventListener('click', showDownloads);
 
+    // Library (subscriptions) ---------------------- //
+    const EPISODES_PER_PAGE = 50;
+
+    function showView(view) {
+        responseContainer.textContent = '';
+        responseContainer.dataset.view = view;
+        loader.style.display = 'none';
+        responseContainer.style.display = 'flex';
+        responseContainer.scrollTo({ top: 0 });
+    }
+
+    function makeButton(label, onClick, className = '') {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        if (className) button.className = className;
+        button.addEventListener('click', onClick);
+        return button;
+    }
+
+    function setLibraryMessage(text, isError = false) {
+        const message = responseContainer.querySelector('.library-message');
+        if (!message) return;
+        message.textContent = text;
+        message.classList.toggle('error', isError);
+    }
+
+    // The star on search results adds the podcast's feed to the Library
+    function createLibraryStar(feedUrl) {
+        let url;
+        try {
+            url = Subscriptions.normalizeUrl(feedUrl);
+        } catch (error) {
+            return document.createTextNode('');
+        }
+        const icon = document.createElement('i');
+        const render = subscribed => {
+            icon.className = `${subscribed ? 'fas favorited' : 'far'} fa-star favorite-icon`;
+            icon.title = subscribed ? 'Remove from Library' : 'Add to Library';
+            icon.dataset.subscribed = subscribed ? 'true' : '';
+        };
+        render(false);
+        Subscriptions.get(url).then(feed => render(Boolean(feed))).catch(() => {});
+
+        icon.addEventListener('click', async event => {
+            event.stopPropagation();
+            if (icon.classList.contains('busy')) return;
+            icon.classList.add('busy');
+            try {
+                if (icon.dataset.subscribed) {
+                    await Subscriptions.unsubscribe(url);
+                    render(false);
+                } else {
+                    await Subscriptions.subscribe(url);
+                    render(true);
+                }
+            } catch (error) {
+                alert(`Could not update your Library: ${error.message}`);
+            } finally {
+                icon.classList.remove('busy');
+            }
+        });
+        return icon;
+    }
+
+    function createFeedCard(feed) {
+        const card = document.createElement('div');
+        card.className = 'card pointer';
+
+        const img = document.createElement('img');
+        img.src = feed.image || './default-podcast.png';
+        img.alt = feed.title;
+
+        const content = document.createElement('div');
+        content.className = 'card-content';
+
+        const header = document.createElement('div');
+        header.className = 'card-header';
+
+        const title = document.createElement('h3');
+        title.innerText = feed.title;
+
+        const removeIcon = document.createElement('i');
+        removeIcon.className = 'fas fa-trash-alt favorite-icon';
+        removeIcon.title = 'Unsubscribe';
+        removeIcon.addEventListener('click', async event => {
+            event.stopPropagation();
+            if (!confirm(`Unsubscribe from "${feed.title}"?`)) return;
+            try {
+                await Subscriptions.unsubscribe(feed.url);
+                card.remove();
+                if (!responseContainer.querySelector('.library-feeds .card')) renderFeedList([]);
+            } catch (error) {
+                alert(`Could not unsubscribe: ${error.message}`);
+            }
+        });
+
+        header.appendChild(title);
+        header.appendChild(removeIcon);
+
+        const author = document.createElement('p');
+        author.innerText = feed.author || '';
+
+        const episodeCount = document.createElement('p');
+        episodeCount.className = 'episode-count';
+        episodeCount.innerText = `Episodes: ${feed.episodeCount}`;
+
+        const checked = document.createElement('p');
+        checked.className = feed.error ? 'pub-date feed-error' : 'pub-date';
+        checked.innerText = feed.error
+            ? `Couldn't refresh: ${feed.error}`
+            : `Updated: ${new Date(feed.lastChecked).toLocaleString()}`;
+
+        content.appendChild(header);
+        content.appendChild(author);
+        content.appendChild(episodeCount);
+        content.appendChild(checked);
+
+        card.appendChild(img);
+        card.appendChild(content);
+        card.addEventListener('click', () => showFeedEpisodes(feed));
+        return card;
+    }
+
+    function renderFeedList(feeds) {
+        const list = responseContainer.querySelector('.library-feeds');
+        if (!list) return;
+        list.textContent = '';
+        if (feeds.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'library-empty';
+            empty.textContent = 'Your Library is empty. Search for a podcast and click its star, paste a feed URL above, or import an OPML file.';
+            list.appendChild(empty);
+            return;
+        }
+        feeds.forEach(feed => list.appendChild(createFeedCard(feed)));
+    }
+
+    async function reloadFeedList() {
+        const feeds = await Subscriptions.list();
+        if (responseContainer.dataset.view === 'library') renderFeedList(feeds);
+        return feeds;
+    }
+
+    function createLibraryToolbar() {
+        const toolbar = document.createElement('div');
+        toolbar.className = 'library-toolbar';
+
+        // Subscribe by URL
+        const form = document.createElement('form');
+        form.className = 'library-subscribe';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'Paste a podcast RSS feed URL';
+        input.setAttribute('aria-label', 'Podcast RSS feed URL');
+        const submit = document.createElement('button');
+        submit.type = 'submit';
+        submit.textContent = 'Subscribe';
+        form.append(input, submit);
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (!input.value.trim()) return;
+            submit.disabled = true;
+            setLibraryMessage('Loading feed…');
+            try {
+                const { feed, added } = await Subscriptions.subscribe(input.value);
+                setLibraryMessage(added ? `Subscribed to ${feed.title}.` : `You're already subscribed to ${feed.title}.`);
+                input.value = '';
+                await reloadFeedList();
+            } catch (error) {
+                setLibraryMessage(error.message, true);
+            } finally {
+                submit.disabled = false;
+            }
+        });
+
+        // OPML import, export, and refresh
+        const actions = document.createElement('div');
+        actions.className = 'library-actions';
+
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.opml,.xml,text/xml,application/xml,text/x-opml';
+        fileInput.hidden = true;
+        fileInput.addEventListener('change', async () => {
+            const file = fileInput.files[0];
+            fileInput.value = '';
+            if (!file) return;
+            setLibraryMessage('Importing…');
+            try {
+                const result = await Subscriptions.importOpml(await file.text(), (done, total) => {
+                    setLibraryMessage(`Importing… ${done} of ${total}`);
+                });
+                const parts = [`Added ${result.added}`];
+                if (result.existing) parts.push(`${result.existing} already subscribed`);
+                if (result.failed.length) {
+                    parts.push(`${result.failed.length} failed: ${result.failed.map(f => `${f.url} (${f.error})`).join('; ')}`);
+                }
+                setLibraryMessage(`${parts.join(', ')}.`, result.failed.length > 0);
+                await reloadFeedList();
+            } catch (error) {
+                setLibraryMessage(error.message, true);
+            }
+        });
+
+        const importButton = makeButton('Import OPML', () => fileInput.click());
+
+        const exportButton = makeButton('Export OPML', async () => {
+            try {
+                const feeds = await Subscriptions.list();
+                if (feeds.length === 0) {
+                    setLibraryMessage('There are no subscriptions to export yet.', true);
+                    return;
+                }
+                const blob = new Blob([await Subscriptions.exportOpml()], { type: 'text/x-opml' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'podcast-subscriptions.opml';
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+            } catch (error) {
+                setLibraryMessage(`Could not export: ${error.message}`, true);
+            }
+        });
+
+        const refreshButton = makeButton('Refresh all', async () => {
+            refreshButton.disabled = true;
+            setLibraryMessage('Refreshing feeds…');
+            try {
+                const count = await Subscriptions.refreshStale(true);
+                const feeds = await reloadFeedList();
+                const failed = feeds.filter(feed => feed.error).length;
+                setLibraryMessage(`Refreshed ${count} feed${count === 1 ? '' : 's'}${failed ? `, ${failed} with errors` : ''}.`, failed > 0);
+            } catch (error) {
+                setLibraryMessage(error.message, true);
+            } finally {
+                refreshButton.disabled = false;
+            }
+        });
+
+        actions.append(importButton, exportButton, refreshButton, fileInput);
+
+        const message = document.createElement('p');
+        message.className = 'library-message';
+        message.setAttribute('role', 'status');
+
+        toolbar.append(form, actions, message);
+        return toolbar;
+    }
+
+    async function showLibrary() {
+        showView('library');
+        responseContainer.appendChild(createLibraryToolbar());
+        const list = document.createElement('div');
+        list.className = 'library-feeds';
+        responseContainer.appendChild(list);
+
+        try {
+            await reloadFeedList();
+        } catch (error) {
+            setLibraryMessage(`The library is unavailable in this browser: ${error.message}`, true);
+            return;
+        }
+
+        // Pick up new episodes in the background for feeds not checked recently
+        Subscriptions.refreshStale()
+            .then(count => (count ? reloadFeedList() : null))
+            .catch(error => console.error('Feed refresh failed:', error));
+    }
+
+    async function showFeedEpisodes(feed) {
+        showView('feed');
+        const header = document.createElement('div');
+        header.className = 'library-toolbar';
+        const back = makeButton('← Library', showLibrary);
+        const title = document.createElement('h2');
+        title.className = 'library-title';
+        title.textContent = feed.title;
+        header.append(back, title);
+        responseContainer.appendChild(header);
+
+        let items;
+        try {
+            items = await Subscriptions.episodes(feed.url);
+        } catch (error) {
+            responseContainer.appendChild(document.createTextNode(`Could not load episodes: ${error.message}`));
+            return;
+        }
+
+        // Big feeds have hundreds of episodes, so show them a page at a time
+        let shown = 0;
+        const more = makeButton('Show more episodes', () => showPage(), 'library-more');
+        const showPage = () => {
+            if (responseContainer.dataset.view !== 'feed') return;
+            items.slice(shown, shown + EPISODES_PER_PAGE).forEach(episode => {
+                responseContainer.insertBefore(createEpisodeCard(episode), more);
+            });
+            shown += EPISODES_PER_PAGE;
+            more.hidden = shown >= items.length;
+        };
+        responseContainer.appendChild(more);
+        showPage();
+    }
+
+    libraryButton.addEventListener('click', showLibrary);
+
     // Keep every download control and the Downloads view up to date
     Downloads.subscribe((record, removed) => {
         const selector = CSS.escape(record.id);
@@ -518,6 +828,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load Episodes
     async function loadEpisodes(feedId, count) {
         showLoader();
+        responseContainer.dataset.view = 'episodes';
 
         try {
             const response = await fetch(`/api/episodes?feedId=${feedId}&max=${count}`);
@@ -538,10 +849,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 responseContainer.innerText = 'No episodes found.';
             }
-    
+
             // Handle loader visibility after first 25 images load
             handleImageLoad(25);
-    
+
         } catch (error) {
             responseContainer.innerText = `Error: ${error.message}`;
         }
@@ -551,14 +862,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function createEpisodeCard(episode) {
         const card = document.createElement('div');
         card.className = 'card';
-    
+
         const img = document.createElement('img');
         img.src = episode.image || episode.feedImage || './default-podcast.png';
         img.alt = episode.title;
-    
+
         const content = document.createElement('div');
         content.className = 'card-content';
-    
+
         const title = document.createElement('h3');
         title.innerText = episode.title;
 
@@ -582,8 +893,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     
         const description = document.createElement('p');
-        description.innerHTML = episode.description || 'No description available.';
-    
+        description.append(sanitizeHtml(episode.description || 'No description available.'));
+
         const pubDate = document.createElement('p');
         pubDate.className = 'pub-date-alt';
         pubDate.innerText = `Published: ${episode.datePublished ? formatDate(episode.datePublished) : 'Not Available'}`;
@@ -592,11 +903,11 @@ document.addEventListener('DOMContentLoaded', () => {
         iconContainer.appendChild(queueBtnIcon);
         iconContainer.appendChild(createDownloadControl(episode));
         iconContainer.appendChild(pubDate);
-    
+
         content.appendChild(title);
         content.appendChild(iconContainer);
         content.appendChild(description);
-    
+
         card.appendChild(img);
         card.appendChild(content);
     
@@ -982,9 +1293,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // On Startup
-    // Favorites go first, and each step is isolated, so bad saved data in one
-    // can't stop the others from loading
-    [loadFavoritesIntoMainList, loadPlayerState, loadQueue, Downloads.markInterrupted].forEach(step => {
+    // The Library goes first, and each step is isolated, so bad saved data in
+    // one can't stop the others from loading
+    async function moveFavoritesIntoLibrary() {
+        const moved = await migrateFavorites();
+        if (moved && responseContainer.dataset.view === 'library') await reloadFeedList();
+    }
+
+    [showLibrary, moveFavoritesIntoLibrary, loadPlayerState, loadQueue, Downloads.markInterrupted].forEach(step => {
         Promise.resolve()
             .then(step)
             .catch(error => console.error(`Startup step ${step.name} failed:`, error));

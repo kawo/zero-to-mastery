@@ -118,7 +118,7 @@ button {
     color: white;
 }
 
-#favoritesButton i {
+#libraryButton i {
     color: #f1c40f;
 }
 
@@ -342,6 +342,67 @@ button:hover {
     width: 0;
     background: #2e9e4f;
     transition: width 0.3s;
+}
+
+/* Library (subscriptions) */
+.favorite-icon.busy {
+    opacity: 0.4;
+    cursor: wait;
+}
+
+.library-toolbar {
+    width: calc(100% - 40px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.library-subscribe {
+    display: flex;
+    flex: 1 1 100%;
+}
+
+.library-subscribe input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+}
+
+.library-actions {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.library-message {
+    flex: 1 1 100%;
+    margin: 5px;
+    color: #555;
+    word-break: break-word;
+}
+
+.library-message.error,
+.card .feed-error {
+    color: rgb(190, 13, 13);
+}
+
+.library-title {
+    margin: 5px 10px;
+}
+
+.library-feeds {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}
+
+.library-empty {
+    color: #555;
+}
+
+.library-more[hidden] {
+    display: none;
 }
 
 /* Player Container ------------------------------ */

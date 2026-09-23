@@ -1,10 +1,11 @@
-const cacheName = 'podcast-player-v4';
+const cacheName = 'podcast-player-v5';
 const assetsToCache = [
   '/',
   '/index.html',
   '/style.css',
   '/script.js',
   '/downloads.js',
+  '/subscriptions.js',
   '/podcast-icon-192.png',
   '/podcast-icon-512.png',
   '/default-podcast.png',
