@@ -1176,6 +1176,7 @@ document.addEventListener('DOMContentLoaded', () => {
         offlineUrl = url;
         currentEpisode = episode;
         player.src = url || episode.enclosureUrl;
+        loadChaptersFor(episode).catch(error => console.error('Could not load chapters:', error));
         return true;
     }
 
@@ -1250,11 +1251,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Set Progress Bar
+    // Measured from the bar itself: offsetX would be relative to whatever child
+    // (progress fill, chapter marker) happened to be under the pointer
     function setProgressBar(e) {
-        const width = this.clientWidth;
-        const clickX = e.offsetX;
         const { duration } = player;
-        player.currentTime = (clickX / width) * duration;
+        if (!Number.isFinite(duration)) return;
+        const bounds = progressContainer.getBoundingClientRect();
+        const ratio = Math.min(1, Math.max(0, (e.clientX - bounds.left) / bounds.width));
+        player.currentTime = ratio * duration;
     }
 
     // Player Event Listeners
@@ -1271,6 +1275,236 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Could not play the next queued episode:', error);
         }
+    });
+
+    // Chapters & show notes ------------------------ //
+    const chapterTitleEl = document.getElementById('chapterTitle');
+    const chapterMarkers = document.getElementById('chapterMarkers');
+    const notesButton = document.getElementById('notesButton');
+    const notesDialog = document.getElementById('notesDialog');
+    const notesTitle = document.getElementById('notesTitle');
+    const notesBody = document.getElementById('notesBody');
+    const notesChapters = document.getElementById('notesChapters');
+    const chapterList = document.getElementById('chapterList');
+    const notesText = document.getElementById('notesText');
+    const NOTES_BATCH_CHARS = 4000; // show notes are drawn this much at a time
+    let chapters = [];
+    let currentChapter = -1;
+    let chapterRequest = 0;
+    let stopLazyNotes = null;
+
+    function seekTo(seconds) {
+        // A time past the end (a typo in the notes, or a wrong chapters file) is ignored
+        if (Number.isFinite(player.duration) && seconds > player.duration) return;
+        player.currentTime = seconds;
+        if (!isPlaying) playPodcast();
+    }
+
+    function usableChapters() {
+        const { duration } = player;
+        return Number.isFinite(duration) ? chapters.filter(chapter => chapter.startTime < duration) : chapters;
+    }
+
+    function renderChapterMarkers() {
+        chapterMarkers.textContent = '';
+        const { duration } = player;
+        if (!Number.isFinite(duration) || duration <= 0) return;
+        usableChapters().forEach(chapter => {
+            if (chapter.startTime === 0) return;
+            const marker = document.createElement('span');
+            marker.className = 'chapter-marker';
+            marker.style.left = `${(chapter.startTime / duration) * 100}%`;
+            chapterMarkers.appendChild(marker);
+        });
+    }
+
+    function updateCurrentChapter() {
+        const list = usableChapters();
+        const index = Chapters.indexAt(list, player.currentTime);
+        if (index === currentChapter) return;
+        currentChapter = index;
+        chapterTitleEl.textContent = index >= 0 ? list[index].title : '';
+        chapterList.querySelectorAll('li').forEach((item, i) => {
+            item.classList.toggle('current', i === index);
+        });
+    }
+
+    // Called whenever a new episode is loaded into the player
+    async function loadChaptersFor(episode) {
+        const request = ++chapterRequest;
+        chapters = [];
+        currentChapter = -1;
+        chapterTitleEl.textContent = '';
+        chapterMarkers.textContent = '';
+        const result = await Chapters.load(episode);
+        if (request !== chapterRequest) return;
+        chapters = result.chapters;
+        renderChapterMarkers();
+        updateCurrentChapter();
+        if (notesDialog.open) renderChapterList();
+    }
+
+    // Hovering the bar shows the time and chapter under the pointer
+    progressContainer.addEventListener('mousemove', event => {
+        const { duration } = player;
+        if (!Number.isFinite(duration)) return;
+        const bounds = progressContainer.getBoundingClientRect();
+        const time = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width)) * duration;
+        const list = usableChapters();
+        const index = Chapters.indexAt(list, time);
+        progressContainer.title = `${Chapters.formatTime(time)}${index >= 0 ? ` · ${list[index].title}` : ''}`;
+    });
+
+    player.addEventListener('loadedmetadata', () => {
+        renderChapterMarkers();
+        updateCurrentChapter();
+    });
+    player.addEventListener('timeupdate', updateCurrentChapter);
+    // A seek only fires timeupdate once the new position has loaded, which
+    // can take a second or more when streaming; seeking fires straight away
+    player.addEventListener('seeking', updateCurrentChapter);
+
+    function timestampLink(seconds, text) {
+        const link = document.createElement('a');
+        link.href = '#';
+        link.className = 'timestamp';
+        link.dataset.time = seconds;
+        link.textContent = text;
+        return link;
+    }
+
+    function renderChapterList() {
+        const list = usableChapters();
+        chapterList.textContent = '';
+        notesChapters.hidden = list.length === 0;
+        list.forEach((chapter, index) => {
+            const item = document.createElement('li');
+            if (index === currentChapter) item.classList.add('current');
+            item.appendChild(timestampLink(chapter.startTime, Chapters.formatTime(chapter.startTime)));
+            const name = document.createElement('span');
+            name.textContent = chapter.title;
+            item.appendChild(name);
+            if (chapter.url) {
+                const link = document.createElement('a');
+                link.href = chapter.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.className = 'chapter-link';
+                link.title = 'Open chapter link';
+                link.innerHTML = '<i class="fas fa-external-link-alt"></i>';
+                item.appendChild(link);
+            }
+            chapterList.appendChild(item);
+        });
+    }
+
+    // Timestamps in the notes' text become links that jump there. Times that
+    // are clearly clock times ("10:30 am") or past the end are left alone.
+    const INLINE_TIME = /\b(?:\d{1,2}:)?\d{1,3}:\d{2}\b(?!\s*[ap]\.?m\b)/gi;
+
+    function linkTimestamps(root) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const textNodes = [];
+        while (walker.nextNode()) {
+            if (!walker.currentNode.parentElement || !walker.currentNode.parentElement.closest('a')) {
+                textNodes.push(walker.currentNode);
+            }
+        }
+        const { duration } = player;
+        textNodes.forEach(node => {
+            const text = node.textContent;
+            INLINE_TIME.lastIndex = 0;
+            if (!INLINE_TIME.test(text)) return;
+            INLINE_TIME.lastIndex = 0;
+            const fragment = document.createDocumentFragment();
+            let last = 0;
+            let match;
+            while ((match = INLINE_TIME.exec(text))) {
+                const seconds = Chapters.parseTime(match[0]);
+                if (seconds === null || (Number.isFinite(duration) && seconds > duration)) continue;
+                fragment.appendChild(document.createTextNode(text.slice(last, match.index)));
+                fragment.appendChild(timestampLink(seconds, match[0]));
+                last = match.index + match[0].length;
+            }
+            if (last === 0) return;
+            fragment.appendChild(document.createTextNode(text.slice(last)));
+            node.replaceWith(fragment);
+        });
+    }
+
+    // Very long notes are drawn a few thousand characters at a time as the
+    // reader scrolls toward the end, so opening the panel stays quick
+    function renderNotesLazily(nodes) {
+        let index = 0;
+        const sentinel = document.createElement('div');
+        notesText.appendChild(sentinel);
+
+        const appendBatch = () => {
+            let chars = 0;
+            while (index < nodes.length && chars < NOTES_BATCH_CHARS) {
+                const node = nodes[index++];
+                chars += node.textContent.length;
+                notesText.insertBefore(node, sentinel);
+            }
+        };
+
+        const observer = new IntersectionObserver(entries => {
+            if (!entries.some(entry => entry.isIntersecting)) return;
+            appendBatch();
+            if (index >= nodes.length) {
+                observer.disconnect();
+                sentinel.remove();
+            } else {
+                // Still in view after a short batch: re-observe to get called again
+                observer.unobserve(sentinel);
+                observer.observe(sentinel);
+            }
+        }, { root: notesBody, rootMargin: '600px 0px' });
+
+        appendBatch();
+        if (index >= nodes.length) {
+            sentinel.remove();
+            return null;
+        }
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }
+
+    function openNotes() {
+        if (stopLazyNotes) stopLazyNotes();
+        notesText.textContent = '';
+        notesTitle.textContent = currentEpisode ? currentEpisode.title : 'No episode playing';
+        renderChapterList();
+
+        const description = currentEpisode && currentEpisode.description;
+        if (description) {
+            const fragment = sanitizeHtml(description);
+            linkTimestamps(fragment);
+            stopLazyNotes = renderNotesLazily(Array.from(fragment.childNodes));
+        } else {
+            notesText.textContent = currentEpisode
+                ? 'This episode has no show notes.'
+                : 'Play an episode to see its show notes and chapters.';
+        }
+        notesDialog.showModal();
+        notesBody.scrollTop = 0;
+    }
+
+    notesButton.addEventListener('click', openNotes);
+    document.getElementById('notesClose').addEventListener('click', () => notesDialog.close());
+    // Clicking the backdrop (outside the panel) closes it
+    notesDialog.addEventListener('click', event => {
+        if (event.target === notesDialog) notesDialog.close();
+    });
+    notesDialog.addEventListener('close', () => {
+        if (stopLazyNotes) stopLazyNotes();
+        stopLazyNotes = null;
+    });
+    notesDialog.addEventListener('click', event => {
+        const link = event.target.closest('a.timestamp');
+        if (!link) return;
+        event.preventDefault();
+        seekTo(Number(link.dataset.time));
     });
 
     // Media Session ------------------------------- //
@@ -1363,7 +1597,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 // The real URL, not a downloaded copy's blob: URL, which dies on reload
                 src: currentEpisode ? currentEpisode.enclosureUrl : player.src,
                 episodeId: currentEpisode ? currentEpisode.id : undefined,
-                artist: currentArtist
+                artist: currentArtist,
+                // For the show notes and chapters after a reload
+                description: currentEpisode ? currentEpisode.description : undefined,
+                chaptersUrl: currentEpisode ? currentEpisode.chaptersUrl : undefined
             };
             localStorage.setItem('playerState', JSON.stringify(playerState));
         }
@@ -1383,7 +1620,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: savedState.title,
                 image: savedState.image,
                 feedTitle: savedState.artist,
-                enclosureUrl: savedState.src
+                enclosureUrl: savedState.src,
+                description: savedState.description,
+                chaptersUrl: savedState.chaptersUrl
             };
             if (!(await setEpisodeSource(episode))) return;
             player.currentTime = savedState.currentTime;

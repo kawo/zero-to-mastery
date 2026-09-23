@@ -283,6 +283,40 @@ app.get('/api/feed', async (req, res) => {
     }
 });
 
+const MAX_CHAPTERS_BYTES = 2 * 1024 * 1024;
+const CHAPTERS_TIMEOUT_MS = 10000;
+
+// Podcasting 2.0 chapters files (JSON), returned as text for the browser to
+// parse. Same protections as feeds: public hosts only, capped, nosniff.
+app.get('/api/chapters', async (req, res) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CHAPTERS_TIMEOUT_MS);
+    res.on('close', () => controller.abort());
+
+    try {
+        const upstream = await fetchPublic(req.query.url, {
+            headers: { Accept: 'application/json+chapters, application/json;q=0.9, */*;q=0.5' },
+            signal: controller.signal,
+            size: MAX_CHAPTERS_BYTES
+        });
+        if (!upstream.ok) {
+            return res.status(502).json({ error: `Chapters host responded ${upstream.status}` });
+        }
+        const text = await upstream.text();
+        res.set('X-Content-Type-Options', 'nosniff');
+        res.type('text/plain; charset=utf-8').send(text);
+    } catch (error) {
+        if (res.writableEnded || res.destroyed) return;
+        const message = error.type === 'max-size' ? 'That chapters file is too large'
+            : controller.signal.aborted ? 'The chapters file took too long to load'
+            : error.message;
+        console.error('Chapters proxy error:', error.type || error.name);
+        if (!res.headersSent) res.status(400).json({ error: message });
+    } finally {
+        clearTimeout(timeout);
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });

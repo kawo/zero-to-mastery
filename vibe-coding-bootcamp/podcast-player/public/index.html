@@ -61,6 +61,10 @@
         <div class="player-container">
             <!-- Player -->
             <div class="player">
+                <!-- Show notes & chapters -->
+                <button type="button" id="notesButton" class="notes-button" title="Show notes and chapters" aria-label="Show notes and chapters">
+                    <i class="fas fa-file-alt"></i>
+                </button>
                 <!-- Image -->
                 <div class="img-container">
                     <img id="image" src="./default-podcast.png" alt="Podcast Image">
@@ -69,6 +73,7 @@
                 <div class="title-container">
                     <h2 id="title">Podcast Title</h2>
                     <h3 id="datePublished">Date Published</h3>
+                    <p id="chapterTitle" class="chapter-title"></p>
                 </div>
                 <!-- Audio Element -->
                 <audio id="player" src=""></audio>
@@ -76,6 +81,7 @@
                     <!-- Progress -->
                     <div class="progress-container" id="progress-container">
                         <div class="progress" id="progress"></div>
+                        <div class="chapter-markers" id="chapterMarkers"></div>
                         <div class="duration-wrapper">
                             <span id="current-time">0:00</span>
                             <span id="duration">0:00</span>
@@ -96,10 +102,31 @@
         </div>
     </div>
 
+    <!-- Show Notes & Chapters -->
+    <dialog id="notesDialog" class="notes-dialog" aria-labelledby="notesTitle">
+        <div class="notes-header">
+            <h2 id="notesTitle"></h2>
+            <button type="button" id="notesClose" class="notes-close" title="Close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="notes-body" id="notesBody">
+            <section id="notesChapters" class="notes-chapters" hidden>
+                <h3>Chapters</h3>
+                <ol id="chapterList" class="chapter-list"></ol>
+            </section>
+            <section class="notes-text">
+                <h3>Show notes</h3>
+                <div id="notesText"></div>
+            </section>
+        </div>
+    </dialog>
+
     <!-- Script -->
     <script src="downloads.js"></script>
     <script src="subscriptions.js"></script>
     <script src="queue.js"></script>
+    <script src="chapters.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

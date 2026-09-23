@@ -140,7 +140,9 @@ const Subscriptions = (() => {
                 enclosureUrl: audioUrl,
                 enclosureLength: Number(enclosure.getAttribute('length')) || null,
                 duration: parseDuration(child(item, 'duration')),
-                image: absolute(child(item, 'image', 'href'), feedUrl)
+                image: absolute(child(item, 'image', 'href'), feedUrl),
+                // Podcasting 2.0 <podcast:chapters url="...">
+                chaptersUrl: absolute(child(item, 'chapters', 'url'), feedUrl)
             };
         });
         return { feed, items };

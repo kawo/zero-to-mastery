@@ -13,6 +13,7 @@ A podcast player that runs in the browser. It uses the [Podcast Index API](https
   Click a podcast to see its episodes, 50 at a time. Feeds not checked in the last hour refresh when you open the Library. **Refresh all** re-checks every feed, and **Export OPML** saves your subscriptions to move them elsewhere.
 - **Offline downloads:** download any episode from its card and follow its progress. You can pause, resume and delete downloads, and the **Downloads** view lists them all. An interrupted download picks up from the last saved byte instead of starting over. Downloaded episodes play without a connection.
 - **Playback:** play and pause, skip 15 seconds, and click the progress bar to seek.
+- **Chapters and show notes:** chapters appear as marks on the progress bar, and the current chapter's name is shown under the episode title. Hover over the bar to see the time and chapter at that point. The notes button on the player opens the chapter list and the formatted show notes. Timestamps in the notes jump to that point, and links open in a new tab. Chapters come from the episode's Podcasting 2.0 chapters file when it has one, and otherwise from timestamps in the show notes.
 - **Queue:** add episodes to the end, or use **Play next** (double arrow) to put one at the top. Reorder by dragging the handle (mouse or touch) or with the ↑/↓ keys. When an episode ends, the next one in the queue starts, and playing an episode from the queue takes it off the list. The queue stays in step across open tabs.
 - **Lock-screen and media-key controls:** the episode title, podcast and artwork appear on the lock screen and in the system media controls. Play, pause, seek and headset or keyboard media keys all work. Starting an episode in one tab pauses any other tab.
 - **Picks up where you left off:** the current episode, your position and your queue are restored when you come back.
@@ -66,6 +67,7 @@ public/
   subscriptions.js        Library: feed fetching and RSS/Atom parsing, OPML, IndexedDB storage
   downloads.js            Offline downloads: chunked, resumable storage in IndexedDB
   queue.js                Playback queue: ordered list in IndexedDB, synced across tabs
+  chapters.js             Chapter parsing: Podcasting 2.0 chapters files and show-notes timestamps
   service-worker.js       Caches the app files so it opens offline
   manifest.json           PWA manifest
 ```
@@ -78,12 +80,13 @@ public/
 | `GET /api/episodes?feedId=&max=` | Episodes for a podcast, by iTunes ID |
 | `GET /api/podcast?itunesId=` | Podcast details (including its feed URL), by iTunes ID |
 | `GET /api/feed?url=` | Fetches an RSS/Atom feed and returns it as text for the browser to parse |
+| `GET /api/chapters?url=` | Fetches a Podcasting 2.0 chapters file (JSON) and returns it as text |
 | `GET /api/audio?url=` | Streams episode audio for downloads and passes `Range` headers through for resuming |
 
-The browser can't fetch feeds and audio directly, because most podcast hosts don't allow cross-origin requests. So `/api/feed` and `/api/audio` fetch them on its behalf. Because these routes fetch any URL they're given, they:
+The browser can't fetch feeds, chapters files and audio directly, because most podcast hosts don't allow cross-origin requests. So `/api/feed`, `/api/chapters` and `/api/audio` fetch them on its behalf. Because these routes fetch any URL they're given, they:
 - only connect to public addresses, checked when the connection is made and again after every redirect
 - only pass audio through (`/api/audio`)
-- limit feeds to 50 MB and 20 seconds (`/api/feed`)
+- limit feeds to 50 MB and 20 seconds (`/api/feed`), and chapters files to 2 MB and 10 seconds (`/api/chapters`)
 - never log feed URLs, since private ones contain access tokens
 
 ## Where data is stored
