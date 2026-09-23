@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api, ApiError } from '@/lib/api';
 import type { Meal, MealSummary } from '@/lib/meal';
+import { useUnitSystem } from '@/lib/useUnitSystem';
 import { aggregate } from './aggregate';
 import { addRecipe, getShoppingState, onShoppingChanged, removeRecipe } from './db';
 
@@ -15,6 +16,7 @@ export const shoppingKey = ['shopping'] as const;
 
 export function useShoppingList() {
   const queryClient = useQueryClient();
+  const [units] = useUnitSystem();
   const query = useQuery({
     queryKey: shoppingKey,
     queryFn: getShoppingState,
@@ -29,7 +31,7 @@ export function useShoppingList() {
   );
 
   const state = query.data;
-  const items = useMemo(() => (state ? aggregate(state.recipes, state.extras) : []), [state]);
+  const items = useMemo(() => (state ? aggregate(state.recipes, state.extras, units) : []), [state, units]);
   const recipeIds = useMemo(() => new Set(state?.recipes.map(recipe => recipe.id)), [state]);
 
   return {

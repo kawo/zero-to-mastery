@@ -8,9 +8,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AddToListButton } from '@/components/AddToListButton';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { StatusMessage } from '@/components/StatusMessage';
+import { UnitToggle } from '@/components/UnitToggle';
 import { useFavorites } from '@/features/favorites/useFavorites';
 import { api, ApiError, queryKeys } from '@/lib/api';
 import { formatMinutes, ingredientImage, instructionSteps } from '@/lib/meal';
+import { convertMeasure } from '@/lib/measure';
+import { useUnitSystem } from '@/lib/useUnitSystem';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { safeExternalUrl } from '@/lib/utils';
 
@@ -22,6 +25,7 @@ import { safeExternalUrl } from '@/lib/utils';
 export default function Details() {
   const { id = '' } = useParams();
   const { favorites, isLoading: favoritesLoading } = useFavorites();
+  const [units] = useUnitSystem();
   const saved = favorites.find(record => record.id === id)?.meal;
   // An optimistic placeholder (a card saved a moment ago) has no ingredients yet
   const savedFull = saved && 'ingredients' in saved ? saved : undefined;
@@ -133,32 +137,38 @@ export default function Details() {
           </header>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
               <CardTitle>
                 <h2>Ingredients</h2>
               </CardTitle>
+              <UnitToggle />
             </CardHeader>
             <CardContent>
               <ul className="grid gap-2 sm:grid-cols-2">
-                {meal.ingredients.map(({ name, measure }, index) => (
-                  <li key={`${name}-${index}`} className="flex items-center gap-3">
-                    <img
-                      src={ingredientImage(name)}
-                      alt=""
-                      width={40}
-                      height={40}
-                      loading="lazy"
-                      className="h-10 w-10 shrink-0 rounded-md bg-muted object-contain"
-                      onError={event => {
-                        event.currentTarget.style.visibility = 'hidden';
-                      }}
-                    />
-                    <span>
-                      <span className="font-medium">{name}</span>
-                      {measure && <span className="text-muted-foreground"> · {measure}</span>}
-                    </span>
-                  </li>
-                ))}
+                {meal.ingredients.map(({ name, measure }, index) => {
+                  const shown = convertMeasure(measure, units);
+                  return (
+                    <li key={`${name}-${index}`} className="flex items-center gap-3">
+                      <img
+                        src={ingredientImage(name)}
+                        alt=""
+                        width={40}
+                        height={40}
+                        loading="lazy"
+                        className="h-10 w-10 shrink-0 rounded-md bg-muted object-contain"
+                        onError={event => {
+                          event.currentTarget.style.visibility = 'hidden';
+                        }}
+                      />
+                      <span>
+                        <span className="font-medium">{name}</span>
+                        {shown && (
+                          <span className="text-muted-foreground" title={shown === measure ? undefined : `Recipe says ${measure}`}> · {shown}</span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </CardContent>
           </Card>

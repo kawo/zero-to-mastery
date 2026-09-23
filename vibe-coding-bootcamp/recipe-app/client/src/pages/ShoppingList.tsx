@@ -14,6 +14,7 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog';
 import { StatusMessage } from '@/components/StatusMessage';
+import { UnitToggle } from '@/components/UnitToggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AISLES, type ShoppingItem } from '@/features/shopping/aggregate';
 import { addExtra, clearShoppingList, MAX_BATCHES, removeExtra, removeRecipe, setBatches, setChecked, uncheckAll, type ShoppingRecipe } from '@/features/shopping/db';
@@ -110,6 +111,7 @@ export default function ShoppingList() {
                 Items
               </h2>
               <div className="flex flex-wrap items-center gap-3 text-sm">
+                <UnitToggle />
                 <label htmlFor={hideId} className="flex cursor-pointer items-center gap-2">
                   <input
                     id={hideId}

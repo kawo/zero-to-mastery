@@ -22,6 +22,7 @@ The browser only ever calls this app's own `/api/*` routes. The server adds the 
 - **Estimated times:** TheMealDB has no cook-time field, so the server estimates total time from the durations mentioned in the method ("simmer for 20 minutes", "bake 1 hour", "marinate overnight"). It's always labelled as an estimate.
 - **Surprise me** opens a random recipe.
 - **Recipe page:** photo, category, cuisine and tags; ingredients with pictures; step-by-step method; YouTube and original-source links.
+- **Metric or imperial:** a units switch on the recipe page and the shopping list shows amounts as the recipe wrote them, in metric (g, kg, ml, l), or in imperial (oz, lb, cups). Teaspoons and tablespoons stay as they are, and small imperial volumes become spoons rather than fractions of a cup. Where a recipe already gives both ("200g/7oz"), the matching one is used. The choice is saved on the device, and CSV and JSON exports follow it. Conversion factors come from the [`convert`](https://www.npmjs.com/package/convert) library; a pint is a UK pint, since most TheMealDB recipes are British.
 - **Favorites:** tap the heart on any card or recipe. Favorites are stored in IndexedDB with the full recipe and its photo. You can filter by name, ingredient or cuisine, filter by category, sort (recent, oldest, A to Z, Z to A, category), remove one, or remove all (with a confirmation dialog). Open tabs stay in sync.
 - **Offline:**
   - the app opens offline
