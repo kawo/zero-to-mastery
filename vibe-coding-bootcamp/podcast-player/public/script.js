@@ -539,22 +539,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Check if Playing
     let isPlaying = false;
+    let currentArtist = '';
+    const hasMediaSession = 'mediaSession' in navigator;
 
     // Play
     function playPodcast() {
-        isPlaying = true;
-        playBtn.classList.replace('fa-play', 'fa-pause');
-        playBtn.setAttribute('title', 'Pause');
-        player.play();
+        player.play().catch(error => console.error('Playback failed:', error));
     }
 
     // Pause
     function pausePodcast() {
-        isPlaying = false;
-        playBtn.classList.replace('fa-pause', 'fa-play');
-        playBtn.setAttribute('title', 'Play');
         player.pause();
     }
+
+    // Keep the play button in step with the audio element, which can also be
+    // paused from the lock screen, a headset, or another tab
+    function setPlayingUI(playing) {
+        isPlaying = playing;
+        playBtn.classList.replace(playing ? 'fa-play' : 'fa-pause', playing ? 'fa-pause' : 'fa-play');
+        playBtn.setAttribute('title', playing ? 'Pause' : 'Play');
+        if (hasMediaSession) navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+        updatePositionState();
+    }
+
+    player.addEventListener('play', () => setPlayingUI(true));
+    player.addEventListener('pause', () => setPlayingUI(false));
 
     // Play or Pause Event Listener
     playBtn.addEventListener('click', () => (isPlaying ? pausePodcast() : playPodcast()));
@@ -567,21 +576,28 @@ document.addEventListener('DOMContentLoaded', () => {
         datePublished.textContent = `${episode.datePublished ? formatDate(episode.datePublished) : 'Not Available'}`;
         player.src = episode.enclosureUrl;
         image.src = episode.image || episode.feedImage || './default-podcast.png';
+        currentArtist = episode.feedTitle || '';
+        updateMediaMetadata(episode.title, currentArtist, image.src);
     
         // Reset Player
         player.currentTime = 0;
         progress.classList.add('loading');
         currentTimeEl.textContent = '0:00';
-    
-        player.addEventListener('loadedmetadata', () => {
-            const duration = player.duration;
-            currentTimeEl.style.display = 'block';
-            durationEl.style.display = 'block';
-            formatTime(duration, durationEl);
-            progress.classList.remove('loading');
-            playPodcast();
-        });
-    }  
+        playWhenLoaded = true;
+    }
+
+    // Registered once: adding it inside loadPodcast stacked a new listener
+    // per episode, so each later load called play several times
+    let playWhenLoaded = false;
+    player.addEventListener('loadedmetadata', () => {
+        if (!playWhenLoaded) return;
+        playWhenLoaded = false;
+        currentTimeEl.style.display = 'block';
+        durationEl.style.display = 'block';
+        formatTime(player.duration, durationEl);
+        progress.classList.remove('loading');
+        playPodcast();
+    });
 
     // Format Time
     function formatTime(time, elName) {
@@ -606,6 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Skip forward or backward 15 seconds
     function skipTime(amount) {
+        if (!Number.isFinite(player.duration)) return;
         player.currentTime = Math.max(0, Math.min(player.duration, player.currentTime + amount));
     }
 
@@ -634,6 +651,84 @@ document.addEventListener('DOMContentLoaded', () => {
     prevBtn.addEventListener('click', () => skipTime(-15));
     nextBtn.addEventListener('click', () => skipTime(15));
 
+    // Media Session ------------------------------- //
+    // Lock-screen, notification and hardware media key controls
+
+    function updateMediaMetadata(episodeTitle, artist, artworkSrc) {
+        if (!hasMediaSession) return;
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: episodeTitle,
+            artist: artist || 'Podcast Player',
+            artwork: [{ src: new URL(artworkSrc || './default-podcast.png', location.href).href }]
+        });
+    }
+
+    function updatePositionState() {
+        if (!hasMediaSession || !navigator.mediaSession.setPositionState) return;
+        const { duration, currentTime, playbackRate } = player;
+        if (!Number.isFinite(duration) || duration <= 0) return;
+        try {
+            navigator.mediaSession.setPositionState({
+                duration,
+                playbackRate,
+                position: Math.min(currentTime, duration)
+            });
+        } catch (error) {
+            console.error('Could not update media position:', error);
+        }
+    }
+
+    function setMediaAction(action, handler) {
+        try {
+            navigator.mediaSession.setActionHandler(action, handler);
+        } catch (error) {
+            // This browser doesn't support the action
+        }
+    }
+
+    if (hasMediaSession) {
+        setMediaAction('play', playPodcast);
+        setMediaAction('pause', pausePodcast);
+        setMediaAction('stop', pausePodcast);
+        setMediaAction('seekbackward', details => skipTime(-(details.seekOffset || 15)));
+        setMediaAction('seekforward', details => skipTime(details.seekOffset || 15));
+        // Headsets and keyboard media keys usually send track changes, not seeks
+        setMediaAction('previoustrack', () => skipTime(-15));
+        setMediaAction('nexttrack', () => skipTime(15));
+        setMediaAction('seekto', details => {
+            if (details.fastSeek && 'fastSeek' in player) {
+                player.fastSeek(details.seekTime);
+            } else {
+                player.currentTime = details.seekTime;
+            }
+            updatePositionState();
+        });
+    }
+
+    ['loadedmetadata', 'seeked', 'ratechange'].forEach(event => {
+        player.addEventListener(event, updatePositionState);
+    });
+
+    // Missing or broken artwork falls back to the default image, and the
+    // lock screen follows whatever the player is actually showing
+    image.addEventListener('error', () => {
+        if (!image.src.endsWith('/default-podcast.png')) image.src = './default-podcast.png';
+    });
+    image.addEventListener('load', () => {
+        if (hasMediaSession && navigator.mediaSession.metadata) {
+            navigator.mediaSession.metadata.artwork = [{ src: image.src }];
+        }
+    });
+
+    // Only one tab plays at a time: starting playback here pauses the others
+    if ('BroadcastChannel' in window) {
+        const playbackChannel = new BroadcastChannel('podcast-player-playback');
+        player.addEventListener('play', () => playbackChannel.postMessage('playing'));
+        playbackChannel.addEventListener('message', event => {
+            if (event.data === 'playing') pausePodcast();
+        });
+    }
+
     // Save the player state to local storage every 5 seconds
     setInterval(() => {
         if (isPlaying) {
@@ -643,7 +738,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentTime: player.currentTime,
                 duration: player.duration,
                 image: image.src,
-                src: player.src
+                src: player.src,
+                artist: currentArtist
             };
             localStorage.setItem('playerState', JSON.stringify(playerState));
         }
@@ -657,6 +753,8 @@ document.addEventListener('DOMContentLoaded', () => {
             datePublished.textContent = savedState.datePublished;
             player.src = savedState.src;
             image.src = savedState.image;
+            currentArtist = savedState.artist || '';
+            updateMediaMetadata(savedState.title, currentArtist, savedState.image);
             player.currentTime = savedState.currentTime;
             formatTime(savedState.currentTime, currentTimeEl);
             player.duration = savedState.duration;
