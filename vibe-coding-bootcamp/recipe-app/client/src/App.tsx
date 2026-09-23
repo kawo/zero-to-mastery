@@ -9,6 +9,7 @@ import { OfflineNotifier } from '@/components/OfflineNotifier';
 import Home from '@/pages/Home';
 import Details from '@/pages/Details';
 import Favorites from '@/pages/Favorites';
+import ShoppingList from '@/pages/ShoppingList';
 import NotFound from '@/pages/NotFound';
 
 /** Restores scroll position on back/forward and starts new pages at the top. */
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
           { index: true, element: <Home /> },
           { path: 'meal/:id', element: <Details /> },
           { path: 'favorites', element: <Favorites /> },
+          { path: 'list', element: <ShoppingList /> },
           { path: '*', element: <NotFound /> }
         ]
       }

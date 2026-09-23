@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AddToListButton } from '@/components/AddToListButton';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { StatusMessage } from '@/components/StatusMessage';
 import { useFavorites } from '@/features/favorites/useFavorites';
@@ -109,6 +110,7 @@ export default function Details() {
             </div>
             <div className="flex flex-wrap gap-2">
               <FavoriteButton meal={meal} showLabel variant="default" />
+              <AddToListButton meal={meal} showLabel variant="outline" />
               {youtube && (
                 <Button variant="outline" asChild>
                   <a href={youtube} target="_blank" rel="noopener noreferrer">

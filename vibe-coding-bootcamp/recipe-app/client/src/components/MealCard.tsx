@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock } from 'lucide-react';
 import { formatMinutes, previewImage, type MealSummary } from '@/lib/meal';
+import { AddToListButton } from './AddToListButton';
 import { FavoriteButton } from './FavoriteButton';
 import { Highlight, plainSnippet } from './Highlight';
 
@@ -65,8 +66,11 @@ export function MealCard({
         )}
         {actions && <div className="relative z-10 flex flex-wrap gap-2 pt-1">{actions}</div>}
       </div>
-      {/* Above the stretched link so it stays clickable */}
-      <FavoriteButton meal={meal} className="absolute right-2 top-2 z-10 rounded-full shadow" />
+      {/* Above the stretched link so they stay clickable */}
+      <div className="absolute right-2 top-2 z-10 flex flex-col gap-2">
+        <FavoriteButton meal={meal} className="rounded-full shadow" />
+        <AddToListButton meal={meal} className="rounded-full shadow" />
+      </div>
     </Card>
   );
 }

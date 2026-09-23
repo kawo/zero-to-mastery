@@ -4,59 +4,17 @@
  * the card photo as a Blob, so a favorite shows its picture offline even if
  * the browser has evicted the image from the service worker's cache.
  */
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { changeChannel, db, type FavoriteRecord } from '@/lib/db';
 import { previewImage, type Meal } from '@/lib/meal';
 
-export interface FavoriteRecord {
-  id: string;
-  meal: Meal;
-  savedAt: number;
-  image?: Blob;
-}
+export type { FavoriteRecord };
 
-interface RecipesDB extends DBSchema {
-  favorites: {
-    key: string;
-    value: FavoriteRecord;
-    indexes: { savedAt: number };
-  };
-}
-
-const DB_NAME = 'recipes';
-const DB_VERSION = 1;
 const IMAGE_TIMEOUT_MS = 5000;
 
-let dbPromise: Promise<IDBPDatabase<RecipesDB>> | null = null;
-
-function db() {
-  dbPromise ??= openDB<RecipesDB>(DB_NAME, DB_VERSION, {
-    upgrade(database) {
-      const store = database.createObjectStore('favorites', { keyPath: 'id' });
-      store.createIndex('savedAt', 'savedAt');
-    }
-  });
-  return dbPromise;
-}
-
-// Changes are announced to this tab's listeners and, over BroadcastChannel,
-// to other open tabs, so every view of the favorites stays in sync
-const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('recipes-favorites') : null;
-const localListeners = new Set<() => void>();
-
-function announceChange() {
-  localListeners.forEach(listener => listener());
-  channel?.postMessage('changed');
-}
-
-export function onFavoritesChanged(listener: () => void): () => void {
-  const handler = () => listener();
-  localListeners.add(handler);
-  channel?.addEventListener('message', handler);
-  return () => {
-    localListeners.delete(handler);
-    channel?.removeEventListener('message', handler);
-  };
-}
+// Every view of the favorites (this tab and others) stays in sync
+const changes = changeChannel('recipes-favorites');
+const announceChange = () => changes.announce();
+export const onFavoritesChanged = changes.subscribe;
 
 /** The card photo as a Blob, or undefined if it can't be fetched right now. */
 async function fetchImage(url: string | null): Promise<Blob | undefined> {

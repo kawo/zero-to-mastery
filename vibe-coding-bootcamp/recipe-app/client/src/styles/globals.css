@@ -84,6 +84,36 @@
   }
 }
 
+/*
+ * Printing (the shopping list's Print button): always dark ink on white
+ * paper, even in dark mode, and no toasts. Header and footer are hidden with
+ * print:hidden in the components.
+ */
+@media print {
+  :root,
+  .dark {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --muted-foreground: 0 0% 35%;
+    --border: 0 0% 80%;
+    --primary: 0 0% 0%;
+  }
+
+  html.dark {
+    color-scheme: light;
+  }
+
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+  }
+}
+
 @layer components {
   /* Recipe instructions keep the author's paragraph breaks */
   .instructions p + p {
