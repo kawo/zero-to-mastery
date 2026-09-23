@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchButton = document.getElementById('searchButton');
     const resetButton = document.getElementById('resetButton');
     const favoritesButton = document.getElementById('favoritesButton');
+    const downloadsButton = document.getElementById('downloadsButton');
     const searchHistory = document.getElementById('searchHistory');
     const loader = document.getElementById('loader');
     const responseContainer = document.getElementById('response');
@@ -332,6 +333,187 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     favoritesButton.addEventListener('click', loadFavoritesIntoMainList);
+
+    // Downloads ------------------------------------ //
+    function downloadPercent(record) {
+        return record.total ? Math.min(100, Math.floor((record.bytes / record.total) * 100)) : null;
+    }
+
+    // One control cycles through download -> pause -> resume -> delete
+    function renderDownloadControl(control, record) {
+        const icon = control.querySelector('i');
+        const label = control.querySelector('span');
+        const status = record ? record.status : 'none';
+        const percent = record ? downloadPercent(record) : null;
+        control.dataset.status = status;
+
+        if (status === 'complete') {
+            icon.className = 'fas fa-check-circle downloaded';
+            control.title = 'Downloaded. Click to delete';
+            label.textContent = '';
+        } else if (status === 'downloading') {
+            icon.className = 'fas fa-pause-circle';
+            control.title = 'Pause download';
+            label.textContent = percent !== null ? `${percent}%` : Downloads.formatBytes(record.bytes);
+        } else if (status === 'paused' || status === 'error') {
+            icon.className = 'fas fa-redo-alt';
+            control.title = status === 'error' ? `${record.error}. Click to retry` : 'Resume download';
+            label.textContent = status === 'error' ? 'Failed' : (percent !== null ? `${percent}%` : '');
+        } else {
+            icon.className = 'fas fa-download';
+            control.title = 'Download for offline listening';
+            label.textContent = '';
+        }
+    }
+
+    function createDownloadControl(episode) {
+        const id = Downloads.key(episode);
+        const control = document.createElement('span');
+        control.className = 'download-control';
+        control.dataset.downloadId = id;
+        control.append(document.createElement('i'), document.createElement('span'));
+        renderDownloadControl(control, null);
+
+        Downloads.get(id)
+            .then(record => renderDownloadControl(control, record))
+            .catch(error => console.error('Could not read download:', error));
+
+        control.addEventListener('click', event => {
+            event.stopPropagation();
+            const status = control.dataset.status;
+            if (status === 'downloading') {
+                Downloads.pause(id);
+            } else if (status === 'complete') {
+                if (confirm(`Delete the download of "${episode.title}"?`)) {
+                    Downloads.remove(id).catch(error => alert(`Could not delete: ${error.message}`));
+                }
+            } else {
+                Downloads.start(episode).catch(error => alert(`Could not download: ${error.message}`));
+            }
+        });
+        return control;
+    }
+
+    function fillDownloadStatus(card, record) {
+        const percent = downloadPercent(record);
+        const size = record.total
+            ? `${Downloads.formatBytes(record.bytes)} of ${Downloads.formatBytes(record.total)}`
+            : Downloads.formatBytes(record.bytes);
+        const text = {
+            complete: `Downloaded · ${Downloads.formatBytes(record.bytes)}`,
+            downloading: `Downloading · ${size}`,
+            paused: `Paused · ${size}`,
+            error: `Failed: ${record.error} · ${size}`
+        };
+        card.querySelector('.download-status').textContent = text[record.status] || '';
+        const bar = card.querySelector('.download-progress');
+        bar.hidden = record.status === 'complete';
+        bar.firstChild.style.width = `${percent || 0}%`;
+    }
+
+    function createDownloadCard(record) {
+        const { episode } = record;
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.dataset.downloadCard = record.id;
+
+        const img = document.createElement('img');
+        img.src = episode.image || episode.feedImage || './default-podcast.png';
+        img.alt = episode.title;
+
+        const content = document.createElement('div');
+        content.className = 'card-content';
+
+        const title = document.createElement('h3');
+        title.innerText = episode.title;
+
+        const feed = document.createElement('p');
+        feed.className = 'download-feed';
+        feed.innerText = episode.feedTitle || '';
+
+        const iconContainer = document.createElement('div');
+        iconContainer.className = 'icon-container';
+
+        const playBtnIcon = document.createElement('i');
+        playBtnIcon.className = 'fas fa-play-circle mr-10';
+        playBtnIcon.title = 'Play Podcast';
+        playBtnIcon.addEventListener('click', () => loadPodcast(episode));
+
+        const removeBtnIcon = document.createElement('i');
+        removeBtnIcon.className = 'fas fa-trash-alt download-remove';
+        removeBtnIcon.title = 'Delete Download';
+        removeBtnIcon.addEventListener('click', () => {
+            Downloads.remove(record.id).catch(error => alert(`Could not delete: ${error.message}`));
+        });
+
+        iconContainer.appendChild(playBtnIcon);
+        iconContainer.appendChild(createDownloadControl(episode));
+        iconContainer.appendChild(removeBtnIcon);
+
+        const status = document.createElement('p');
+        status.className = 'download-status';
+
+        const bar = document.createElement('div');
+        bar.className = 'download-progress';
+        bar.appendChild(document.createElement('div'));
+
+        content.appendChild(title);
+        content.appendChild(feed);
+        content.appendChild(iconContainer);
+        content.appendChild(status);
+        content.appendChild(bar);
+
+        card.appendChild(img);
+        card.appendChild(content);
+
+        fillDownloadStatus(card, record);
+        return card;
+    }
+
+    async function showDownloads() {
+        responseContainer.dataset.view = 'downloads';
+        let records;
+        try {
+            records = await Downloads.list();
+        } catch (error) {
+            responseContainer.innerText = `Downloads are unavailable in this browser: ${error.message}`;
+            return;
+        }
+        // Another view was opened while the list was loading
+        if (responseContainer.dataset.view !== 'downloads') return;
+
+        responseContainer.textContent = '';
+        loader.style.display = 'none';
+        responseContainer.style.display = 'flex';
+
+        if (records.length === 0) {
+            responseContainer.innerText = 'No downloads yet. Open a podcast and click the download icon on an episode to listen offline.';
+            return;
+        }
+        records.forEach(record => responseContainer.appendChild(createDownloadCard(record)));
+        handleImageLoad(records.length);
+    }
+
+    downloadsButton.addEventListener('click', showDownloads);
+
+    // Keep every download control and the Downloads view up to date
+    Downloads.subscribe((record, removed) => {
+        const selector = CSS.escape(record.id);
+        document.querySelectorAll(`[data-download-id="${selector}"]`).forEach(control => {
+            renderDownloadControl(control, removed ? null : record);
+        });
+
+        if (responseContainer.dataset.view !== 'downloads') return;
+        const card = responseContainer.querySelector(`[data-download-card="${selector}"]`);
+        if (removed) {
+            if (card) card.remove();
+            if (!responseContainer.querySelector('[data-download-card]')) showDownloads();
+        } else if (card) {
+            fillDownloadStatus(card, record);
+        } else {
+            showDownloads();
+        }
+    });
     
     // Load Episodes
     async function loadEpisodes(feedId, count) {
@@ -408,6 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         iconContainer.appendChild(playBtnIcon);
         iconContainer.appendChild(queueBtnIcon);
+        iconContainer.appendChild(createDownloadControl(episode));
         iconContainer.appendChild(pubDate);
     
         content.appendChild(title);
@@ -568,21 +751,47 @@ document.addEventListener('DOMContentLoaded', () => {
     // Play or Pause Event Listener
     playBtn.addEventListener('click', () => (isPlaying ? pausePodcast() : playPodcast()));
 
+    // Plays the downloaded copy when there is one, otherwise streams.
+    // Returns false if another episode was picked while this one was looked up
+    let currentEpisode = null;
+    let offlineUrl = null;
+    let sourceRequest = 0;
+
+    async function setEpisodeSource(episode) {
+        const request = ++sourceRequest;
+        let url = null;
+        try {
+            url = await Downloads.getPlaybackUrl(Downloads.key(episode));
+        } catch (error) {
+            console.error('Could not read downloaded episode:', error);
+        }
+        if (request !== sourceRequest) {
+            if (url) URL.revokeObjectURL(url);
+            return false;
+        }
+        if (offlineUrl) URL.revokeObjectURL(offlineUrl);
+        offlineUrl = url;
+        currentEpisode = episode;
+        player.src = url || episode.enclosureUrl;
+        return true;
+    }
+
     // Update Podcast Container
-    function loadPodcast(episode) {
+    async function loadPodcast(episode) {
         currentTimeEl.style.display = 'none';
         durationEl.style.display = 'none';
         title.textContent = episode.title;
         datePublished.textContent = `${episode.datePublished ? formatDate(episode.datePublished) : 'Not Available'}`;
-        player.src = episode.enclosureUrl;
         image.src = episode.image || episode.feedImage || './default-podcast.png';
         currentArtist = episode.feedTitle || '';
         updateMediaMetadata(episode.title, currentArtist, image.src);
-    
-        // Reset Player
-        player.currentTime = 0;
         progress.classList.add('loading');
         currentTimeEl.textContent = '0:00';
+
+        if (!(await setEpisodeSource(episode))) return;
+
+        // Reset Player
+        player.currentTime = 0;
         playWhenLoaded = true;
     }
 
@@ -738,7 +947,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentTime: player.currentTime,
                 duration: player.duration,
                 image: image.src,
-                src: player.src,
+                // The real URL, not a downloaded copy's blob: URL, which dies on reload
+                src: currentEpisode ? currentEpisode.enclosureUrl : player.src,
+                episodeId: currentEpisode ? currentEpisode.id : undefined,
                 artist: currentArtist
             };
             localStorage.setItem('playerState', JSON.stringify(playerState));
@@ -746,15 +957,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 5000);
 
     // Load saved player state from local storage
-    function loadPlayerState() {
+    async function loadPlayerState() {
         const savedState = JSON.parse(localStorage.getItem('playerState'));
         if (savedState) {
             title.textContent = savedState.title;
             datePublished.textContent = savedState.datePublished;
-            player.src = savedState.src;
             image.src = savedState.image;
             currentArtist = savedState.artist || '';
             updateMediaMetadata(savedState.title, currentArtist, savedState.image);
+            const episode = {
+                id: savedState.episodeId,
+                title: savedState.title,
+                image: savedState.image,
+                feedTitle: savedState.artist,
+                enclosureUrl: savedState.src
+            };
+            if (!(await setEpisodeSource(episode))) return;
             player.currentTime = savedState.currentTime;
             formatTime(savedState.currentTime, currentTimeEl);
             player.duration = savedState.duration;
@@ -766,12 +984,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // On Startup
     // Favorites go first, and each step is isolated, so bad saved data in one
     // can't stop the others from loading
-    [loadFavoritesIntoMainList, loadPlayerState, loadQueue].forEach(step => {
-        try {
-            step();
-        } catch (error) {
-            console.error(`Startup step ${step.name} failed:`, error);
-        }
+    [loadFavoritesIntoMainList, loadPlayerState, loadQueue, Downloads.markInterrupted].forEach(step => {
+        Promise.resolve()
+            .then(step)
+            .catch(error => console.error(`Startup step ${step.name} failed:`, error));
     });
 
     // Service Worker ----------------------------- //

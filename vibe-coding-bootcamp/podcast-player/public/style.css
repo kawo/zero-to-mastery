@@ -293,6 +293,57 @@ button:hover {
     filter: brightness(60%);
 }
 
+/* Downloads */
+.download-control {
+    display: flex;
+    align-items: center;
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+.download-control span {
+    font-size: 0.8em;
+    color: #777;
+    margin-left: 5px;
+}
+
+.icon-container i.downloaded {
+    color: #2e9e4f;
+}
+
+.icon-container .download-remove {
+    margin-left: 10px;
+}
+
+.card .download-feed {
+    color: #555;
+    margin: 4px 0 8px;
+}
+
+.card .download-status {
+    font-size: 0.8em;
+    color: #777;
+    margin: 8px 0 6px;
+}
+
+.download-progress {
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.download-progress[hidden] {
+    display: none;
+}
+
+.download-progress div {
+    height: 100%;
+    width: 0;
+    background: #2e9e4f;
+    transition: width 0.3s;
+}
+
 /* Player Container ------------------------------ */
 
 /* Player */
@@ -541,10 +592,12 @@ button:hover {
 
     .search-buttons {
         width: calc(100% - 10px);
+        flex-wrap: wrap;
     }
 
+    /* Two buttons per row */
     button {
-        flex: 1;
+        flex: 1 1 40%;
         min-width: 0;
     }
 
