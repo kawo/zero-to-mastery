@@ -179,7 +179,7 @@ const Downloads = (() => {
     async function run(record, controller) {
         try {
             await fetchInto(record, controller.signal);
-            Object.assign(record, { status: 'complete', total: record.bytes });
+            Object.assign(record, { status: 'complete', total: record.bytes, completedAt: Date.now() });
         } catch (error) {
             if (controller.signal.reason === 'delete') return;
             if (controller.signal.aborted) {
@@ -200,7 +200,9 @@ const Downloads = (() => {
         notify(record);
     }
 
-    async function start(episode) {
+    // options.auto marks a download started by auto-download, which is the
+    // only kind auto-prune is allowed to delete
+    async function start(episode, options = {}) {
         const id = key(episode);
         if (active.has(id)) return;
 
@@ -222,6 +224,7 @@ const Downloads = (() => {
                 total: episode.enclosureLength || null,
                 nextIndex: 0,
                 type: '',
+                auto: Boolean(options.auto),
                 createdAt: Date.now()
             };
         }
@@ -274,5 +277,14 @@ const Downloads = (() => {
             .map(record => putRecord({ ...record, status: 'paused' })));
     }
 
-    return { key, get, list, start, pause, remove, getPlaybackUrl, subscribe, markInterrupted, formatBytes };
+    // Turns an auto-download into a kept one, so auto-prune leaves it alone
+    async function keep(id) {
+        const record = await get(id);
+        if (!record || !record.auto) return;
+        record.auto = false;
+        await putRecord(record);
+        notify(record);
+    }
+
+    return { key, get, list, start, pause, remove, keep, getPlaybackUrl, subscribe, markInterrupted, formatBytes };
 })();

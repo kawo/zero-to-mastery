@@ -219,29 +219,39 @@ const Subscriptions = (() => {
     }
 
     // Library
-    async function save(url, parsed, existing) {
+    // Merges with the feed as stored at write time, not a copy read before
+    // the (slow) fetch, so settings changed meanwhile aren't overwritten.
+    // A refresh that finishes after an unsubscribe writes nothing.
+    async function save(url, parsed, isRefresh) {
         const db = await openDb();
         const tx = db.transaction(['feeds', 'episodes'], 'readwrite');
-        const feed = {
-            ...existing,
-            ...parsed.feed,
-            url,
-            addedAt: existing ? existing.addedAt : Date.now(),
-            lastChecked: Date.now(),
-            error: '',
-            episodeCount: parsed.items.length
-        };
-        tx.objectStore('feeds').put(feed);
-        const episodeStore = tx.objectStore('episodes');
-        parsed.items.forEach(item => {
-            episodeStore.put({
-                ...item,
-                id: `${url}#${item.guid}`,
-                feedUrl: url,
-                feedTitle: feed.title,
-                feedImage: feed.image
+        const feedStore = tx.objectStore('feeds');
+        let feed = null;
+        const request = feedStore.get(url);
+        request.onsuccess = () => {
+            const current = request.result;
+            if (isRefresh && !current) return;
+            feed = {
+                ...current,
+                ...parsed.feed,
+                url,
+                addedAt: current ? current.addedAt : Date.now(),
+                lastChecked: Date.now(),
+                error: '',
+                episodeCount: parsed.items.length
+            };
+            feedStore.put(feed);
+            const episodeStore = tx.objectStore('episodes');
+            parsed.items.forEach(item => {
+                episodeStore.put({
+                    ...item,
+                    id: `${url}#${item.guid}`,
+                    feedUrl: url,
+                    feedTitle: feed.title,
+                    feedImage: feed.image
+                });
             });
-        });
+        };
         await transactionDone(tx);
         return feed;
     }
@@ -251,7 +261,7 @@ const Subscriptions = (() => {
         const existing = await get(url);
         if (existing) return { feed: existing, added: false };
         const parsed = await fetchFeed(url);
-        return { feed: await save(url, parsed, null), added: true };
+        return { feed: await save(url, parsed, false), added: true };
     }
 
     async function unsubscribe(url) {
@@ -269,15 +279,27 @@ const Subscriptions = (() => {
         const existing = await get(url);
         if (!existing) return null;
         try {
-            return await save(url, await fetchFeed(url), existing);
+            return await save(url, await fetchFeed(url), true);
         } catch (error) {
-            const db = await openDb();
-            const tx = db.transaction('feeds', 'readwrite');
-            const feed = { ...existing, lastChecked: Date.now(), error: error.message };
-            tx.objectStore('feeds').put(feed);
-            await transactionDone(tx);
-            return feed;
+            return updateFeed(url, { lastChecked: Date.now(), error: error.message });
         }
+    }
+
+    // Merges fields into a saved feed (used for auto-download settings,
+    // which survive refreshes because save() keeps existing fields)
+    async function updateFeed(url, patch) {
+        const db = await openDb();
+        const tx = db.transaction('feeds', 'readwrite');
+        const store = tx.objectStore('feeds');
+        let updated = null;
+        const request = store.get(url);
+        request.onsuccess = () => {
+            if (!request.result) return;
+            updated = { ...request.result, ...patch };
+            store.put(updated);
+        };
+        await transactionDone(tx);
+        return updated;
     }
 
     async function runLimited(items, limit, task) {
@@ -356,7 +378,7 @@ ${outlines}
     }
 
     return {
-        list, get, episodes, subscribe, unsubscribe, refresh, refreshStale,
+        list, get, episodes, subscribe, unsubscribe, refresh, refreshStale, updateFeed,
         exportOpml, importOpml, parseFeed, normalizeUrl
     };
 })();

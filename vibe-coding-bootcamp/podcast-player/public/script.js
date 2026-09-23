@@ -409,7 +409,18 @@ document.addEventListener('DOMContentLoaded', () => {
             paused: `Paused · ${size}`,
             error: `Failed: ${record.error} · ${size}`
         };
-        card.querySelector('.download-status').textContent = text[record.status] || '';
+        // Auto-downloads say when auto-prune will remove them
+        let autoNote = '';
+        if (record.auto) {
+            const { keepDays } = AutoDownload.getSettings();
+            const doneAt = record.completedAt || record.createdAt;
+            autoNote = record.status === 'complete' && keepDays > 0
+                ? ` · Auto, deleted after ${new Date(doneAt + keepDays * 86400000).toLocaleDateString()}`
+                : ' · Auto';
+        }
+        card.querySelector('.download-status').textContent = (text[record.status] || '') + autoNote;
+        const keepIcon = card.querySelector('.download-keep');
+        if (keepIcon) keepIcon.hidden = !record.auto;
         const bar = card.querySelector('.download-progress');
         bar.hidden = record.status === 'complete';
         bar.firstChild.style.width = `${percent || 0}%`;
@@ -450,8 +461,16 @@ document.addEventListener('DOMContentLoaded', () => {
             Downloads.remove(record.id).catch(error => alert(`Could not delete: ${error.message}`));
         });
 
+        const keepIcon = document.createElement('i');
+        keepIcon.className = 'fas fa-thumbtack download-keep';
+        keepIcon.title = 'Keep: auto-delete will leave this one alone';
+        keepIcon.addEventListener('click', () => {
+            Downloads.keep(record.id).catch(error => alert(`Could not keep: ${error.message}`));
+        });
+
         iconContainer.appendChild(playBtnIcon);
         iconContainer.appendChild(createDownloadControl(episode));
+        iconContainer.appendChild(keepIcon);
         iconContainer.appendChild(removeBtnIcon);
 
         const status = document.createElement('p');
@@ -489,9 +508,13 @@ document.addEventListener('DOMContentLoaded', () => {
         responseContainer.textContent = '';
         loader.style.display = 'none';
         responseContainer.style.display = 'flex';
+        responseContainer.appendChild(createAutoDownloadPanel());
 
         if (records.length === 0) {
-            responseContainer.innerText = 'No downloads yet. Open a podcast and click the download icon on an episode to listen offline.';
+            const empty = document.createElement('p');
+            empty.className = 'library-empty';
+            empty.textContent = 'No downloads yet. Open a podcast and click the download icon on an episode to listen offline.';
+            responseContainer.appendChild(empty);
             return;
         }
         records.forEach(record => responseContainer.appendChild(createDownloadCard(record)));
@@ -499,6 +522,118 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     downloadsButton.addEventListener('click', showDownloads);
+
+    // Auto-download ------------------------------- //
+    // The episode playing and everything queued are never auto-deleted
+    async function getProtectedIds() {
+        const queued = (await Queue.items()).map(Queue.key);
+        return currentEpisode ? [...queued, Downloads.key(currentEpisode)] : queued;
+    }
+
+    function runAutoDownload() {
+        const promise = AutoDownload.run(getProtectedIds);
+        updateAutoStatus();
+        return promise;
+    }
+
+    function describeAutoResult(result) {
+        if (AutoDownload.isRunning()) return 'Checking for new episodes…';
+        if (!result) return 'Not checked yet.';
+        if (result.error) return `The last check failed: ${result.error}`;
+        const parts = [`Last checked at ${new Date(result.at).toLocaleTimeString()}`];
+        if (result.downloaded) parts.push(`${result.downloaded} new episode${result.downloaded === 1 ? '' : 's'} downloaded`);
+        if (result.pruned) parts.push(`${result.pruned} old download${result.pruned === 1 ? '' : 's'} removed`);
+        if (result.skipped) parts.push(`downloads paused: ${result.skipped}`);
+        return `${parts.join(' · ')}.`;
+    }
+
+    function updateAutoStatus() {
+        const status = responseContainer.querySelector('.auto-status');
+        if (status) status.textContent = describeAutoResult(AutoDownload.lastResult());
+    }
+
+    function makeSelect(label, key, options) {
+        const wrapper = document.createElement('label');
+        wrapper.className = 'auto-setting';
+        wrapper.append(`${label} `);
+        const select = document.createElement('select');
+        const current = AutoDownload.getSettings()[key];
+        options.forEach(([value, text]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = text;
+            option.selected = value === current;
+            select.appendChild(option);
+        });
+        select.addEventListener('change', () => {
+            AutoDownload.saveSettings({ [key]: Number(select.value) });
+            // Tighter limits apply straight away
+            runAutoDownload().then(refreshDownloadNotes);
+        });
+        wrapper.appendChild(select);
+        return wrapper;
+    }
+
+    // The "deleted after" dates depend on the keep setting
+    async function refreshDownloadNotes() {
+        if (responseContainer.dataset.view !== 'downloads') return;
+        const records = await Downloads.list();
+        records.forEach(record => {
+            const card = responseContainer.querySelector(`[data-download-card="${CSS.escape(record.id)}"]`);
+            if (card) fillDownloadStatus(card, record);
+        });
+    }
+
+    function createAutoDownloadPanel() {
+        const panel = document.createElement('div');
+        panel.className = 'auto-panel';
+
+        const heading = document.createElement('h3');
+        heading.textContent = 'Auto-download';
+
+        const help = document.createElement('p');
+        help.className = 'auto-help';
+        help.textContent = 'Turn it on for a podcast with the cloud icon on its Library card. New episodes download while the app is open, and old auto-downloads are removed by these rules. Episodes you downloaded yourself, the one playing and your queue are never removed.';
+
+        const settings = document.createElement('div');
+        settings.className = 'auto-settings';
+        settings.append(
+            makeSelect('Keep for', 'keepDays', [[3, '3 days'], [7, '7 days'], [14, '14 days'], [30, '30 days'], [0, 'until space is needed']]),
+            makeSelect('Storage limit', 'maxStorageMB', [[512, '512 MB'], [1024, '1 GB'], [2048, '2 GB'], [5120, '5 GB'], [10240, '10 GB'], [0, 'no limit']]),
+            makeSelect('Per podcast', 'perFeed', [[1, 'newest episode'], [2, '2 newest'], [3, '3 newest'], [5, '5 newest']])
+        );
+
+        const wifi = document.createElement('label');
+        wifi.className = 'auto-setting';
+        const wifiBox = document.createElement('input');
+        wifiBox.type = 'checkbox';
+        wifiBox.checked = AutoDownload.getSettings().wifiOnly;
+        wifiBox.addEventListener('change', () => AutoDownload.saveSettings({ wifiOnly: wifiBox.checked }));
+        wifi.append(wifiBox, ' Wi-Fi only');
+        // Most desktop browsers don't say whether they're on Wi-Fi
+        if (!(navigator.connection && navigator.connection.type)) {
+            wifi.title = "This browser doesn't report the connection type, so this can't be checked here.";
+            wifi.append(' (not detectable in this browser)');
+        }
+        settings.appendChild(wifi);
+
+        const footer = document.createElement('div');
+        footer.className = 'auto-footer';
+        const status = document.createElement('p');
+        status.className = 'auto-status';
+        status.setAttribute('role', 'status');
+        status.textContent = describeAutoResult(AutoDownload.lastResult());
+        const checkNow = makeButton('Check now', () => runAutoDownload());
+        footer.append(status, checkNow);
+
+        panel.append(heading, help, settings, footer);
+        return panel;
+    }
+
+    AutoDownload.subscribe(() => {
+        updateAutoStatus();
+        refreshDownloadNotes().catch(() => {});
+    });
 
     // Library (subscriptions) ---------------------- //
     const EPISODES_PER_PAGE = 50;
@@ -597,7 +732,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Auto-download switch
+        const autoIcon = document.createElement('i');
+        const renderAuto = enabled => {
+            autoIcon.className = `fas fa-cloud-download-alt favorite-icon auto-toggle${enabled ? ' on' : ''}`;
+            autoIcon.title = enabled ? 'Auto-download is on. Click to turn it off' : 'Auto-download new episodes';
+            autoIcon.setAttribute('aria-pressed', String(enabled));
+        };
+        renderAuto(Boolean(feed.autoDownload));
+        autoIcon.setAttribute('role', 'button');
+        autoIcon.addEventListener('click', async event => {
+            event.stopPropagation();
+            const enabled = autoIcon.getAttribute('aria-pressed') !== 'true';
+            try {
+                await AutoDownload.setEnabled(feed.url, enabled);
+                feed.autoDownload = enabled;
+                renderAuto(enabled);
+                if (enabled) runAutoDownload();
+            } catch (error) {
+                alert(`Could not change auto-download: ${error.message}`);
+            }
+        });
+
         header.appendChild(title);
+        header.appendChild(autoIcon);
         header.appendChild(removeIcon);
 
         const author = document.createElement('p');
@@ -1641,11 +1799,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (moved && responseContainer.dataset.view === 'library') await reloadFeedList();
     }
 
-    [showLibrary, moveFavoritesIntoLibrary, loadPlayerState, loadQueue, Downloads.markInterrupted].forEach(step => {
+    const startupSteps = [showLibrary, moveFavoritesIntoLibrary, loadPlayerState, loadQueue, Downloads.markInterrupted].map(step => (
         Promise.resolve()
             .then(step)
-            .catch(error => console.error(`Startup step ${step.name} failed:`, error));
-    });
+            .catch(error => console.error(`Startup step ${step.name} failed:`, error))
+    ));
+
+    // Auto-download waits for the rest, so the restored episode and queue are
+    // known (and protected) before anything is pruned
+    Promise.allSettled(startupSteps).then(() => AutoDownload.start(getProtectedIds));
 
     // Service Worker ----------------------------- //
     if ('serviceWorker' in navigator) {

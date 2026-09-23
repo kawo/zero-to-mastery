@@ -1,4 +1,4 @@
-const cacheName = 'podcast-player-v7';
+const cacheName = 'podcast-player-v8';
 const assetsToCache = [
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const assetsToCache = [
   '/subscriptions.js',
   '/queue.js',
   '/chapters.js',
+  '/autodownload.js',
   '/podcast-icon-192.png',
   '/podcast-icon-512.png',
   '/default-podcast.png',

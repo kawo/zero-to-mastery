@@ -405,6 +405,77 @@ button:hover {
     display: none;
 }
 
+/* Auto-download */
+.card-header .auto-toggle {
+    margin-right: 10px;
+}
+
+.card-header .auto-toggle.on {
+    color: #2e9e4f;
+}
+
+.icon-container .download-keep {
+    margin-left: 10px;
+}
+
+.icon-container .download-keep[hidden] {
+    display: none;
+}
+
+.auto-panel {
+    width: calc(100% - 40px);
+    box-sizing: border-box;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px 15px;
+}
+
+.auto-panel h3 {
+    margin: 0 0 4px;
+}
+
+.auto-help {
+    margin: 0 0 8px;
+    color: #555;
+    font-size: 0.9em;
+}
+
+.auto-settings {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 16px;
+}
+
+.auto-setting {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #333;
+}
+
+.auto-setting select {
+    padding: 6px;
+}
+
+.auto-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.auto-status {
+    flex: 1 1 250px;
+    margin: 5px 0;
+    color: #555;
+}
+
+.auto-footer button {
+    flex: none;
+}
+
 /* Player Container ------------------------------ */
 
 /* Player */

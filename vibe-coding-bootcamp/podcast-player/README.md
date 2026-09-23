@@ -12,6 +12,13 @@ A podcast player that runs in the browser. It uses the [Podcast Index API](https
 
   Click a podcast to see its episodes, 50 at a time. Feeds not checked in the last hour refresh when you open the Library. **Refresh all** re-checks every feed, and **Export OPML** saves your subscriptions to move them elsewhere.
 - **Offline downloads:** download any episode from its card and follow its progress. You can pause, resume and delete downloads, and the **Downloads** view lists them all. An interrupted download picks up from the last saved byte instead of starting over. Downloaded episodes play without a connection.
+- **Auto-download and auto-delete:** turn on auto-download for a podcast with the cloud icon on its Library card. The latest episode downloads straight away, then each new one as it's published. This happens only while the app is open: at startup, every 30 minutes, when you return to the tab, and when the connection comes back. Nothing runs while the app is closed. Settings in the Downloads view:
+  - how long to keep auto-downloads
+  - a total storage limit
+  - how many new episodes to fetch per podcast
+  - Wi-Fi only
+
+  Only auto-downloads are ever deleted automatically, oldest first. Episodes you downloaded yourself, the one playing, your queue, and anything you mark **Keep** are never removed. Downloads pause when Data Saver is on, when on mobile data with Wi-Fi only set, or when the battery is under 20% and not charging. Browsers that don't report those details (most desktop browsers, Firefox, Safari) never pause. With several tabs open, only one checks at a time.
 - **Playback:** play and pause, skip 15 seconds, and click the progress bar to seek.
 - **Chapters and show notes:** chapters appear as marks on the progress bar, and the current chapter's name is shown under the episode title. Hover over the bar to see the time and chapter at that point. The notes button on the player opens the chapter list and the formatted show notes. Timestamps in the notes jump to that point, and links open in a new tab. Chapters come from the episode's Podcasting 2.0 chapters file when it has one, and otherwise from timestamps in the show notes.
 - **Queue:** add episodes to the end, or use **Play next** (double arrow) to put one at the top. Reorder by dragging the handle (mouse or touch) or with the ↑/↓ keys. When an episode ends, the next one in the queue starts, and playing an episode from the queue takes it off the list. The queue stays in step across open tabs.
@@ -68,6 +75,7 @@ public/
   downloads.js            Offline downloads: chunked, resumable storage in IndexedDB
   queue.js                Playback queue: ordered list in IndexedDB, synced across tabs
   chapters.js             Chapter parsing: Podcasting 2.0 chapters files and show-notes timestamps
+  autodownload.js         Auto-download scheduler and auto-delete rules
   service-worker.js       Caches the app files so it opens offline
   manifest.json           PWA manifest
 ```
@@ -98,7 +106,7 @@ Everything is stored in the browser. There are no user accounts and no server-si
 | Library (subscriptions and their episodes) | IndexedDB `podcast-library` |
 | Downloaded audio | IndexedDB `podcast-downloads`, in 1 MB chunks |
 | Playback queue | IndexedDB `podcast-queue` |
-| Current episode and position, search history | localStorage |
+| Current episode and position, search history, auto-download settings | localStorage |
 
 Favorites from older versions of the app are moved into the Library automatically.
 
