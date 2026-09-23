@@ -885,12 +885,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const queueBtnIcon = document.createElement('i');
-        queueBtnIcon.className = 'fas fa-list';
+        queueBtnIcon.className = 'fas fa-list mr-10';
         queueBtnIcon.title = 'Add to Queue';
         queueBtnIcon.addEventListener('click', () => {
             console.log('Episode queued:', episode);
             addToQueue(episode);
         });
+
+        const nextBtnIcon = document.createElement('i');
+        nextBtnIcon.className = 'fas fa-angle-double-up';
+        nextBtnIcon.title = 'Play Next';
+        nextBtnIcon.addEventListener('click', () => playNextInQueue(episode));
     
         const description = document.createElement('p');
         description.append(sanitizeHtml(episode.description || 'No description available.'));
@@ -901,6 +906,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         iconContainer.appendChild(playBtnIcon);
         iconContainer.appendChild(queueBtnIcon);
+        iconContainer.appendChild(nextBtnIcon);
         iconContainer.appendChild(createDownloadControl(episode));
         iconContainer.appendChild(pubDate);
 
@@ -914,21 +920,71 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
-    // Set Queue Array
-    let queueItems = [];
+    // Queue ---------------------------------------- //
+    // Rendering always comes from the stored queue (see queue.js), including
+    // changes made in other tabs. Redraws are skipped mid-drag, so the item
+    // under the pointer doesn't vanish; the drop redraws from the stored queue.
+    let queueDragging = false;
 
-    // Add item to queue
+    // Also redraws, so the list never shows an order that wasn't saved
+    function reportQueueError(error) {
+        console.error('Queue update failed:', error);
+        alert(`Could not update the queue: ${error.message}`);
+        Queue.items().then(renderQueue).catch(() => {});
+    }
+
     function addToQueue(episode) {
+        Queue.add(episode).catch(reportQueueError);
+    }
+
+    function playNextInQueue(episode) {
+        Queue.playNext(episode).catch(reportQueueError);
+    }
+
+    // Playing from the queue takes the episode off it
+    function playFromQueue(episode) {
+        loadPodcast(episode);
+        Queue.remove(Queue.key(episode)).catch(reportQueueError);
+    }
+
+    function renderQueue(items) {
+        if (queueDragging) return;
+        queueContainer.textContent = '';
+        if (items.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'queue-empty';
+            empty.textContent = 'Your queue is empty. Add episodes with the list icon, or the double arrow to play one next.';
+            queueContainer.appendChild(empty);
+            return;
+        }
+        items.forEach((episode, index) => queueContainer.appendChild(createQueueItem(episode, index)));
+    }
+
+    function createQueueItem(episode, index) {
+        const id = Queue.key(episode);
         const card = document.createElement('div');
         card.className = 'queue-item';
-    
+        card.dataset.queueKey = id;
+
+        const handle = document.createElement('i');
+        handle.className = 'fas fa-grip-vertical queue-handle';
+        handle.tabIndex = 0;
+        handle.title = 'Drag to reorder, or use the arrow keys';
+        handle.setAttribute('role', 'button');
+        handle.setAttribute('aria-label', `Reorder ${episode.title}`);
+        handle.addEventListener('pointerdown', event => startQueueDrag(event, card));
+        handle.addEventListener('keydown', event => moveQueueItemByKey(event, card));
+
         const img = document.createElement('img');
         img.src = episode.image || episode.feedImage || './default-podcast.png';
         img.alt = episode.title;
-    
+        img.addEventListener('error', () => {
+            if (!img.src.endsWith('/default-podcast.png')) handleFallbackImage(img);
+        });
+
         const content = document.createElement('div');
         content.className = 'queue-content';
-    
+
         const title = document.createElement('h3');
         title.innerText = episode.title;
 
@@ -936,59 +992,95 @@ document.addEventListener('DOMContentLoaded', () => {
         iconContainer.className = 'icon-container';
 
         const playBtnIcon = document.createElement('i');
-        playBtnIcon.className = 'fas fa-play-circle mb-10';
+        playBtnIcon.className = 'fas fa-play-circle';
         playBtnIcon.title = 'Play Podcast';
-        playBtnIcon.addEventListener('click', () => {
-            console.log('Episode played:', episode);
-            loadPodcast(episode);
-        });
+        playBtnIcon.addEventListener('click', () => playFromQueue(episode));
+
+        const nextBtnIcon = document.createElement('i');
+        nextBtnIcon.className = 'fas fa-angle-double-up';
+        nextBtnIcon.title = 'Play Next';
+        // Already first in line
+        nextBtnIcon.hidden = index === 0;
+        nextBtnIcon.addEventListener('click', () => playNextInQueue(episode));
 
         const removeBtnIcon = document.createElement('i');
         removeBtnIcon.className = 'fas fa-trash-alt';
         removeBtnIcon.title = 'Remove from Queue';
         removeBtnIcon.addEventListener('click', () => {
-            console.log('Episode deleted:', episode);
-            deleteFromQueue(episode);
+            Queue.remove(id).catch(reportQueueError);
         });
 
-        iconContainer.appendChild(playBtnIcon);
-        iconContainer.appendChild(removeBtnIcon);
-    
-        content.appendChild(title);
-        content.appendChild(iconContainer);
-    
-        card.appendChild(img);
-        card.appendChild(content);
-    
-        queueContainer.appendChild(card);
-        saveQueue(episode);
+        iconContainer.append(playBtnIcon, nextBtnIcon, removeBtnIcon);
+        content.append(title, iconContainer);
+        card.append(handle, img, content);
+        return card;
     }
 
-    // Delete item from queue
-    function deleteFromQueue(episode) {
-        queueItems = queueItems.filter(item => item.title !== episode.title);
-        localStorage.setItem('queue', JSON.stringify(queueItems));
+    // Drag to reorder: Pointer Events work for mouse, touch and pen alike.
+    // The listeners sit on window, not the handle: moving the card in the DOM
+    // makes the browser drop pointer capture on anything inside it, and the
+    // handle would stop hearing the pointer after the first move.
+    function startQueueDrag(event, card) {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        const pointerId = event.pointerId;
+        queueDragging = true;
+        card.classList.add('dragging');
 
-        const queueElements = document.querySelectorAll('.queue-item');
-        queueElements.forEach(item => {
-            const title = item.querySelector('h3').innerText;
-            if (title === episode.title) item.remove();
-        });
+        const onMove = moveEvent => {
+            if (moveEvent.pointerId !== pointerId) return;
+            const others = Array.from(queueContainer.querySelectorAll('.queue-item:not(.dragging)'));
+            const before = others.find(other => {
+                const box = other.getBoundingClientRect();
+                return moveEvent.clientY < box.top + box.height / 2;
+            }) || null;
+            if (card.nextElementSibling !== before) queueContainer.insertBefore(card, before);
+
+            // Scroll the queue when dragging near its top or bottom edge
+            const bounds = queueContainer.getBoundingClientRect();
+            if (moveEvent.clientY < bounds.top + 30) queueContainer.scrollBy(0, -10);
+            else if (moveEvent.clientY > bounds.bottom - 30) queueContainer.scrollBy(0, 10);
+        };
+
+        const onEnd = endEvent => {
+            if (endEvent.pointerId !== pointerId) return;
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onEnd);
+            window.removeEventListener('pointercancel', onEnd);
+            card.classList.remove('dragging');
+            queueDragging = false;
+
+            const next = card.nextElementSibling;
+            Queue.move(card.dataset.queueKey, next ? next.dataset.queueKey : null)
+                .catch(reportQueueError);
+        };
+
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onEnd);
+        window.addEventListener('pointercancel', onEnd);
     }
 
-    // Save item to queue
-    function saveQueue(episode) {
-        queueItems.push(episode);
-        localStorage.setItem('queue', JSON.stringify(queueItems));
-    }
-
-    // Load saved queue from local storage
-    function loadQueue() {
-        const savedQueue = JSON.parse(localStorage.getItem('queue'));
-        if (savedQueue) {
-            savedQueue.forEach(episode => addToQueue(episode));
+    // Keyboard reordering from the drag handle
+    async function moveQueueItemByKey(event, card) {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        event.preventDefault();
+        const id = card.dataset.queueKey;
+        try {
+            await Queue.moveBy(id, event.key === 'ArrowUp' ? -1 : 1);
+            // The queue was redrawn, so put focus back on the moved item
+            const moved = queueContainer.querySelector(`[data-queue-key="${CSS.escape(id)}"] .queue-handle`);
+            if (moved) moved.focus();
+        } catch (error) {
+            reportQueueError(error);
         }
     }
+
+    async function loadQueue() {
+        await Queue.importLegacy();
+        renderQueue(await Queue.items());
+    }
+
+    Queue.subscribe(renderQueue);
 
     // Navigation ---------------------------------- //
     const searchLink = document.getElementById('searchLink');
@@ -1170,6 +1262,16 @@ document.addEventListener('DOMContentLoaded', () => {
     progressContainer.addEventListener('click', setProgressBar);
     prevBtn.addEventListener('click', () => skipTime(-15));
     nextBtn.addEventListener('click', () => skipTime(15));
+
+    // When an episode finishes, the next one in the queue starts
+    player.addEventListener('ended', async () => {
+        try {
+            const next = await Queue.shift();
+            if (next) loadPodcast(next);
+        } catch (error) {
+            console.error('Could not play the next queued episode:', error);
+        }
+    });
 
     // Media Session ------------------------------- //
     // Lock-screen, notification and hardware media key controls

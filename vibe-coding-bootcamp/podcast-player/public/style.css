@@ -555,8 +555,6 @@ button:hover {
     height: 100px;
     width: 100px;
     object-fit: cover;
-    border-top-left-radius: 12px;
-    border-bottom-left-radius: 12px;
 }
 
 .queue-content {
@@ -582,7 +580,47 @@ button:hover {
 }
 
 .queue-content .icon-container i {
-    font-size: 25px;
+    font-size: 22px;
+}
+
+.queue-content .icon-container i[hidden] {
+    display: none;
+}
+
+/* Drag handle: touch-action stops a touch drag from scrolling the page */
+.queue-handle {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    color: #999;
+    font-size: 18px;
+    cursor: grab;
+    touch-action: none;
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.queue-handle:hover,
+.queue-handle:focus-visible {
+    color: #333;
+    background: #f2f2f2;
+}
+
+.queue-item.dragging {
+    opacity: 0.7;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.queue-item.dragging .queue-handle {
+    cursor: grabbing;
+}
+
+.queue-empty {
+    margin: auto;
+    padding: 20px;
+    text-align: center;
+    color: #555;
 }
 
 /* Smartphone / Tablet: Media Queries */

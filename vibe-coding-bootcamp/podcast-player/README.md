@@ -12,7 +12,8 @@ A podcast player that runs in the browser. It uses the [Podcast Index API](https
 
   Click a podcast to see its episodes, 50 at a time. Feeds not checked in the last hour refresh when you open the Library. **Refresh all** re-checks every feed, and **Export OPML** saves your subscriptions to move them elsewhere.
 - **Offline downloads:** download any episode from its card and follow its progress. You can pause, resume and delete downloads, and the **Downloads** view lists them all. An interrupted download picks up from the last saved byte instead of starting over. Downloaded episodes play without a connection.
-- **Playback:** play and pause, skip 15 seconds, click the progress bar to seek, and build a queue.
+- **Playback:** play and pause, skip 15 seconds, and click the progress bar to seek.
+- **Queue:** add episodes to the end, or use **Play next** (double arrow) to put one at the top. Reorder by dragging the handle (mouse or touch) or with the ↑/↓ keys. When an episode ends, the next one in the queue starts, and playing an episode from the queue takes it off the list. The queue stays in step across open tabs.
 - **Lock-screen and media-key controls:** the episode title, podcast and artwork appear on the lock screen and in the system media controls. Play, pause, seek and headset or keyboard media keys all work. Starting an episode in one tab pauses any other tab.
 - **Picks up where you left off:** the current episode, your position and your queue are restored when you come back.
 - **Installable (PWA):** the app files are cached, so the app opens offline, and so do your Library and Downloads.
@@ -64,6 +65,7 @@ public/
   script.js               Main UI: search, cards, Library views, player, queue, Media Session
   subscriptions.js        Library: feed fetching and RSS/Atom parsing, OPML, IndexedDB storage
   downloads.js            Offline downloads: chunked, resumable storage in IndexedDB
+  queue.js                Playback queue: ordered list in IndexedDB, synced across tabs
   service-worker.js       Caches the app files so it opens offline
   manifest.json           PWA manifest
 ```
@@ -92,7 +94,8 @@ Everything is stored in the browser. There are no user accounts and no server-si
 |---|---|
 | Library (subscriptions and their episodes) | IndexedDB `podcast-library` |
 | Downloaded audio | IndexedDB `podcast-downloads`, in 1 MB chunks |
-| Queue, current episode and position, search history | localStorage |
+| Playback queue | IndexedDB `podcast-queue` |
+| Current episode and position, search history | localStorage |
 
 Favorites from older versions of the app are moved into the Library automatically.
 
