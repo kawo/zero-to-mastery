@@ -118,6 +118,10 @@ button {
     color: white;
 }
 
+#favoritesButton i {
+    color: #f1c40f;
+}
+
 button:hover {
     filter: brightness(1.2);
 }
@@ -540,7 +544,8 @@ button:hover {
     }
 
     button {
-        width: 50%;
+        flex: 1;
+        min-width: 0;
     }
 
     .main-container {

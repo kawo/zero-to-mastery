@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchInput');
     const searchButton = document.getElementById('searchButton');
     const resetButton = document.getElementById('resetButton');
+    const favoritesButton = document.getElementById('favoritesButton');
     const searchHistory = document.getElementById('searchHistory');
     const loader = document.getElementById('loader');
     const responseContainer = document.getElementById('response');
@@ -54,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (responseContainer.dataset.view === 'favorites' && !isFavorited(podcast)) {
             const cardEl = iconEl?.closest('.card');
             if (cardEl) cardEl.remove();
+            if (favoritePodcasts.length === 0) loadFavoritesIntoMainList();
         }
     }
 
@@ -303,26 +305,33 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
-    // Load Favorites into main list on startup
+    // Load Favorites into main list (on startup and from the Favorites button)
     function loadFavoritesIntoMainList() {
         favoritePodcasts = getFavoritesFromStorage();
-        if (favoritePodcasts.length > 0) {
-            responseContainer.textContent = '';
-            favoritePodcasts.forEach((podcast, index) => {
-                const card = createCard(podcast);
-                responseContainer.appendChild(card);
-                if (index >= 25) {
-                    const imgEl = card.querySelector('img');
-                    imgEl.dataset.src = imgEl.src;
-                    imgEl.src = '';
-                }
-            });
-            responseContainer.dataset.view = 'favorites';
-            // If we didn't show loader, ensure container is visible
-            responseContainer.style.display = 'flex';
-            handleImageLoad(25);
+        responseContainer.textContent = '';
+        responseContainer.dataset.view = 'favorites';
+        loader.style.display = 'none';
+        // If we didn't show loader, ensure container is visible
+        responseContainer.style.display = 'flex';
+
+        if (favoritePodcasts.length === 0) {
+            responseContainer.innerText = 'No favorites yet. Search for a podcast and click its star to add it here.';
+            return;
         }
+
+        favoritePodcasts.forEach((podcast, index) => {
+            const card = createCard(podcast);
+            responseContainer.appendChild(card);
+            if (index >= 25) {
+                const imgEl = card.querySelector('img');
+                imgEl.dataset.src = imgEl.src;
+                imgEl.src = '';
+            }
+        });
+        handleImageLoad(25);
     }
+
+    favoritesButton.addEventListener('click', loadFavoritesIntoMainList);
     
     // Load Episodes
     async function loadEpisodes(feedId, count) {
@@ -625,11 +634,6 @@ document.addEventListener('DOMContentLoaded', () => {
     prevBtn.addEventListener('click', () => skipTime(-15));
     nextBtn.addEventListener('click', () => skipTime(15));
 
-    // Check if screen width is less than 1025px
-    function isMobileDevice() {
-        return window.innerWidth < 1025;
-    }
-
     // Save the player state to local storage every 5 seconds
     setInterval(() => {
         if (isPlaying) {
@@ -658,14 +662,19 @@ document.addEventListener('DOMContentLoaded', () => {
             player.duration = savedState.duration;
             formatTime(savedState.duration, durationEl);
             progress.style.width = `${(savedState.currentTime / savedState.duration) * 100}%`;
-            if (isMobileDevice()) navigateToPlayer();
         }
     }
 
     // On Startup
-    loadPlayerState();
-    loadQueue();
-    loadFavoritesIntoMainList();
+    // Favorites go first, and each step is isolated, so bad saved data in one
+    // can't stop the others from loading
+    [loadFavoritesIntoMainList, loadPlayerState, loadQueue].forEach(step => {
+        try {
+            step();
+        } catch (error) {
+            console.error(`Startup step ${step.name} failed:`, error);
+        }
+    });
 
     // Service Worker ----------------------------- //
     if ('serviceWorker' in navigator) {

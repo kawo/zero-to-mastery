@@ -1,4 +1,4 @@
-const cacheName = 'podcast-player-v2';
+const cacheName = 'podcast-player-v3';
 const assetsToCache = [
   '/',
   '/index.html',
@@ -21,16 +21,18 @@ self.addEventListener('install', event => {
     self.skipWaiting();
 });
   
-// Fetch event - serving cached content
+// Fetch event - network first so code changes show up, cache as offline fallback
 self.addEventListener('fetch', event => {
     event.respondWith(
-      caches.match(event.request)
+      fetch(event.request)
         .then(response => {
-          return response || fetch(event.request)
-            .catch(() => {
-              // Handle being offline
-            });
+          if (response.ok && assetsToCache.includes(new URL(event.request.url).pathname)) {
+            const copy = response.clone();
+            caches.open(cacheName).then(cache => cache.put(event.request, copy));
+          }
+          return response;
         })
+        .catch(() => caches.match(event.request))
     );
 });
 
