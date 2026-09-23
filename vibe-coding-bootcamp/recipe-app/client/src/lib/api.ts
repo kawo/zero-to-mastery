@@ -4,6 +4,7 @@
  * API key.
  */
 import { normalizeMeal, toSummary, type Meal, type MealSummary, type RawCategory, type RawMeal } from './meal';
+import { filtersToParams, type Filters, type TimeBucket } from './filters';
 
 export class ApiError extends Error {
   constructor(
@@ -76,8 +77,65 @@ export const api = {
   }
 };
 
+/** A facet option with how many results picking it would give. */
+export interface FacetCount {
+  name: string;
+  count: number;
+}
+
+export interface RecipeSearch {
+  total: number;
+  /** True when no whole-word match existed and partial words were used */
+  matchedPrefix: boolean;
+  results: MealSummary[];
+  facets: {
+    cuisines: FacetCount[];
+    categories: FacetCount[];
+    time: { bucket: TimeBucket; label: string; count: number }[];
+  };
+}
+
+interface RawSearchResult {
+  id: string;
+  name: string;
+  category: string | null;
+  cuisine: string | null;
+  thumbnail: string | null;
+  cookMinutes: number | null;
+  snippet?: string;
+}
+
+export const PAGE_SIZE = 24;
+
+/** Full-text search and filters over the server's recipe index. */
+export async function searchRecipes(filters: Filters, offset = 0, signal?: AbortSignal): Promise<RecipeSearch> {
+  const params = filtersToParams(filters);
+  params.set('limit', String(PAGE_SIZE));
+  params.set('offset', String(offset));
+  const data = await getJson<Omit<RecipeSearch, 'results'> & { results: RawSearchResult[] }>(`/api/recipes?${params}`, signal);
+  return {
+    ...data,
+    results: data.results.map(result => ({
+      id: result.id,
+      name: result.name,
+      thumbnail: result.thumbnail,
+      category: result.category ?? undefined,
+      area: result.cuisine ?? undefined,
+      cookMinutes: result.cookMinutes,
+      snippet: result.snippet
+    }))
+  };
+}
+
+export async function suggestIngredients(prefix: string, signal?: AbortSignal): Promise<FacetCount[]> {
+  const data = await getJson<{ ingredients: FacetCount[] }>(`/api/ingredients?q=${encodeURIComponent(prefix)}`, signal);
+  return data.ingredients;
+}
+
 /** React Query keys, kept in one place so invalidation stays consistent. */
 export const queryKeys = {
+  recipes: (filters: Filters) => ['recipes', filters] as const,
+  ingredients: (prefix: string) => ['ingredients', prefix] as const,
   search: (query: string) => ['search', query] as const,
   meal: (id: string) => ['meal', id] as const,
   categories: ['categories'] as const,

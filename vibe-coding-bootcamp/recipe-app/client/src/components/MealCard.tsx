@@ -2,8 +2,10 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { previewImage, type MealSummary } from '@/lib/meal';
+import { Clock } from 'lucide-react';
+import { formatMinutes, previewImage, type MealSummary } from '@/lib/meal';
 import { FavoriteButton } from './FavoriteButton';
+import { Highlight, plainSnippet } from './Highlight';
 
 /**
  * Recipe card. The title is the link (so each card is one tab stop plus its
@@ -43,10 +45,22 @@ export function MealCard({
             {meal.name}
           </Link>
         </Heading>
-        {(meal.category || meal.area) && (
+        {/* Where a text search matched, unless it only repeats the title */}
+        {meal.snippet && plainSnippet(meal.snippet) !== meal.name && (
+          <p className="line-clamp-2 text-sm text-muted-foreground">
+            <Highlight text={meal.snippet} />
+          </p>
+        )}
+        {(meal.category || meal.area || meal.cookMinutes) && (
           <div className="mt-auto flex flex-wrap gap-1.5">
             {meal.category && <Badge variant="secondary">{meal.category}</Badge>}
             {meal.area && <Badge variant="outline">{meal.area}</Badge>}
+            {meal.cookMinutes ? (
+              <Badge variant="outline" className="gap-1 font-medium" title="Estimated total time, worked out from the method">
+                <Clock aria-hidden="true" className="h-3 w-3" />
+                <span className="sr-only">Estimated total time: </span>~{formatMinutes(meal.cookMinutes)}
+              </Badge>
+            ) : null}
           </div>
         )}
         {actions && <div className="relative z-10 flex flex-wrap gap-2 pt-1">{actions}</div>}

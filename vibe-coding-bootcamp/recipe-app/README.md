@@ -11,8 +11,16 @@ The browser only ever calls this app's own `/api/*` routes. The server adds the 
 
 ## Features
 
-- **Search** recipes by name. The search is part of the URL (`/?q=curry`), so you can share it and use the back button.
-- **Browse categories** with filter chips (`/?c=Seafood`). A **Surprise me** button opens a random recipe.
+- **Full-text search** across every recipe's name, ingredients, cuisine, tags and method. Results are ranked by relevance, and each card highlights where it matched. Stemming means "tomatoes" finds "tomato", and accents are ignored, so "jalapeno" finds "jalapeño". A partial word like "chick" falls back to prefix matching.
+- **Filters:**
+  - category chips
+  - cuisine
+  - ingredients the recipe must include, with autocomplete (all must match)
+  - estimated total time: under 30 minutes, 30 to 60 minutes, or over an hour
+
+  Every option shows how many recipes it would give with the other filters as they are. Active filters appear as chips you can remove, and there's a "Clear all". Results can be sorted by best match, name, or quickest first, and load 24 at a time with "Show more". Everything lives in the URL (`/?q=curry&ing=garlic&cuisine=India&time=under30`), so searches can be shared and the back button works.
+- **Estimated times:** TheMealDB has no cook-time field, so the server estimates total time from the durations mentioned in the method ("simmer for 20 minutes", "bake 1 hour", "marinate overnight"). It's always labelled as an estimate.
+- **Surprise me** opens a random recipe.
 - **Recipe page:** photo, category, cuisine and tags; ingredients with pictures; step-by-step method; YouTube and original-source links.
 - **Favorites:** tap the heart on any card or recipe. Favorites are stored in IndexedDB with the full recipe and its photo. You can filter by name, ingredient or cuisine, filter by category, sort (recent, oldest, A to Z, Z to A, category), remove one, or remove all (with a confirmation dialog). Open tabs stay in sync.
 - **Offline:**
@@ -37,7 +45,8 @@ The browser only ever calls this app's own `/api/*` routes. The server adds the 
 | UI | Tailwind CSS v3, shadcn/ui (Button, Card, Input, Badge, Dialog, Skeleton, Sonner toasts), lucide icons, and a theme toggle component |
 | Data | TanStack Query (caching, retries), `idb` for IndexedDB |
 | PWA | Web app manifest and a hand-written service worker (no Workbox) |
-| Server | Node.js 20+, Express 5, TypeScript, helmet, cors, compression, dotenv |
+| Server | Node.js 22.13+, Express 5, TypeScript, helmet, cors, compression, dotenv |
+| Search | SQLite FTS5 through Node's built-in `node:sqlite` (no native modules): Porter stemming, bm25 ranking, snippets |
 
 ## Project structure
 
@@ -53,7 +62,10 @@ recipe-app/
 │       ├── env.ts             Loads .env before anything reads it
 │       ├── lib/mealdb.ts      TheMealDB client: adds the key, rewrites image URLs, TTL cache
 │       ├── lib/ttlCache.ts    Small in-memory cache with expiry
-│       └── routes/mealdb.ts   /api routes, input checks, cache headers, errors
+│       ├── lib/searchIndex.ts SQLite FTS5 index of the whole catalogue: build, search, facets
+│       ├── lib/cookTime.ts    Estimates total time from the method text
+│       ├── routes/mealdb.ts   /api routes proxied to TheMealDB, input checks, cache headers, errors
+│       └── routes/search.ts   /api/recipes (search and filters) and /api/ingredients (autocomplete)
 └── client/
     ├── index.html
     ├── vite.config.ts         Dev/preview /api proxy and the service worker build step
@@ -70,17 +82,19 @@ recipe-app/
         ├── main.tsx, App.tsx
         ├── sw.js              Service worker (precache and runtime caching)
         ├── styles/globals.css Tailwind layers and shadcn theme variables
-        ├── lib/               api.ts (proxy client), queryClient.ts, meal.ts, utils.ts, …
+        ├── lib/               api.ts (proxy client), filters.ts (URL filter state), queryClient.ts, meal.ts, …
         ├── features/favorites/db.ts           IndexedDB helpers
         ├── features/favorites/useFavorites.ts React hooks over the store
         ├── components/ui/     shadcn/ui components
-        ├── components/        Layout, SearchBar, MealCard, FavoriteButton, ThemeToggle, …
+        ├── components/        Layout, SearchBar, FilterPanel, MealCard, Highlight, FavoriteButton, ThemeToggle, …
         └── pages/             Home, Details, Favorites, NotFound
 ```
 
 ## Setup
 
-Requires **Node.js 20 or later**.
+Requires **Node.js 22.13 or later**, for the built-in `node:sqlite` module.
+
+On its first start the server downloads the whole TheMealDB catalogue (26 requests, about 800 recipes, a few seconds) into `server/data/recipes.db`. Until that finishes, search shows "Getting the recipe index ready" and retries on its own.
 
 Run these in two terminals:
 
@@ -120,6 +134,8 @@ These go in `server/.env`. Only the server reads them.
 |---|---|---|
 | `MEALDB_API_BASE` | `https://www.themealdb.com/api/json/v1` | TheMealDB base URL |
 | `MEALDB_API_KEY` | `1` | TheMealDB key. `1` is the public development key; use your supporter key in production |
+| `SEARCH_DB_PATH` | `data/recipes.db` | Where the search index (SQLite) is stored. It's only a cache and can be deleted at any time |
+| `SEARCH_REFRESH_HOURS` | `24` | Rebuild the index from TheMealDB when it's older than this |
 | `PORT` | `3001` | API port |
 | `CORS_ORIGINS` | *(none)* | Comma-separated origins allowed to call the API directly. Not needed when the client reaches the API through a same-origin proxy, which is the case in dev, preview, and the deploy setups below |
 
@@ -135,6 +151,9 @@ For the client, `API_URL` (optional) is where `vite dev` and `vite preview` forw
 | `GET /api/filter?c=` | `filter.php?c=` | 1 hour | 1 hour |
 | `GET /api/random` | `random.php` | none | `no-store` |
 | `GET /api/images/*` | TheMealDB image files | none | 1 week, immutable |
+| `GET /api/recipes?q=&c=&cuisine=&ing=&time=&sort=&limit=&offset=` | Local search index | none (SQLite) | 5 min |
+| `GET /api/ingredients?q=` | Local search index (autocomplete) | none | 1 hour |
+| `GET /api/search-index` | Index status: `{ meals, builtAt, building }` | none | `no-store` |
 
 How the server handles requests:
 - **Input checks:** inputs are validated, and bad input gets a 400 with a readable message.
@@ -189,8 +208,8 @@ The worker is only registered in production builds, so it doesn't interfere with
 | Page navigations | Network first (4-second timeout), then the cached app shell, then `offline.html` | precache |
 | Built assets and `public/` files | Cache first (precached at install) | `recipes-precache-<version>` |
 | `/api/images/*` | Stale-while-revalidate (max 300 entries) | `recipes-images-v1` |
-| `/api/categories`, `/api/filter` | Stale-while-revalidate | `recipes-api-v1` (max 150) |
-| `/api/search`, `/api/meal/:id` | Network first (4-second timeout), then the cached copy | `recipes-api-v1` |
+| `/api/categories`, `/api/filter`, `/api/ingredients` | Stale-while-revalidate | `recipes-api-v1` (max 150) |
+| `/api/search`, `/api/recipes`, `/api/meal/:id` | Network first (4-second timeout), then the cached copy | `recipes-api-v1` |
 | `/api/random` | Network only | none |
 
 When the app is offline and a response isn't cached, the worker answers `/api/*` with `503 {"offline": true}`. The client shows that as a friendly "You're offline" state. React Query runs in `offlineFirst` mode, so requests still reach the service worker when the browser reports being offline.
@@ -222,6 +241,8 @@ Favorites live in IndexedDB. The database is `recipes`, the store is `favorites`
 - Build command: `npm ci && npm run build`
 - Start command: `npm start`
 - Environment: `MEALDB_API_KEY` (your key), and optionally `MEALDB_API_BASE`, `CORS_ORIGINS`. Render sets `PORT` itself.
+- Node version: 22.13 or later (set `NODE_VERSION=22` in Render's environment, or add an `.nvmrc`).
+- Render's disk is wiped on each deploy, so the search index is rebuilt on startup. That takes a few seconds; to keep it between deploys, attach a persistent disk and point `SEARCH_DB_PATH` at it.
 
 **Client on Netlify or Vercel:**
 - Base directory: `client`

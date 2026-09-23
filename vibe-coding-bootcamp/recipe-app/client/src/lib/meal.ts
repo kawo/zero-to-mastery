@@ -37,6 +37,10 @@ export interface MealSummary {
   thumbnail: string | null;
   category?: string;
   area?: string;
+  /** Estimated total time in minutes, worked out from the method text (TheMealDB has no times) */
+  cookMinutes?: number | null;
+  /** Where a text search matched, with \u0002 ... \u0003 around the hits */
+  snippet?: string;
 }
 
 /** A full recipe. */
@@ -73,6 +77,8 @@ export function normalizeMeal(raw: RawMeal): Meal {
     tags: clean(raw.strTags).split(',').map(tag => tag.trim()).filter(Boolean),
     youtube: clean(raw.strYoutube) || null,
     source: clean(raw.strSource) || null,
+    // Added by our server (see server/src/lib/cookTime.ts)
+    cookMinutes: (raw as unknown as { estCookMinutes?: number | null }).estCookMinutes ?? null,
     ingredients
   };
 }
@@ -89,6 +95,14 @@ export function previewImage(url: string | null | undefined): string | null {
 /** Small ingredient photo, served through the same /api/images proxy. */
 export function ingredientImage(name: string): string {
   return `/api/images/ingredients/${encodeURIComponent(name)}-small.png`;
+}
+
+/** "about 45 min", "about 1 h 30 min" */
+export function formatMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} h ${rest} min` : `${hours} h`;
 }
 
 /** Instructions as paragraphs, without "STEP 1" style headings on their own line. */

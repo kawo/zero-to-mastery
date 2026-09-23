@@ -13,8 +13,8 @@
  * Strategies, by request:
  *   page navigations          network first -> cached app shell -> offline.html
  *   /api/images/*             stale-while-revalidate
- *   /api/categories, /filter  stale-while-revalidate (changes rarely)
- *   /api/search, /api/meal/*  network first (with timeout) -> cached copy
+ *   /api/categories, /filter, /ingredients  stale-while-revalidate (change rarely)
+ *   /api/search, /api/recipes, /api/meal/*  network first (with timeout) -> cached copy
  *   /api/random               network only (a cached "random" would repeat)
  *   built assets & public/    cache first (precached; names change per build)
  *
@@ -187,8 +187,8 @@ async function cacheFirst(request) {
 
 const ROUTES = [
   { test: url => url.pathname.startsWith('/api/images/'), handle: event => staleWhileRevalidate(event, IMAGE_CACHE, MAX_IMAGE_ENTRIES) },
-  { test: url => url.pathname === '/api/categories' || url.pathname === '/api/filter', handle: event => staleWhileRevalidate(event, API_CACHE, MAX_API_ENTRIES) },
-  { test: url => url.pathname === '/api/search' || url.pathname.startsWith('/api/meal/'), handle: event => networkFirst(event, API_CACHE, MAX_API_ENTRIES) },
+  { test: url => ['/api/categories', '/api/filter', '/api/ingredients'].includes(url.pathname), handle: event => staleWhileRevalidate(event, API_CACHE, MAX_API_ENTRIES) },
+  { test: url => ['/api/search', '/api/recipes'].includes(url.pathname) || url.pathname.startsWith('/api/meal/'), handle: event => networkFirst(event, API_CACHE, MAX_API_ENTRIES) },
   { test: url => url.pathname.startsWith('/api/'), handle: event => networkOnly(event.request) }
 ];
 

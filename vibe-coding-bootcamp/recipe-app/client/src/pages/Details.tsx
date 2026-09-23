@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, CirclePlay, ExternalLink } from 'lucide-react';
+import { ArrowLeft, CirclePlay, Clock, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { FavoriteButton } from '@/components/FavoriteButton';
 import { StatusMessage } from '@/components/StatusMessage';
 import { useFavorites } from '@/features/favorites/useFavorites';
 import { api, ApiError, queryKeys } from '@/lib/api';
-import { ingredientImage, instructionSteps } from '@/lib/meal';
+import { formatMinutes, ingredientImage, instructionSteps } from '@/lib/meal';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { safeExternalUrl } from '@/lib/utils';
 
@@ -95,6 +95,12 @@ export default function Details() {
             <div className="flex flex-wrap gap-1.5">
               {meal.category && <Badge>{meal.category}</Badge>}
               {meal.area && <Badge variant="outline">{meal.area}</Badge>}
+              {meal.cookMinutes ? (
+                <Badge variant="outline" className="gap-1" title="Worked out from the times in the method; TheMealDB doesn't list cook times">
+                  <Clock aria-hidden="true" className="h-3 w-3" />
+                  About {formatMinutes(meal.cookMinutes)} total (estimated)
+                </Badge>
+              ) : null}
               {meal.tags.map(tag => (
                 <Badge key={tag} variant="secondary">
                   {tag}

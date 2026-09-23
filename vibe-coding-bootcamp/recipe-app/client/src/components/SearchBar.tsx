@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 export function SearchBar({ className, size = 'default' }: { className?: string; size?: 'default' | 'lg' }) {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const urlQuery = params.get('q') ?? '';
   const [value, setValue] = useState(urlQuery);
   const id = useId();
@@ -22,7 +23,14 @@ export function SearchBar({ className, size = 'default' }: { className?: string;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const query = value.trim();
-    navigate(query ? `/?q=${encodeURIComponent(query)}` : '/');
+    // On the home page, keep the other filters and the sort; elsewhere start fresh
+    const next = location.pathname === '/' ? new URLSearchParams(params) : new URLSearchParams();
+    if (query) next.set('q', query);
+    else next.delete('q');
+    // "Best match" only applies to a text search
+    if (!query && next.get('sort') === 'relevance') next.delete('sort');
+    const search = next.toString();
+    navigate(search ? `/?${search}` : '/');
   };
 
   return (

@@ -5,6 +5,7 @@
  */
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { IMAGE_ORIGIN, UpstreamError, mealdb } from '../lib/mealdb.js';
+import { estimateCookMinutes } from '../lib/cookTime.js';
 
 export const mealdbRouter = Router();
 
@@ -61,7 +62,9 @@ mealdbRouter.get('/meal/:id', handle(async (req, res) => {
     return;
   }
   cacheFor(res, 1800);
-  res.json({ meal });
+  // TheMealDB has no cook time; add the estimate from the method text
+  const instructions = (meal as { strInstructions?: string | null }).strInstructions;
+  res.json({ meal: { ...(meal as object), estCookMinutes: estimateCookMinutes(instructions) } });
 }));
 
 // GET /api/categories  ->  categories.php (in-memory cache for a day)
