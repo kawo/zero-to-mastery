@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * shadcn/ui theme tokens (HSL channels, used as hsl(var(--token))).
+ * Warm "stone + orange" palette; change these to re-theme every component.
+ */
+@layer base {
+  :root {
+    --background: 60 9% 98%;
+    --foreground: 24 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 24 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 10% 10%;
+    --primary: 21 90% 38%; /* 5.3:1 with white text (WCAG AA) */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 20% 94%;
+    --secondary-foreground: 24 10% 15%;
+    --muted: 30 15% 94%;
+    --muted-foreground: 25 6% 38%;
+    --accent: 30 40% 92%;
+    --accent-foreground: 24 10% 15%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 12% 86%;
+    --input: 30 12% 80%;
+    --ring: 21 90% 38%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 24 10% 8%;
+    --foreground: 60 9% 96%;
+    --card: 24 9% 11%;
+    --card-foreground: 60 9% 96%;
+    --popover: 24 9% 11%;
+    --popover-foreground: 60 9% 96%;
+    --primary: 27 96% 61%;
+    --primary-foreground: 24 10% 8%;
+    --secondary: 24 7% 18%;
+    --secondary-foreground: 60 9% 96%;
+    --muted: 24 7% 16%;
+    --muted-foreground: 30 8% 68%;
+    --accent: 24 7% 20%;
+    --accent-foreground: 60 9% 96%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 24 7% 22%;
+    --input: 24 7% 28%;
+    --ring: 27 96% 61%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* A visible focus ring for keyboard users on anything focusable */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Recipe instructions keep the author's paragraph breaks */
+  .instructions p + p {
+    @apply mt-3;
+  }
+}
