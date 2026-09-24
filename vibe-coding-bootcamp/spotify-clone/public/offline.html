@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Offline · Tunebox</title>
+    <meta name="theme-color" content="#121212" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <style>
+      :root {
+        color-scheme: dark light;
+        --bg: #121212;
+        --fg: #f5f5f5;
+        --muted: #aaa;
+        --accent: #1ed760;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f7f7f5;
+          --fg: #161616;
+          --muted: #60605c;
+          --accent: #16a34a;
+        }
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          16px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      main {
+        max-width: 26rem;
+        text-align: center;
+      }
+      img {
+        width: 72px;
+        height: 72px;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 16px 0 8px;
+      }
+      p {
+        color: var(--muted);
+        margin: 0 0 8px;
+      }
+      a,
+      button {
+        display: inline-block;
+        margin-top: 16px;
+        padding: 10px 20px;
+        border-radius: 999px;
+        border: 0;
+        background: var(--accent);
+        color: #0c0c0c;
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon.svg" alt="" />
+      <h1>You're offline</h1>
+      <p>This page isn't available offline.</p>
+      <p>
+        Your library, playlists and every song you've imported still work offline. Open Tunebox's
+        home screen to keep listening.
+      </p>
+      <a href="/songs">Open my library</a>
+      <br />
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

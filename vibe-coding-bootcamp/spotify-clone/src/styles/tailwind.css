@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Theme tokens as space-separated RGB so Tailwind can apply opacity
+ * (e.g. bg-accent/20). Light is the default; `.dark` on <html> switches.
+ */
+@layer base {
+  :root {
+    --bg: 247 247 245;
+    --surface: 255 255 255;
+    --elevated: 236 236 233;
+    --border: 222 222 218;
+    --fg: 22 22 22;
+    --muted: 96 96 92;
+    --accent: 22 163 74;
+    --accent-fg: 255 255 255;
+    --danger: 200 40 40;
+    color-scheme: light;
+  }
+  .dark {
+    --bg: 18 18 18;
+    --surface: 26 26 26;
+    --elevated: 40 40 40;
+    --border: 52 52 52;
+    --fg: 245 245 245;
+    --muted: 170 170 170;
+    --accent: 30 215 96;
+    --accent-fg: 12 12 12;
+    --danger: 248 113 113;
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-bg font-sans text-fg antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  /* One consistent, highly visible focus ring for keyboard users only. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-bg;
+  }
+
+  ::selection {
+    @apply bg-accent/30;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-accent-fg hover:brightness-110;
+  }
+  .btn-secondary {
+    @apply btn border border-border bg-transparent text-fg hover:bg-elevated;
+  }
+  .btn-ghost {
+    @apply btn text-muted hover:bg-elevated hover:text-fg;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white hover:brightness-110;
+  }
+  .icon-btn {
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-elevated hover:text-fg disabled:opacity-40;
+  }
+  .input {
+    @apply w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg placeholder:text-muted/80 focus-visible:ring-offset-0;
+  }
+  .card {
+    @apply rounded-xl border border-border bg-surface;
+  }
+
+  /* Range input used for the timeline and volume. --pct drives the filled part. */
+  .range {
+    @apply h-4 w-full cursor-pointer appearance-none bg-transparent;
+    --pct: 0%;
+    --fill: rgb(var(--fg));
+  }
+  .range:hover,
+  .range:focus-visible {
+    --fill: rgb(var(--accent));
+  }
+  .range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      var(--fill) var(--pct),
+      rgb(var(--muted) / 0.35) var(--pct)
+    );
+  }
+  .range::-moz-range-track {
+    height: 4px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      var(--fill) var(--pct),
+      rgb(var(--muted) / 0.35) var(--pct)
+    );
+  }
+  .range::-webkit-slider-thumb {
+    @apply -mt-1 h-3 w-3 appearance-none rounded-full bg-fg opacity-0 transition-opacity;
+  }
+  .range::-moz-range-thumb {
+    @apply h-3 w-3 rounded-full border-0 bg-fg opacity-0;
+  }
+  .range:hover::-webkit-slider-thumb,
+  .range:focus-visible::-webkit-slider-thumb,
+  .range:active::-webkit-slider-thumb {
+    @apply opacity-100;
+  }
+  .range:hover::-moz-range-thumb,
+  .range:focus-visible::-moz-range-thumb {
+    @apply opacity-100;
+  }
+  .range:focus-visible {
+    @apply ring-0 ring-offset-0;
+  }
+  .range:focus-visible::-webkit-slider-thumb {
+    @apply ring-2 ring-accent ring-offset-2 ring-offset-bg;
+  }
+}
+
+@layer utilities {
+  /* Long lists skip layout/paint for off-screen rows. */
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 56px;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--muted) / 0.4) transparent;
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
