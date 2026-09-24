@@ -9,8 +9,12 @@
  *
  * The database is a file (SEARCH_DB_PATH), so restarts reuse it; it is
  * rebuilt in the background when older than SEARCH_REFRESH_HOURS.
+ *
+ * Where the disk isn't writable or doesn't last (Vercel), the index is built
+ * at deploy time (buildIndex.ts) and shipped with the code; SEARCH_DB_SEED
+ * points at that copy, which is copied to SEARCH_DB_PATH on a cold start.
  */
-import { mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { mealdb } from './mealdb.js';
@@ -26,6 +30,8 @@ const MIN_PLAUSIBLE_MEALS = 100;
 type RawMeal = Record<string, string | null | undefined> & { idMeal: string; strMeal: string };
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
+const SEED = process.env.SEARCH_DB_SEED;
+if (SEED && !existsSync(DB_PATH) && existsSync(SEED)) copyFileSync(SEED, DB_PATH);
 const db = new DatabaseSync(DB_PATH);
 
 // Bump when the tables below change: an index file from an older version is
@@ -157,6 +163,15 @@ export function indexStatus() {
   const { count } = db.prepare('SELECT COUNT(*) AS count FROM meals').get() as { count: number };
   const builtAt = (db.prepare("SELECT value FROM meta WHERE key = 'builtAt'").get() as { value: string } | undefined)?.value ?? null;
   return { meals: count, builtAt, building: Boolean(building) };
+}
+
+/**
+ * Folds the write-ahead log into the main file and closes the database, so
+ * the index is one self-contained file that can be copied (buildIndex.ts).
+ */
+export function closeIndexAsSingleFile() {
+  db.exec('PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode = DELETE;');
+  db.close();
 }
 
 /** Builds now if the index is empty or stale, then re-checks on a timer. */

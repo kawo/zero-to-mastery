@@ -262,7 +262,16 @@ Favorites live in IndexedDB. The database is `recipes`, the store is `favorites`
 
 ## Deployment
 
-**Server on Render (Web Service):**
+**Everything on Vercel (one project):**
+
+`vercel.json` in this folder deploys the client and the API together. Set the project's root directory to `vibe-coding-bootcamp/recipe-app` (or run `vercel` from here).
+
+- The client is built to `client/dist` and served as static files, with an SPA fallback for deep links.
+- The API runs as one serverless function, `api/index.mjs`, which wraps the Express app in `server/src/app.ts`. Every `/api/*` request is rewritten to it.
+- Vercel has no lasting disk, so the search index can't be built at startup. `npm run build:index` builds it during the deploy (the deploy fails if TheMealDB can't be fetched completely) and it ships with the function, which copies it to `/tmp` on a cold start. Search data is therefore as fresh as the last deploy; redeploy to refresh it.
+- Environment: `MEALDB_API_KEY` (your key; without it the public test key "1" is used), and optionally `MEALDB_API_BASE`. Node 22.x is set in `package.json`.
+
+**Or, server on Render (Web Service):**
 - Root directory: `server`
 - Build command: `npm ci && npm run build`
 - Start command: `npm start`
