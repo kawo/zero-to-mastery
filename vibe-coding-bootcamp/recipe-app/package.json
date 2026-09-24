@@ -2,6 +2,7 @@
   "name": "recipes-pwa",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Recipes PWA: React + Vite client and an Express proxy for TheMealDB",
   "scripts": {
     "setup": "npm install && npm --prefix server install && npm --prefix client install",
