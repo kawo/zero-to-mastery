@@ -92,6 +92,17 @@ export function previewImage(url: string | null | undefined): string | null {
   return url.includes('/media/meals/') && !url.endsWith('/preview') ? `${url}/preview` : url;
 }
 
+/** Key for "the same ingredient": lower case, no "fresh", last word singular. */
+export function ingredientKey(name: string): string {
+  const words = name.toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ').trim().replace(/^fresh /, '').split(' ');
+  const last = words.pop() ?? '';
+  const singular = /ies$/.test(last) ? last.replace(/ies$/, 'y')
+    : /(oes|ches|shes|xes)$/.test(last) ? last.replace(/es$/, '')
+    : /[^su]s$/.test(last) && last.length > 3 ? last.slice(0, -1)
+    : last;
+  return [...words, singular].join(' ');
+}
+
 /** Small ingredient photo, served through the same /api/images proxy. */
 export function ingredientImage(name: string): string {
   return `/api/images/ingredients/${encodeURIComponent(name)}-small.png`;

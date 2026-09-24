@@ -11,22 +11,11 @@
  *   - measures without a number ("pinch", "to taste") are kept as notes.
  * Nothing here touches the DOM, so it can be tested on its own.
  */
-import type { Meal } from '@/lib/meal';
+import { ingredientKey, type Meal } from '@/lib/meal';
 import { formatAmount, keepsUnit, parseMeasure, pickUnit, unitFactor, type Dimension, type UnitSystem } from '@/lib/measure';
 
 // ---------------------------------------------------------------------------
 // Names and aisles
-
-/** Key for "the same ingredient": lower case, no "fresh", last word singular. */
-export function ingredientKey(name: string): string {
-  const words = name.toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ').trim().replace(/^fresh /, '').split(' ');
-  const last = words.pop() ?? '';
-  const singular = /ies$/.test(last) ? last.replace(/ies$/, 'y')
-    : /(oes|ches|shes|xes)$/.test(last) ? last.replace(/es$/, '')
-    : /[^su]s$/.test(last) && last.length > 3 ? last.slice(0, -1)
-    : last;
-  return [...words, singular].join(' ');
-}
 
 export const AISLES = ['Produce', 'Meat & fish', 'Dairy & eggs', 'Bakery', 'Pantry', 'Spices & seasonings', 'Other'] as const;
 export type Aisle = (typeof AISLES)[number];

@@ -22,6 +22,7 @@ The browser only ever calls this app's own `/api/*` routes. The server adds the 
 - **Estimated times:** TheMealDB has no cook-time field, so the server estimates total time from the durations mentioned in the method ("simmer for 20 minutes", "bake 1 hour", "marinate overnight"). It's always labelled as an estimate.
 - **Surprise me** opens a random recipe.
 - **Recipe page:** photo, category, cuisine and tags; ingredients with pictures; step-by-step method; YouTube and original-source links.
+- **Nutrition estimates:** each recipe page shows calories, protein, carbs, fat, fibre, sugars, saturates and salt per serving. Every ingredient is matched to a food in USDA's nutrient data and weighed from its measure, using USDA's cup and spoon weights for volumes and piece weights for counts ("2 large eggs", "3 cloves"). TheMealDB doesn't give servings, so it starts at 4, and the number you set is remembered for each recipe. The card says how many ingredients it counted, and "How this is worked out" lists each one with its weight, the USDA food it matched and its calories, or why it was left out. Most deep-frying oil stays in the pan, so only a tenth of it is counted. It works offline. See [Nutrition data](#nutrition-data).
 - **Metric or imperial:** a units switch on the recipe page and the shopping list shows amounts as the recipe wrote them, in metric (g, kg, ml, l), or in imperial (oz, lb, cups). Teaspoons and tablespoons stay as they are, and small imperial volumes become spoons rather than fractions of a cup. Where a recipe already gives both ("200g/7oz"), the matching one is used. The choice is saved on the device, and CSV and JSON exports follow it. Conversion factors come from the [`convert`](https://www.npmjs.com/package/convert) library; a pint is a UK pint, since most TheMealDB recipes are British.
 - **Favorites:** tap the heart on any card or recipe. Favorites are stored in IndexedDB with the full recipe and its photo. You can filter by name, ingredient or cuisine, filter by category, sort (recent, oldest, A to Z, Z to A, category), remove one, or remove all (with a confirmation dialog). Open tabs stay in sync.
 - **Offline:**
@@ -74,6 +75,7 @@ recipe-app/
     ├── postcss.config.cjs
     ├── tailwind.config.cjs
     ├── components.json        shadcn/ui settings
+    ├── scripts/               Nutrition data: the ingredient-to-USDA mapping and the script that builds the table
     ├── public/
     │   ├── manifest.webmanifest
     │   ├── offline.html
@@ -86,6 +88,7 @@ recipe-app/
         ├── lib/               api.ts (proxy client), filters.ts (URL filter state), queryClient.ts, meal.ts, …
         ├── features/favorites/db.ts           IndexedDB helpers
         ├── features/favorites/useFavorites.ts React hooks over the store
+        ├── features/nutrition/                Nutrition table (generated) and the per-recipe estimate
         ├── components/ui/     shadcn/ui components
         ├── components/        Layout, SearchBar, FilterPanel, MealCard, Highlight, FavoriteButton, ThemeToggle, …
         └── pages/             Home, Details, Favorites, NotFound
@@ -179,6 +182,28 @@ To set up shadcn in a new Vite and Tailwind v3 project from scratch:
 2. Add the `@/*` path alias in `tsconfig.app.json` and in `vite.config.ts` under `resolve.alias`.
 3. `npx shadcn@2.3.0 init`. Pick your style and base colour; it writes `components.json` and the CSS variables in `globals.css`.
 4. `npx shadcn@2.3.0 add button card input badge dialog skeleton sonner`.
+
+## Nutrition data
+
+Nutrition comes from [USDA FoodData Central](https://fdc.nal.usda.gov/), SR Legacy (April 2018), which is public domain. It's a local table, so no API key is needed and it works offline.
+
+- `client/scripts/nutrition-foods.txt` maps ingredient names to USDA foods by FDC id, one food per line, with USDA's description as a comment. It covers about 290 foods under 650 names, enough to count 86% of the ingredient lines across TheMealDB's 790 recipes. It also holds a few portion overrides where USDA's household weights don't fit, such as a 10 g British stock cube or a 240 g drained tin of beans.
+- `client/scripts/build-nutrition.mjs` reads that mapping and the USDA CSVs and writes `client/src/features/nutrition/foods.json`. For each food the table holds nutrients per 100 g, a density from USDA's cup and spoon portions, and piece weights. It's committed, and the app loads it as its own 15 KB (gzipped) chunk the first time a recipe page opens. The service worker precaches it with the rest of the build.
+
+To add or correct a food, edit the mapping, download the SR Legacy CSV zip from [the USDA download page](https://fdc.nal.usda.gov/download-datasets) (about 6 MB), unzip it, and run:
+
+```bash
+cd client
+node scripts/build-nutrition.mjs path/to/FoodData_Central_sr_legacy_food_csv_2018-04
+```
+
+The script stops with a message if an id isn't in the dataset or a name is listed twice.
+
+Limits worth knowing:
+
+- **Servings are a guess.** TheMealDB has no servings field, so the default of 4 is a guess.
+- **Raw weights are assumed.** Measures are taken as raw: "3 cups rice" counts as 3 cups of uncooked rice even if the recipe means cooked.
+- **Some ingredients are left out.** Ingredients without an amount ("salt to taste"), unknown foods and unweighable measures ("1 packet") are left out and listed, so the estimate is a floor when many are missing. The card says so when more than a quarter are.
 
 ## PWA details
 

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AddToListButton } from '@/components/AddToListButton';
 import { FavoriteButton } from '@/components/FavoriteButton';
+import { NutritionCard } from '@/components/NutritionCard';
 import { StatusMessage } from '@/components/StatusMessage';
 import { UnitToggle } from '@/components/UnitToggle';
 import { useFavorites } from '@/features/favorites/useFavorites';
@@ -172,6 +173,8 @@ export default function Details() {
               </ul>
             </CardContent>
           </Card>
+
+          <NutritionCard meal={meal} />
 
           <section aria-labelledby="method-title" className="space-y-3">
             <h2 id="method-title" className="text-xl font-semibold">

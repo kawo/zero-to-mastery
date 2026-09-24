@@ -1,0 +1,306 @@
+# Ingredient names -> USDA foods, for the nutrition estimates.
+#
+# Source: USDA FoodData Central, SR Legacy (April 2018), public domain.
+# One food per line:
+#
+#   <FDC id> [portion=grams ...] | name, name, ...   # USDA description
+#
+# Names are matched after the same normalising as the shopping list (lower
+# case, "fresh" dropped, last word singular), so "Eggs" matches "egg".
+# Overrides replace USDA's portion data: grams for one piece or unit, e.g.
+# "cube=10" for a British stock cube or "each=175" for a plain count, and
+# "density=1.04" (grams per ml) for foods USDA gives no cup or spoon weight.
+# Id 0 is a food with no nutrients (water).
+#
+# After editing, rebuild src/features/nutrition/foods.json:
+#   node scripts/build-nutrition.mjs <path to the unzipped SR Legacy CSVs>
+
+0 | water, cold water, warm water, boiling water, hot water, ice, ice cubes, rose water, orange blossom water   # no nutrients
+173468 | salt, kosher salt, sea salt, table salt, celery salt, onion salt, garlic salt   # Salt, table
+169230 | garlic, garlic clove, garlic cloves, minced garlic, cloves garlic   # Garlic, raw
+170000 | onion, onions, chopped onion, red onions, red onion, white onion, brown onion, yellow onion   # Onions, raw
+171413 | olive oil, extra virgin olive oil, light olive oil   # Oil, olive, salad or cooking
+173410 | butter, salted butter, melted butter   # Butter, salted
+173430 | unsalted butter   # Butter, without salt
+169655 | sugar, granulated sugar, caster sugar, golden caster sugar, white sugar, superfine sugar, vanilla sugar   # Sugars, granulated
+171265 | milk, whole milk   # Milk, whole, 3.25% milkfat, with added vitamin D
+171287 | egg, eggs, large eggs, free-range eggs, egg wash   # Egg, whole, raw, fresh
+172184 | egg yolks, egg yolk   # Egg, yolk, raw, fresh
+172183 | egg white, egg whites   # Egg, white, raw, fresh
+172336 | vegetable oil, oil, canola oil, rapeseed oil, cooking oil   # Oil, canola
+171025 | sunflower oil   # Oil, sunflower, linoleic, (approx. 65%)
+171410 | peanut oil, ground nut oil, groundnut oil   # Oil, peanut, salad or cooking
+171016 | sesame seed oil, sesame oil   # Oil, sesame, salad or cooking
+170931 | pepper, black pepper, ground black pepper, sichuan pepper, white pepper, peppercorns, black peppercorns   # Spices, pepper, black
+170416 bunch=30 | parsley, chopped parsley, freshly chopped parsley, flat leaf parsley   # Parsley, fresh
+170026 | potatoes, potato, new potatoes, small potatoes, floury potatoes, jersey royal potatoes, red potatoes, russet potato, baby potatoes, maris piper potatoes   # Potatoes, flesh and skin, raw
+170393 | carrots, carrot   # Carrots, raw
+174277 | soy sauce, dark soy sauce, light soy sauce   # Soy sauce made from soy and wheat (shoyu)
+168894 | flour, plain flour, all purpose flour, all-purpose flour, wheat flour   # Wheat flour, white, all-purpose, enriched, bleached
+168895 | self-raising flour, self raising flour   # Wheat flour, white, all-purpose, self-rising, enriched
+168896 | strong white bread flour, bread flour   # Wheat flour, white, bread, enriched
+170005 bunch=100 | spring onions, scallions, green onions, spring onion   # Onions, spring or scallions (includes tops and bulb), raw
+172803 | baking powder   # Leavening agents, baking powder, double-acting, sodium aluminum sulfate
+169997 bunch=30 | coriander, cilantro, coriander leaves, cilantro leaves, fresh coriander   # Coriander (cilantro) leaves, raw
+171329 | paprika, smoked paprika, sweet paprika, sweet smoked paprika, hot paprika   # Spices, paprika
+168155 | lime, limes   # Limes, raw
+170108 | red pepper, red peppers, red bell pepper, romano pepper   # Peppers, sweet, red, raw
+170427 | green pepper, green peppers, green bell pepper   # Peppers, sweet, green, raw
+169383 | yellow pepper, yellow peppers, orange pepper   # Peppers, sweet, yellow, raw
+167746 | lemon, lemons   # Lemons, raw, without peel
+169231 | ginger, ginger paste, galangal, fresh ginger   # Ginger root, raw
+170460 | tomato puree, passata, tomato paste   # Tomato products, canned, puree, without salt added
+172884 | chicken stock, lamb stock, chicken broth, stock   # Soup, stock, chicken, home-prepared
+172883 | beef stock, beef broth   # Soup, stock, beef, home-prepared
+172885 | fish stock   # Soup, stock, fish, home-prepared
+171583 | vegetable stock, vegetable broth   # Soup, vegetable broth, ready to serve
+173470 | thyme, fresh thyme   # Thyme, fresh
+173471 | vanilla extract, vanilla, vanilla essence, almond extract, almond essence   # Vanilla extract
+170106 | red chilli, chilli, red chillies, birds-eye chillies, scotch bonnet, chillies   # Peppers, hot chili, red, raw
+170497 | green chilli, green chillies   # Peppers, hot chili, green, raw
+168576 | jalapeno, jalapenos   # Peppers, jalapeno, raw
+171320 each=3 | cinnamon, ground cinnamon, cinnamon stick   # Spices, cinnamon, ground
+168833 | brown sugar, muscovado sugar, dark brown soft sugar, light brown soft sugar, demerara sugar, palm sugar, dark brown sugar, light brown sugar   # Sugars, brown
+170457 | tomato, tomatoes, cherry tomatoes, plum tomatoes, vine tomatoes   # Tomatoes, red, ripe, raw, year round average
+170917 each=0.2 | bay leaf, bay leaves   # Spices, bay leaf
+170173 | coconut milk   # Nuts, coconut milk, canned (liquid expressed from grated meat and water)
+173475 bunch=30 | mint, mint leaves, fresh mint   # Spearmint, fresh
+172239 | dried mint   # Spearmint, dried
+174531 | fish sauce   # Sauce, fish, ready-to-serve
+170923 | cumin, ground cumin, cumin seeds, cumin seed   # Spices, cumin seed
+168877 | rice, basmati rice, jasmine rice, long grain rice, paella rice, white rice   # Rice, white, long-grain, regular, raw, enriched
+168879 | sushi rice, arborio rice, risotto rice   # Rice, white, medium-grain, raw, enriched
+169698 | cornstarch, corn flour, cornflour, starch   # Cornstarch
+167747 | lemon juice   # Lemon juice, raw
+170859 | double cream, heavy cream, whipping cream, cream, creme fraiche, crème fraîche   # Cream, fluid, heavy whipping
+170857 | single cream   # Cream, fluid, light (coffee cream or table cream)
+168277 | bacon, streaky bacon, smoked bacon, bacon rashers   # Pork, cured, bacon, unprepared
+169988 | celery, celery stalks   # Celery, raw
+175043 | yeast, instant yeast, dried yeast, dry yeast, fast action yeast, easy blend yeast   # Leavening agents, yeast, baker's, active dry
+169656 | icing sugar, powdered sugar   # Sugars, powdered
+168409 | cucumber   # Cucumber, with peel, raw
+174924 | bread, crusty bread, white bread   # Bread, white, commercially prepared (includes soft bread crumbs)
+172675 | baguette   # Bread, french or vienna (includes sourdough)
+174915 | pita bread, pitta bread   # Bread, pita, white, enriched
+172684 | rye bread   # Bread, rye
+171326 | nutmeg, ground nutmeg   # Spices, nutmeg, ground
+169640 | honey, clear honey   # Honey
+173859 | chorizo   # Sausage, pork, chorizo, link or ground, raw
+172385 | chicken thighs, chicken thigh   # Chicken, broilers or fryers, thigh, meat and skin, raw
+171077 each=175 | chicken breast, chicken breasts   # Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw
+171447 whole=1500 | chicken, whole chicken   # Chicken, broilers or fryers, meat and skin, raw
+172378 | chicken legs, chicken drumsticks   # Chicken, broilers or fryers, leg, meat and skin, raw
+172390 | chicken wings   # Chicken, broilers or fryers, wing, meat and skin, raw
+174928 | breadcrumbs, panko bread crumbs   # Bread, crumbs, dry, grated, plain
+170567 | almonds, flaked almonds, ground almonds   # Nuts, almonds
+171315 | allspice, ground allspice   # Spices, allspice, ground
+170499 each=40 | shallots, challots, shallot   # Shallots, raw
+169251 | mushrooms, button mushrooms, chestnut mushroom   # Mushrooms, white, raw
+169242 | shiitake mushrooms   # Mushrooms, shiitake, raw
+168580 | oyster mushrooms   # Mushrooms, oyster, raw
+171304 density=1.04 | greek yogurt   # Yogurt, Greek, plain, whole milk
+171284 | yogurt, natural yoghurt, yoghurt, plain yogurt   # Yogurt, plain, whole milk
+170919 each=0.2 | cardamom, ground cardomom, cardamom pods, ground cardamom   # Spices, cardamom
+171009 | mayonnaise   # Salad dressing, mayonnaise, regular
+169246 | leek, leeks   # Leeks, (bulb and lower leaf-portion), raw
+170932 | cayenne pepper, chilli flakes, red pepper flakes, red chilli flakes, chilli powder, chili powder, hot chilli powder, red chilli powder, kashmiri chilli powder   # Spices, pepper, red or cayenne
+169975 | cabbage, white cabbage, savoy cabbage   # Cabbage, raw
+169977 | red cabbage   # Cabbage, red, raw
+171257 | sour cream   # Cream, sour, cultured
+172234 | mustard, english mustard, dijon mustard, wholegrain mustard   # Mustard, prepared, yellow
+172232 bunch=30 | basil, basil leaves, fresh basil   # Basil, fresh
+168165 | raisins, sultanas, dried fruit, currants   # Raisins, dark, seedless (Includes foods for USDA's Food Distribution Program)
+169097 | orange, oranges   # Oranges, raw, all commercial varieties
+172233 bunch=30 | dill   # Dill weed, fresh
+174837 | white wine, dry white wine   # Alcoholic beverage, wine, table, white
+173190 | red wine   # Alcoholic beverage, wine, table, red
+172231 | turmeric, turmeric powder, ground turmeric   # Spices, turmeric, ground
+174036 | ground beef, minced beef, beef mince   # Beef, ground, 80% lean meat / 20% fat, raw
+173473 | rosemary   # Rosemary, fresh
+170051 | tinned tomatos, chopped tomatoes, diced tomatoes, canned tomatoes   # Tomatoes, red, ripe, canned, packed in tomato juice
+169742 | rice noodles, vermicelli rice noodles, rice vermicelli   # Rice noodles, dry
+175179 density=0.6 | prawns, king prawns, raw king prawns, tiger prawns, raw tiger prawns, shrimp   # Crustaceans, shrimp, raw
+167818 | pork, pork chops, pork loin   # Pork, fresh, loin, whole, separable lean and fat, raw
+167843 | pork shoulder   # Pork, fresh, shoulder, whole, separable lean and fat, raw
+167902 | ground pork, minced pork, pork mince   # Pork, fresh, ground, raw
+170848 density=0.42 | parmesan, parmesan cheese   # Cheese, parmesan, hard
+170845 | mozzarella, mozzarella cheese   # Cheese, mozzarella, whole milk
+170926 | ground ginger   # Spices, ginger, ground
+171321 each=0.1 | cloves, ground clove, ground cloves   # Spices, cloves, ground
+169994 | chives   # Chives, raw
+173800 can=240 density=0.64 | chickpeas   # Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, drained solids
+171610 | worcestershire sauce   # Sauce, worcestershire
+170150 | sesame seed, sesame seeds   # Seeds, sesame seeds, whole, dried
+172237 | vinegar, white vinegar, rice vinegar   # Vinegar, distilled
+173469 | cider vinegar, apple cider vinegar   # Vinegar, cider
+172240 | red wine vinegar, white wine vinegar, sherry vinegar   # Vinegar, red wine
+172241 | balsamic vinegar   # Vinegar, balsamic
+174315 | lamb, lamb leg   # Lamb, leg, shank half, separable lean and fat, trimmed to 1/4" fat, choice, raw
+172500 | lamb shoulder   # Lamb, shoulder, arm, separable lean and fat, trimmed to 1/4" fat, choice, raw
+172551 | lamb loin chops   # Lamb, loin, separable lean and fat, trimmed to 1/8" fat, choice, raw
+174370 | lamb mince, minced lamb   # Lamb, ground, raw
+169961 | green beans   # Beans, snap, green, raw
+170187 | walnuts   # Nuts, walnuts, english
+168462 | spinach, baby spinach   # Spinach, raw
+170934 | saffron   # Spices, saffron
+172430 | peanuts, roasted peanut, roasted peanuts   # Peanuts, all types, raw
+171328 | oregano, dried oregano   # Spices, oregano, dried
+169249 | lettuce   # Lettuce, green leaf, raw
+173420 | feta, feta cheese   # Cheese, feta
+169228 | aubergine, egg plants, eggplant   # Eggplant, raw
+174529 | oyster sauce   # Sauce, oyster, ready-to-serve
+170924 | curry powder, garam masala   # Spices, curry powder
+173418 | cream cheese   # Cheese, cream
+171275 | condensed milk, sweetened condensed milk   # Milk, canned, condensed, sweetened
+169998 | sweetcorn, corn on the cob, corn   # Corn, sweet, yellow, raw
+171631 | sausages, pork sausages   # Sausage, Italian, pork, mild, raw
+172790 | puff pastry   # Puff pastry, frozen, ready-to-bake
+170016 | peas, frozen peas   # Peas, green, frozen, unprepared (Includes foods for USDA's Food Distribution Program)
+168156 | lime juice   # Lime juice, raw
+174285 can=240 density=0.64 | kidney beans, red kidney beans   # Beans, kidney, red, mature seeds, canned, drained solids
+171325 | garlic powder   # Spices, garlic powder
+170273 density=0.7 | dark chocolate   # Chocolate, dark, 70-85% cacao solids
+169291 | courgettes, zucchini, courgette   # Squash, summer, zucchini, includes skin, raw
+171705 | avocado, avocados   # Avocados, raw, all commercial varieties
+170054 | tomato sauce   # Tomato products, canned, sauce
+168556 | tomato ketchup, ketchup   # Catsup
+174527 | hotsauce, hot sauce, chilli sauce, tabasco sauce   # Sauce, ready-to-serve, pepper or hot
+169957 | bean sprouts, beansprouts   # Mung beans, mature seeds, sprouted, raw
+174223 | squid   # Mollusks, squid, mixed species, raw
+175167 | salmon, salmon fillets   # Fish, salmon, Atlantic, farmed, raw
+168448 | pumpkin   # Pumpkin, raw
+169295 each=1000 | butternut squash, squash   # Squash, winter, butternut, raw
+174266 | peanut butter   # Peanut butter, smooth style, with salt (Includes foods for USDA's Food Distribution Program)
+173864 | ham   # Ham, sliced, regular (approximately 11% fat)
+170170 density=0.33 | desiccated coconut, coconut, coconut flakes, shredded coconut   # Nuts, coconut meat, dried (desiccated), not sweetened
+171562 cube=10 | chicken stock cube, vegetable stock cube, beef stock cube, stock cube   # Soup, chicken broth or bouillon, dry
+173414 | cheddar cheese, cheese, cheddar   # Cheese, cheddar (Includes foods for USDA's Food Distribution Program)
+170379 head=350 | broccoli   # Broccoli, raw
+169094 | black olives, olives, kalamata olives   # Olives, ripe, canned (small-extra large)
+169096 density=0.57 | green olives   # Olives, pickled, canned or bottled, green
+169145 | beetroot   # Beets, raw
+167762 | strawberries   # Strawberries, raw
+167755 | raspberries   # Raspberries, raw
+173946 | blackberries   # Blackberries, raw
+169387 | rocket   # Arugula, raw
+170591 | pine nuts   # Nuts, pine nuts, dried
+171401 | lard   # Lard
+170922 | ground coriander, coriander seeds   # Spices, coriander seed
+169385 | fennel, fennel bulb   # Fennel, bulb, raw
+171323 | fennel seeds   # Spices, fennel seed
+173461 | dulce de leche   # Dulce de Leche
+175204 can=240 density=0.64 | cannellini beans, dried white beans, haricot beans   # Beans, white, mature seeds, canned
+174254 can=240 density=0.64 | butter beans   # Lima beans, large, mature seeds, canned
+174815 | brandy, rum, whisky, dark rum, white rum, vodka, gin, whiskey   # Alcoholic beverage, distilled, all (gin, rum, vodka, whiskey) 80 proof
+175188 can=240 density=0.64 | black beans   # Beans, black turtle, mature seeds, canned
+175040 | bicarbonate of soda, baking soda   # Leavening agents, baking soda
+173944 | banana, bananas   # Bananas, raw
+171316 each=0.5 | star anise   # Spices, anise seed
+168726 steak=225 | sirloin steak, steak, beef fillet, rump steak   # Beef, top sirloin, steak, separable lean and fat, trimmed to 1/8" fat, all grades, raw
+173584 | shortening   # Shortening, vegetable, household, composite
+175065 | shortcrust pastry   # Pie crust, standard-type, frozen, ready-to-bake, unenriched
+170928 | marjoram   # Spices, marjoram, dried
+169736 | macaroni, spaghetti, lasagne sheets, vermicelli pasta, pasta, penne rigate, fettuccine, linguine pasta, penne, rigatoni, tagliatelle, farfalle, fusilli, orzo, paccheri pasta, bowtie pasta   # Pasta, dry, enriched
+168421 bunch=200 | kale   # Kale, raw
+168837 | golden syrup   # Syrups, corn, light
+168820 | black treacle, molasses   # Molasses
+170580 | coconut cream   # Nuts, coconut cream, raw (liquid expressed from grated meat)
+169593 | cocoa powder, cocoa, unsweetened cocoa, cacao   # Cocoa, dry powder, unsweetened
+173941 | dried apricots   # Apricots, dried, sulfured, uncooked
+171697 | apricot, apricots   # Apricots, raw
+171688 | apples, apple, bramley apples, braeburn apples, granny smith apples   # Apples, raw, with skin (Includes foods for USDA's Food Distribution Program)
+168454 | swede   # Rutabagas, raw
+170465 | turnips, turnip   # Turnips, raw
+170184 | pistachio, pistachios   # Nuts, pistachio nuts, raw
+169661 | maple syrup   # Syrups, maple
+168573 each=20 | lemongrass stalks, lemongrass   # Lemon grass (citronella), raw
+167749 | lemon zest   # Lemon peel, raw
+169103 | orange zest   # Orange peel, raw
+174957 | digestive biscuits   # Cookies, graham crackers, plain or honey (includes cinnamon)
+171955 | white fish, fish fillet, cod, white fish fillets   # Fish, cod, Atlantic, raw
+174199 | smoked haddock   # Fish, haddock, smoked
+174190 | salt cod, codfish bulljaw   # Fish, cod, Atlantic, dried and salted
+171986 | tuna   # Fish, tuna, light, canned in water, without salt, drained solids
+170193 | suet   # Beef, variety meats and by-products, suet, raw
+169715 | semolina   # Semolina, enriched
+170935 | sage   # Spices, sage, ground
+170851 | ricotta   # Cheese, ricotta, whole milk
+170182 | pecan nuts, pecans   # Nuts, pecans
+169731 | noodles, egg noodles   # Noodles, egg, dry, enriched
+174216 | mussels   # Mollusks, mussel, blue, raw
+174214 | clams   # Mollusks, clam, mixed species, raw
+169641 | jam, raspberry jam, strawberry jam, apricot jam   # Jams and preserves
+171242 | gruyère, gruyere   # Cheese, gruyere
+172791 | filo pastry   # Phyllo dough
+167976 | chocolate chips, plain chocolate   # Candies, semisweet chocolate
+167587 | milk chocolate   # Candies, milk chocolate
+167571 | white chocolate chips, white chocolate   # Candies, white chocolate
+170400 | celeriac   # Celeriac, raw
+170918 | caraway seed   # Spices, caraway seed
+172420 | brown lentils, lentils, green lentils, red lentils   # Lentils, raw
+170377 | broad beans   # Broadbeans, immature seeds, raw
+168389 | asparagus   # Asparagus, raw
+170066 | water chestnut   # Waterchestnuts, chinese, (matai), raw
+172475 | tofu   # Tofu, raw, firm, prepared with calcium sulfate
+169717 | tapioca   # Tapioca, pearl, dry
+170189 | tahini   # Seeds, sesame butter, tahini, from roasted and toasted kernels (most common type)
+174270 | soya bean   # Soybeans, mature seeds, raw
+167723 | sake, mirin   # Alcoholic beverage, rice (sake)
+169714 | rice flour   # Rice flour, white, unenriched
+169276 | radish   # Radishes, raw
+170390 | pak choi, bok choy   # Cabbage, chinese (pak-choi), raw
+169098 | orange juice   # Orange juice, raw (Includes foods for USDA's Food Distribution Program)
+173904 | oats, rolled oats   # Cereals, oats, regular and quick, not fortified, dry
+167575 density=0.56 | ice cream   # Ice creams, vanilla
+173435 | goats cheese   # Cheese, goat, soft type
+173412 | ghee   # Butter oil, anhydrous
+169699 | couscous   # Couscous, dry
+169697 | cornmeal   # Cornmeal, whole-grain, yellow
+170602 | corned beef   # Beef, cured, corned beef, canned
+172238 | capers   # Capers, canned
+170162 density=0.58 | cashew nuts, cashews   # Nuts, cashew nuts, raw
+168746 | beer   # Alcoholic beverage, beer, regular, all
+171618 | black pudding   # Blood sausage
+168558 | dill pickles   # Pickles, cucumber, dill or kosher dill
+175112 | dry sherry, sherry   # Alcoholic beverage, wine, dessert, dry
+167763 | tamarind paste   # Tamarinds, raw
+169910 | mango   # Mangos, raw
+169130 | plantain   # Plantains, yellow, raw
+171714 | breadfruit   # Breadfruit, raw
+168162 | prunes   # Plums, dried (prunes), uncooked
+171206 | beef, stewing beef, braising steak, beef chuck, beef shin, chuck steak, chuck roast   # Beef, chuck for stew, separable lean and fat, all grades, raw
+168664 | beef brisket   # Beef, brisket, whole, separable lean and fat, trimmed to 1/8" fat, all grades, raw
+168482 | sweet potatoes, sweet potato   # Sweet potato, raw, unprepared (Includes foods for USDA's Food Distribution Program)
+171081 | turkey   # Turkey, whole, meat and skin, raw
+172408 leg=300 breast=200 | duck, duck legs, duck breast   # Duck, domesticated, meat and skin, raw
+169279 | sauerkraut   # Sauerkraut, canned, solids and liquids
+169608 | custard   # Puddings, vanilla, ready-to-eat
+174183 | anchovy fillet, anchovy fillets, anchovies, anchovy   # Fish, anchovy, european, canned in oil, drained solids
+172194 | evaporated milk   # Milk, canned, evaporated, with added vitamin A
+171412 | coconut oil   # Oil, coconut
+172177 | brie   # Cheese, brie
+171241 | gouda cheese, gouda   # Cheese, gouda
+171251 | swiss cheese, emmental   # Cheese, swiss
+168874 | quinoa   # Quinoa, uncooked
+170286 | buckwheat   # Buckwheat
+168887 | rye flour   # Rye flour, light
+171330 | poppy seeds   # Spices, poppy seed
+170929 | mustard powder, english mustard powder   # Spices, mustard seed, ground
+171060 | chicken liver, chicken livers   # Chicken, liver, all classes, raw
+175139 | sardines   # Fish, sardine, Atlantic, canned in oil, drained solids with bone
+171964 | haddock   # Fish, haddock, raw
+167812 | pork belly, pork belly slices   # Pork, fresh, belly, raw
+173021 | figs   # Figs, raw
+169985 | cassava   # Cassava, raw
+175036 | corn tortillas   # Tortillas, ready-to-bake or -fry, corn
+171845 | naan bread, naan   # Bread, naan, plain, commercially prepared, refrigerated
+169248 | iceberg lettuce   # Lettuce, iceberg (includes crisphead types), raw
+168451 | daikon radish, daikon, mooli   # Radishes, oriental, raw
+174289 | hummus   # Hummus, commercial
+174523 | barbeque sauce, barbecue sauce, bbq sauce   # Sauce, barbecue
+170010 | sugar snap peas, mangetout, snow peas   # Peas, edible-podded, raw
+169236 | jerusalem artichokes   # Jerusalem-artichokes, raw
+167555 | pretzels   # Snacks, pretzels, hard, plain, salted
+167853 | pork back ribs, pork ribs, spare ribs   # Pork, fresh, spareribs, separable lean and fat, raw
+167781 | mixed peel, candied peel, glace cherry, glace cherries   # Candied fruit
+169703 | brown rice   # Rice, brown, long-grain, raw (Includes foods for USDA's Food Distribution Program)
