@@ -37,8 +37,12 @@ function inBar(u, v) {
   return false;
 }
 
-/** @param {number} size @param {{ maskable?: boolean }} opts */
-function render(size, { maskable = false } = {}) {
+/**
+ * @param {number} size
+ * @param {{ maskable?: boolean, inset?: number }} opts `inset`: transparent margin (0..0.5),
+ *   as macOS app icons have around their rounded square.
+ */
+function render(size, { maskable = false, inset = 0 } = {}) {
   const SS = 4;
   const px = Buffer.alloc(size * size * 4);
   // Maskable icons need full-bleed background and a glyph inside the 80% safe zone.
@@ -50,8 +54,9 @@ function render(size, { maskable = false } = {}) {
       let fg = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          const u = (x + (sx + 0.5) / SS) / size;
-          const v = (y + (sy + 0.5) / SS) / size;
+          const u = ((x + (sx + 0.5) / SS) / size - inset) / (1 - 2 * inset);
+          const v = ((y + (sy + 0.5) / SS) / size - inset) / (1 - 2 * inset);
+          if (u < 0 || u > 1 || v < 0 || v > 1) continue;
           if (maskable || roundedRectCoverage(u, v, radius)) {
             bg++;
             const gu = (u - 0.5) / glyphScale + 0.5;
@@ -61,7 +66,7 @@ function render(size, { maskable = false } = {}) {
         }
       }
       const n = SS * SS;
-      const t = y / (size - 1);
+      const t = Math.min(1, Math.max(0, (y / (size - 1) - inset) / (1 - 2 * inset)));
       const base = TOP.map((c, i) => c + (BOTTOM[i] - c) * t);
       const f = fg / Math.max(bg, 1);
       const [r, g, b] = base.map((c) => Math.round(c + (18 - c) * f));
@@ -120,6 +125,12 @@ const files = {
   'favicon-32.png': render(32),
 };
 for (const [name, buf] of Object.entries(files)) writeFileSync(new URL(name, OUT), buf);
+
+// Desktop app icon (electron-builder converts it to .ico and .icns). The 10% margin
+// matches the macOS icon grid.
+const BUILD = new URL('../build/', import.meta.url);
+mkdirSync(BUILD, { recursive: true });
+writeFileSync(new URL('icon.png', BUILD), render(1024, { inset: 0.1 }));
 
 const bars = BARS.map(
   ([x, t, b]) =>

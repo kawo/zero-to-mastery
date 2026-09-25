@@ -1,6 +1,6 @@
-# Tunebox: an offline music player PWA
+# Tunebox: an offline music player (web and desktop)
 
-Import your own MP3s and play them in the browser, even offline. Tunebox reads ID3 tags and album art, keeps everything in IndexedDB on your device, and gives you playlists, a play queue, lock-screen controls and an installable app. There is no backend: a static Vercel deploy is the whole thing.
+Import your own MP3s and play them in the browser, even offline. Tunebox reads ID3 tags and album art, keeps everything in IndexedDB on your device, and gives you playlists, a play queue, lock-screen controls and an installable app. There is no backend: a static Vercel deploy is the whole thing. The same app also ships as a **desktop app for Windows and macOS** (Electron) with installers and automatic updates; see [Desktop app](#desktop-app-windows-and-macos).
 
 > Screenshots
 >
@@ -36,15 +36,18 @@ npm run dev          # http://localhost:5173
 
 In dev mode, the empty Songs page and the Import page show a **Load demo songs** button. It creates 8 tiny generated WAV tracks with canvas artwork and a "Demo mix" playlist, so you can try the UI without any MP3s.
 
-| Script              | What it does                                                                   |
-| ------------------- | ------------------------------------------------------------------------------ |
-| `npm run dev`       | Vite dev server with HMR (service worker disabled)                             |
-| `npm run build`     | Type-checks (`tsc -b`), builds to `dist/`, compiles `src/sw.ts` → `dist/sw.js` |
-| `npm run preview`   | Serves `dist/` at http://localhost:4173, with the service worker active        |
-| `npm run typecheck` | TypeScript only                                                                |
-| `npm run lint`      | ESLint (flat config)                                                           |
-| `npm run format`    | Prettier (with the Tailwind class sorter)                                      |
-| `npm run icons`     | Regenerates `public/icons/*` (no image dependencies)                           |
+| Script                  | What it does                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------------ |
+| `npm run dev`           | Vite dev server with HMR (service worker disabled)                                         |
+| `npm run build`         | Type-checks (`tsc -b`), builds to `dist/`, compiles `src/sw.ts` → `dist/sw.js`             |
+| `npm run preview`       | Serves `dist/` at http://localhost:4173, with the service worker active                    |
+| `npm run typecheck`     | TypeScript only                                                                            |
+| `npm run lint`          | ESLint (flat config)                                                                       |
+| `npm run format`        | Prettier (with the Tailwind class sorter)                                                  |
+| `npm run icons`         | Regenerates `public/icons/*` and the desktop icon `build/icon.png` (no image dependencies) |
+| `npm run desktop:start` | Builds the web app and the Electron shell, then opens the desktop app                      |
+| `npm run desktop:dev`   | Desktop app against the Vite dev server (run `npm run dev` first)                          |
+| `npm run desktop:dist`  | Builds installers into `release/` (add `--win` or `--mac`; macOS needs a Mac)              |
 
 To include the demo button in a production build (for a staging deploy): `VITE_ENABLE_DEMO=true npm run build`. Otherwise the seed module is removed from the bundle.
 
@@ -65,6 +68,45 @@ The app is a static SPA, so no server or environment variables are needed.
 - serves hashed `/assets/*` as immutable, for long-term caching.
 
 From the CLI instead: `npx vercel` inside this folder, then `npx vercel --prod`.
+
+## Desktop app (Windows and macOS)
+
+**Install**: download the installer from the [Tunebox releases](https://github.com/kawo/zero-to-mastery/releases) (tags `tunebox-v…`).
+
+- **Windows**: run `Tunebox-Setup-<version>.exe`. It installs for the current user, no admin needed. The installer isn't code-signed yet, so Windows SmartScreen may say "Windows protected your PC": choose **More info → Run anyway**.
+- **macOS** (Intel and Apple Silicon, one universal app): open `Tunebox-<version>.dmg` and drag Tunebox to Applications. The app isn't signed yet: the first time, right-click it → **Open** → **Open**.
+
+**Your library**: the desktop app keeps its own library (in `%APPDATA%\Tunebox` or `~/Library/Application Support/Tunebox`), separate from the website's. To move it, use **Import → Backup & restore** (export in one, restore in the other). Uninstalling keeps the library; reinstalling brings it back.
+
+**Updates**: the app checks for a newer Tunebox release at startup (after 10 s) and every 4 hours.
+
+- **Windows** downloads it in the background, then shows _"Tunebox X is ready to install"_ with **Restart**. If you don't restart, it installs when you quit.
+- **macOS** shows _"Tunebox X is available"_ with **Download**, which opens the release page. Installing updates in place needs a signed app (see [Signing](#signing-later)).
+
+### How it's built
+
+- `electron/main.ts` serves the web build (`dist/`) from a private `app://tunebox` origin instead of `file://`, because the app uses absolute paths (`/assets`, `/icons`) and client-side routes. It falls back to `index.html` for routes (like the Vercel rewrite) and returns 404 for missing files. The desktop app registers no service worker: its files are already local, and it updates itself.
+- **Security**: context isolation and the renderer sandbox are on and Node integration is off. The page only gets the small `window.tuneboxDesktop` bridge from `electron/preload.ts` (version, update status, restart to update). A Content-Security-Policy allows only the app's own scripts (plus the inline theme script, by hash) and network access only to lrclib.net. Links to the web open in your browser, and navigation away from the app is blocked. Permission requests are denied except full screen, clipboard write and persistent storage. [Electron fuses](https://www.electronjs.org/docs/latest/tutorial/fuses) turn off `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` and `--inspect`, and make the app load only its integrity-checked `app.asar`.
+- **Playback**: background throttling is off, so crossfade timing stays exact while minimised. Autoplay is allowed, so a restored session and media keys can start playback. Media keys and the Windows/macOS media controls work through the Media Session API, as in the browser. The window's size and position are remembered, and only one instance runs at a time.
+- **Packaging** (`electron-builder.yml`): NSIS installer (x64) for Windows; universal `.dmg` plus `.zip` for macOS. `scripts/build-electron.mjs` bundles the main and preload scripts with esbuild, `electron-updater` included, so the app ships without `node_modules`: `app.asar` is about 1.6 MB and the installer about 110 MB (mostly Chromium).
+- **Updates** (`electron/updates.ts`): this repository also hosts other projects' releases, so each check asks the GitHub API for the newest published `tunebox-vX.Y.Z` release and points `electron-updater` at that release's `latest.yml` / `latest-mac.yml`. Downloads are checked against their SHA-512 before installing. Other releases and drafts are ignored.
+
+### Releasing a new version
+
+1. Bump `version` in `package.json` (for example `npm version 1.1.0 --no-git-tag-version`), commit and push.
+2. Tag the commit and push the tag: `git tag tunebox-v1.1.0 && git push origin tunebox-v1.1.0`.
+3. The **Tunebox desktop** workflow (`.github/workflows/tunebox-desktop.yml`) checks that the tag matches `package.json`, creates a draft release, builds the Windows and macOS installers on native runners, uploads them to the draft, and publishes the release only when both succeed. Installed apps pick it up at their next check.
+
+To try the build without releasing, run the workflow by hand (**Actions → Tunebox desktop → Run workflow**): it builds both installers as downloadable artifacts and publishes nothing.
+
+**Testing an update locally**: build two versions (for example with `-c.extraMetadata.version=1.0.1` for the newer one), serve the newer one's `release/` folder over HTTP, and start the older app with `TUNEBOX_UPDATE_URL=http://127.0.0.1:<port>`. It finds, downloads and verifies the update, then offers **Restart**.
+
+### Signing (later)
+
+Unsigned builds work but show warnings, and macOS can't update in place. To sign:
+
+- **Windows**: add a code-signing certificate as the `CSC_LINK` (base64 `.pfx`) and `CSC_KEY_PASSWORD` repository secrets, and pass them to the build step.
+- **macOS**: an Apple Developer ID ($99/year). Add `CSC_LINK`/`CSC_KEY_PASSWORD` (Developer ID Application certificate) and `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` secrets. In `electron-builder.yml`, remove `identity: null`, set `hardenedRuntime: true` and `notarize: true`. Then set `MAC_AUTO_INSTALL = true` in `electron/updates.ts`.
 
 ## PWA: install and test offline
 
@@ -97,12 +139,18 @@ spotify-clone/
 ├── tailwind.config.ts         # colours mapped to CSS variables (light/dark)
 ├── eslint.config.js           # ESLint 10 flat config
 ├── .prettierrc
-├── tsconfig*.json             # app / service worker / node projects
+├── tsconfig*.json             # app / service worker / node / electron projects
+├── electron-builder.yml       # desktop installers (NSIS, DMG) + GitHub Releases publishing
+├── electron/                  # desktop app (Electron)
+│   ├── main.ts                # app:// origin, window, CSP, permissions
+│   ├── preload.ts             # the small window.tuneboxDesktop bridge
+│   └── updates.ts             # auto-update from tunebox-v* GitHub releases
+├── build/icon.png             # desktop icon (generated by `npm run icons`)
 ├── public/
 │   ├── manifest.webmanifest
 │   ├── offline.html           # fallback for unmatched offline navigations
 │   └── icons/                 # generated by scripts/generate-icons.mjs
-├── scripts/generate-icons.mjs
+├── scripts/                   # generate-icons.mjs, build-electron.mjs (esbuild)
 └── src/
     ├── main.tsx, App.tsx      # providers + router (lazy route chunks)
     ├── sw.ts                  # service worker (Workbox)
@@ -132,6 +180,8 @@ spotify-clone/
     ├── pages/                 # Upload, Songs, Playlists, PlaylistDetail, NowPlaying
     └── dev/                   # demo seed (dev flag only)
 ```
+
+The desktop release workflow lives at the repository root: `.github/workflows/tunebox-desktop.yml`.
 
 ### Data model
 
@@ -326,13 +376,15 @@ An automated run of these steps against the production build passed with Playwri
 
 ## Troubleshooting
 
-| Problem                                      | Fix                                                                                                                                                                   |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| No **Install** button                        | It appears only in production builds, over HTTPS or on `localhost`, in Chrome or Edge, after the service worker is active. In Safari, use Share → Add to Home Screen. |
-| Offline reload shows the browser's dino page | The service worker wasn't active yet. Load once online and wait for the "ready to work offline" toast. It also doesn't run under `npm run dev`.                       |
-| "Out of storage space" during import         | Delete songs you don't need, free disk space, or click _Make storage persistent_ on the Import page.                                                                  |
-| A song shows ⚠ _audio not on this device_    | It came from a metadata-only backup. Import the original file; it relinks by content hash.                                                                            |
-| "Couldn't play …, the file may be damaged"   | The browser couldn't decode it. Re-encode it as MP3, then delete and re-import it.                                                                                    |
-| Stuck on an old version after a deploy       | Click **Reload** on the update toast, or close every Tunebox tab and open it again.                                                                                   |
-| Deep links 404 on your own host              | Configure SPA fallback to `/index.html` (already done in `vercel.json` for Vercel).                                                                                   |
-| Library won't open (error screen)            | Allow site data for the domain, leave private browsing, and reload.                                                                                                   |
+| Problem                                                  | Fix                                                                                                                                                                                 |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No **Install** button                                    | It appears only in production builds, over HTTPS or on `localhost`, in Chrome or Edge, after the service worker is active. In Safari, use Share → Add to Home Screen.               |
+| Offline reload shows the browser's dino page             | The service worker wasn't active yet. Load once online and wait for the "ready to work offline" toast. It also doesn't run under `npm run dev`.                                     |
+| "Out of storage space" during import                     | Delete songs you don't need, free disk space, or click _Make storage persistent_ on the Import page.                                                                                |
+| A song shows ⚠ _audio not on this device_                | It came from a metadata-only backup. Import the original file; it relinks by content hash.                                                                                          |
+| "Couldn't play …, the file may be damaged"               | The browser couldn't decode it. Re-encode it as MP3, then delete and re-import it.                                                                                                  |
+| Stuck on an old version after a deploy                   | Click **Reload** on the update toast, or close every Tunebox tab and open it again.                                                                                                 |
+| Deep links 404 on your own host                          | Configure SPA fallback to `/index.html` (already done in `vercel.json` for Vercel).                                                                                                 |
+| Desktop build fails with `EPERM … rename … win-unpacked` | Antivirus is still scanning the freshly unzipped Electron. Build again, or reuse the already-scanned copy: `npx electron-builder --win -c.electronDist=node_modules/electron/dist`. |
+| `electron .` behaves like plain Node (`bad option`)      | `ELECTRON_RUN_AS_NODE` is set in that terminal (some editors set it for child processes). Unset it and run again.                                                                   |
+| Library won't open (error screen)                        | Allow site data for the domain, leave private browsing, and reload.                                                                                                                 |

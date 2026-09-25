@@ -1,0 +1,116 @@
+# Tunebox desktop installers (vibe-coding-bootcamp/spotify-clone).
+#
+# Release: bump "version" in the app's package.json, commit, then push a matching tag:
+#   git tag tunebox-v1.1.0 && git push origin tunebox-v1.1.0
+# The release is created as a draft, Windows and macOS upload their installers to it,
+# and it's published only when both succeed. Installed apps check these releases for updates.
+#
+# Test build: run this workflow by hand (Actions → Tunebox desktop → Run workflow).
+# It builds both installers as downloadable artifacts and publishes nothing.
+name: Tunebox desktop
+
+on:
+  push:
+    tags: ['tunebox-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tunebox-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APP_DIR: vibe-coding-bootcamp/spotify-clone
+  IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/tunebox-v') }}
+
+jobs:
+  draft:
+    name: Create draft release
+    if: startsWith(github.ref, 'refs/tags/tunebox-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches package.json
+        run: |
+          version=$(node -p "require('./$APP_DIR/package.json').version")
+          if [ "tunebox-v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match package.json version $version"
+            exit 1
+          fi
+      - name: Create the draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#tunebox-v}"
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" \
+            --draft --verify-tag --title "Tunebox $version" --notes "$(cat <<NOTES
+          Desktop app for Tunebox, the offline music player.
+
+          **Windows**: download \`Tunebox-Setup-$version.exe\` and run it. The installer isn't code-signed yet, so Windows may show "Windows protected your PC": choose **More info → Run anyway**. Installed apps update themselves from here.
+
+          **macOS** (Intel and Apple Silicon): download \`Tunebox-$version.dmg\` and drag Tunebox to Applications. The app isn't signed yet: the first time, right-click it → **Open** → **Open**. It tells you when a new version is available; download it from this page.
+
+          Your library lives on your computer. To move it from the web app, use **Import → Backup & restore**.
+          NOTES
+          )"
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: draft
+    # Also runs for manual test builds, when there's no draft job.
+    if: always() && (needs.draft.result == 'success' || needs.draft.result == 'skipped')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            target: --win
+          - name: macOS
+            os: macos-latest
+            target: --mac
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - name: Build installers
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Unsigned builds: don't look for signing certificates.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run desktop:dist -- ${{ matrix.target }} --publish ${{ env.IS_RELEASE == 'true' && 'always' || 'never' }}
+      - name: Keep the installers (test builds)
+        if: env.IS_RELEASE != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tunebox-${{ matrix.name }}
+          path: |
+            ${{ env.APP_DIR }}/release/*.exe
+            ${{ env.APP_DIR }}/release/*.dmg
+            ${{ env.APP_DIR }}/release/*.zip
+            ${{ env.APP_DIR }}/release/*.yml
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/tunebox-v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false

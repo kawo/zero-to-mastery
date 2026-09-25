@@ -3,3 +3,5 @@ dist
 dev-dist
 *.local
 .vercel
+dist-electron
+release

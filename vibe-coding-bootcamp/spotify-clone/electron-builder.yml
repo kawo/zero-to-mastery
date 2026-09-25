@@ -1,0 +1,68 @@
+# Desktop installers (npm run desktop:dist). CI builds and publishes them from
+# .github/workflows/tunebox-desktop.yml on tags like tunebox-v1.2.0.
+appId: io.github.kawo.tunebox
+productName: Tunebox
+# The packaged app's own name (the npm package is still called spotify-clone):
+# it names the updater's download cache (%LOCALAPPDATA%	unebox-updater).
+extraMetadata:
+  name: tunebox
+copyright: Copyright © 2026 Kévin Audebrand
+directories:
+  output: release
+  buildResources: build
+# The web build and the bundled main/preload scripts are all the app needs:
+# electron-updater is bundled into main.cjs, so no node_modules are shipped.
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+  - '!node_modules/**/*'
+asar: true
+# Harden the shipped binary: it can't be reused as a plain Node.js runtime
+# (ELECTRON_RUN_AS_NODE, NODE_OPTIONS, --inspect), and it only loads its own,
+# integrity-checked app.asar.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableCookieEncryption: true
+  onlyLoadAppFromAsar: true
+  enableEmbeddedAsarIntegrityValidation: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # Unsigned for now (Windows shows an "unknown publisher" warning on first install).
+  signAndEditExecutable: true
+nsis:
+  oneClick: true
+  perMachine: false
+  artifactName: Tunebox-Setup-${version}.${ext}
+  # Keep the library if the app is uninstalled; reinstalling brings it back.
+  deleteAppDataOnUninstall: false
+
+mac:
+  category: public.app-category.music
+  target:
+    - target: dmg
+      arch: [universal]
+    # The zip is what electron-updater installs from on macOS (once signing is on).
+    - target: zip
+      arch: [universal]
+  # Unsigned: no Developer ID yet. Add signing + notarization, then set
+  # MAC_AUTO_INSTALL in electron/updates.ts to enable in-app updates on macOS.
+  identity: null
+  hardenedRuntime: false
+  artifactName: Tunebox-${version}-mac.${ext}
+dmg:
+  artifactName: Tunebox-${version}.${ext}
+
+publish:
+  provider: github
+  owner: kawo
+  repo: zero-to-mastery
+  # CI creates the release as a draft, both platforms upload to it, and it's published
+  # only once both succeed (the app's update check ignores drafts).
+  releaseType: draft
+  tagNamePrefix: tunebox-v

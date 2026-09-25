@@ -2,12 +2,14 @@ import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { createBrowserRouter, Link, Navigate, RouterProvider } from 'react-router-dom';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { AppShell } from '@/components/AppShell';
+import { DesktopStatus } from '@/components/DesktopStatus';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LibraryProvider } from '@/components/providers/LibraryProvider';
 import { PlayerProvider } from '@/components/providers/PlayerProvider';
 import { ToastProvider } from '@/components/providers/ToastProvider';
 import { UiProvider } from '@/components/providers/UiProvider';
 import { useLibrary } from '@/hooks/useIndexedDb';
+import { isDesktop } from '@/lib/desktop';
 import { useToast } from '@/state/contexts';
 
 // Route-level code splitting. Every chunk is precached by the service worker, so this works offline too.
@@ -110,7 +112,8 @@ export default function App() {
           <StorageGate>
             <PlayerProvider>
               <UiProvider>
-                <PwaStatus />
+                {/* The desktop app updates itself and has no service worker. */}
+                {isDesktop() ? <DesktopStatus /> : <PwaStatus />}
                 <RouterProvider router={router} />
               </UiProvider>
             </PlayerProvider>

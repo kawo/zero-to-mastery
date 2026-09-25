@@ -51,7 +51,7 @@ export async function importFile(
 ): Promise<FileResult> {
   const mimeType = guessMime(file);
   if (!canPlay(mimeType)) {
-    return { status: 'error', message: `This browser can't play ${mimeType} files.` };
+    return { status: 'error', message: `${mimeType} files can't be played here.` };
   }
   if (file.size === 0) return { status: 'error', message: 'The file is empty.' };
 

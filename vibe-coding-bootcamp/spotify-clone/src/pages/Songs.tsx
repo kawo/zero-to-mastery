@@ -341,8 +341,7 @@ function EmptyLibrary() {
       </div>
       <h2 className="mt-5 text-xl font-bold">Your library is empty</h2>
       <p className="mt-2 text-muted">
-        Import MP3s from your device. They're stored in this browser, so they play even when you're
-        offline.
+        Import your MP3s. They're kept on this device, so they play even when you're offline.
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         <Link to="/upload" className="btn-primary">

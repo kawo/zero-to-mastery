@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Offline-first local music player PWA: import MP3s, build playlists, play with a queue.",
+  "description": "Offline-first local music player (web app and desktop app): import MP3s, build playlists, play with a queue.",
+  "main": "dist-electron/main.cjs",
+  "author": "Kévin Audebrand",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -11,7 +13,11 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "desktop:build": "npm run build && node scripts/build-electron.mjs",
+    "desktop:start": "npm run desktop:build && electron .",
+    "desktop:dev": "node scripts/build-electron.mjs && electron . --dev-url=http://localhost:5173",
+    "desktop:dist": "npm run desktop:build && electron-builder"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -20,6 +26,7 @@
     "clsx": "^2.1.1",
     "dexie": "^4.4.6",
     "dexie-react-hooks": "^4.4.0",
+    "electron-updater": "^6.8.9",
     "fflate": "^0.8.3",
     "lucide-react": "^1.48.0",
     "music-metadata": "^11.16.0",
@@ -39,6 +46,9 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.6.1",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
@@ -53,5 +63,9 @@
     "vite-plugin-pwa": "^1.3.0",
     "workbox-build": "^7.4.1",
     "workbox-window": "^7.4.1"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "electron-winstaller": false
   }
 }
