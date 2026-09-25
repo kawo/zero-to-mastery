@@ -25,14 +25,24 @@ export function Timeline({ className, size = 'md' }: { className?: string; size?
   const { current, duration } = useProgress(audio, currentTrack?.duration ?? 0);
   const [scrub, setScrub] = useState<number | null>(null);
   const scrubRef = useRef<number | null>(null);
+  // Position just seeked to, shown until playback reports it. Without this the slider
+  // briefly re-renders the old position, and the browser's trailing `change` event
+  // (fired after pointerup) carries that stale value and seeks straight back.
+  const [held, setHeld] = useState<number | null>(null);
+  const heldRef = useRef<number | null>(null);
 
   // Commit the drag even if the pointer is released outside the slider.
   const scrubbing = scrub !== null;
   useEffect(() => {
     if (!scrubbing) return;
     const commit = () => {
-      if (scrubRef.current !== null) seek(scrubRef.current);
+      const v = scrubRef.current;
       scrubRef.current = null;
+      if (v !== null) {
+        seek(v);
+        heldRef.current = v;
+        setHeld(v);
+      }
       setScrub(null);
     };
     window.addEventListener('pointerup', commit, { once: true });
@@ -43,7 +53,19 @@ export function Timeline({ className, size = 'md' }: { className?: string; size?
     };
   }, [scrubbing, seek]);
 
-  const shown = scrub ?? current;
+  // Release the held position once playback catches up (or after a moment regardless).
+  useEffect(() => {
+    if (held === null) return;
+    const release = () => {
+      heldRef.current = null;
+      setHeld(null);
+    };
+    if (Math.abs(current - held) < 0.5) return release();
+    const timer = setTimeout(release, 1000);
+    return () => clearTimeout(timer);
+  }, [current, held]);
+
+  const shown = scrub ?? held ?? current;
   const pct = duration > 0 ? Math.min(100, (shown / duration) * 100) : 0;
 
   return (
@@ -65,15 +87,15 @@ export function Timeline({ className, size = 'md' }: { className?: string; size?
         aria-label="Seek"
         aria-valuetext={`${spokenTime(shown)} of ${spokenTime(duration)}`}
         onPointerDown={() => {
-          scrubRef.current = current;
-          setScrub(current);
+          scrubRef.current = shown;
+          setScrub(shown);
         }}
         onChange={(e) => {
           const v = Number(e.target.value);
           if (scrubRef.current !== null) {
             scrubRef.current = v;
             setScrub(v);
-          } else seek(v);
+          } else if (v !== heldRef.current) seek(v); // the release echo repeats the held value
         }}
         onKeyDown={(e) => {
           const delta =
@@ -85,7 +107,7 @@ export function Timeline({ className, size = 'md' }: { className?: string; size?
           if (!delta) return;
           e.preventDefault();
           e.stopPropagation();
-          seek(Math.max(0, Math.min(duration, current + delta)));
+          seek(Math.max(0, Math.min(duration, shown + delta)));
         }}
       />
       <span className={cn(size === 'lg' ? 'w-12 text-sm' : 'w-10')}>
