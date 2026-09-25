@@ -34,6 +34,10 @@ export interface PlayerValue {
   shuffle: boolean;
   volume: number;
   muted: boolean;
+  /** Crossfade length in seconds (0 = gapless). */
+  crossfade: number;
+  /** False where the browser ignores `audio.volume` (iOS), so tracks can't fade. */
+  canCrossfade: boolean;
 
   play: () => void;
   pause: () => void;
@@ -45,6 +49,7 @@ export interface PlayerValue {
   toggleMute: () => void;
   cycleRepeat: () => void;
   toggleShuffle: () => void;
+  setCrossfade: (seconds: number) => void;
 
   /** Replace the queue with `trackIds` and start at `startIndex`. */
   playTracks: (trackIds: string[], startIndex?: number, opts?: PlayOptions) => void;

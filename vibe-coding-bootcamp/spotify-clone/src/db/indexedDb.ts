@@ -62,6 +62,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lastQueue: [],
   lastIndex: -1,
   lastPosition: 0,
+  crossfade: 0,
 };
 
 export async function getSettings(): Promise<AppSettings> {

@@ -37,6 +37,19 @@ export const usePlayer = () => required(PlayerContext, 'usePlayer');
 
 const RESTART_THRESHOLD = 3; // seconds: "previous" restarts the track after this
 const POSITION_SAVE_MS = 5000;
+export const MAX_CROSSFADE = 12; // seconds
+const FADE_STEP_MS = 40;
+
+type Deck = 0 | 1;
+const other = (d: Deck): Deck => (d === 0 ? 1 : 0);
+
+/** iOS ignores `audio.volume` (hardware buttons only), so fades are impossible there. */
+function volumeIsControllable(): boolean {
+  if (typeof document === 'undefined') return false;
+  const probe = document.createElement('audio');
+  probe.volume = 0.5;
+  return probe.volume === 0.5;
+}
 
 /** Keeps a ref pointing at the latest value, for use inside long-lived event handlers. */
 function useLatest<T>(value: T) {
@@ -47,9 +60,18 @@ function useLatest<T>(value: T) {
   return ref;
 }
 
-export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
+export function usePlayerEngine(
+  decks: readonly [HTMLAudioElement | null, HTMLAudioElement | null],
+): PlayerValue {
   const { tracks, byId } = useLibrary();
   const toast = useToast();
+
+  // Two decks: `audio` plays the current track, the other preloads the next one.
+  const [activeDeck, setActiveDeck] = useState<Deck>(0);
+  const audio = decks[activeDeck];
+  const standby = decks[other(activeDeck)];
+  const [canCrossfade] = useState(volumeIsControllable);
+  const [crossfade, setCrossfadeState] = useState(0);
 
   const [queue, dispatch] = useReducer(queueReducer, EMPTY_QUEUE);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -77,8 +99,31 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
    * Null while a source is loading, so a half-loaded track never overwrites its saved spot.
    */
   const resumable = useRef<{ uid: string; trackId: string } | null>(null);
+  /** The next track, already loaded into the standby deck. */
+  const preload = useRef<{ uid: string; blobId: string; deck: Deck; handedOff?: boolean } | null>(
+    null,
+  );
+  /** A preloaded track that just became current: the load effect adopts it instead of loading. */
+  const handoff = useRef<{ uid: string; deck: Deck } | null>(null);
+  /** A running crossfade: `from` fades out while `to` (now the active deck) fades in. */
+  const fade = useRef<{ from: HTMLAudioElement; to: HTMLAudioElement; timer: number } | null>(null);
+  /** True between starting an automatic transition and adopting the new deck. */
+  const switching = useRef(false);
+  /** Bumped when a fade ends, so the freed deck can preload again. */
+  const [fadeEnded, setFadeEnded] = useState(0);
 
-  const latest = useLatest({ queue, repeat, shuffle, currentTrack, byId, tracks, isPlaying });
+  const latest = useLatest({
+    queue,
+    repeat,
+    shuffle,
+    currentTrack,
+    byId,
+    tracks,
+    isPlaying,
+    volume,
+    muted,
+    crossfade: canCrossfade ? crossfade : 0,
+  });
 
   /* ---------------------------- primitives ---------------------------- */
 
@@ -109,6 +154,35 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
     });
   }, [audio, toast]);
 
+  /** Finishes a crossfade now: silences the outgoing deck and restores full volume. */
+  const endFade = useCallback(() => {
+    const f = fade.current;
+    if (!f) return;
+    clearInterval(f.timer);
+    fade.current = null;
+    f.from.pause();
+    f.from.removeAttribute('src');
+    f.from.load();
+    f.to.volume = latest.current.volume;
+    setFadeEnded((n) => n + 1);
+  }, [latest]);
+
+  /**
+   * If `uid` is the preloaded track, switch decks so it plays from there (no load gap).
+   * Must run in the same update as the queue change, before the preload effect cleans up.
+   */
+  const takeHandoff = useCallback(
+    (uid: string | undefined): boolean => {
+      const p = preload.current;
+      if (!uid || !p || p.uid !== uid || p.deck === activeDeck) return false;
+      p.handedOff = true;
+      handoff.current = { uid, deck: p.deck };
+      setActiveDeck(p.deck);
+      return true;
+    },
+    [activeDeck],
+  );
+
   const goTo = useCallback(
     (index: number, play: boolean) => {
       wantPlay.current = play;
@@ -117,10 +191,53 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
         if (play) startAudio();
         return;
       }
+      endFade();
+      takeHandoff(latest.current.queue.items[index]?.uid);
       dispatch({ type: 'jump', index });
     },
-    [audio, latest, startAudio],
+    [audio, endFade, latest, startAudio, takeHandoff],
   );
+
+  /**
+   * Automatic advance to the preloaded next track: gapless, or overlapping the
+   * last `crossfade` seconds with an equal-power fade. False if nothing is preloaded.
+   */
+  const beginTransition = useCallback((): boolean => {
+    const { queue: q, repeat: r, crossfade: xf } = latest.current;
+    const p = preload.current;
+    const n = nextIndex(q, r);
+    const from = audio;
+    const to = p ? decks[p.deck] : null;
+    if (!p || !from || !to || r === 'one' || n === null || q.items[n]?.uid !== p.uid) return false;
+    if (p.handedOff) return true; // already switching (timer and 'ended' both fired)
+    switching.current = true;
+
+    const remaining = (from.duration || 0) - from.currentTime;
+    const length = Math.max(0, Math.min(xf, remaining));
+    endFade();
+    to.currentTime = 0;
+    to.muted = latest.current.muted;
+    if (length > 0.05) {
+      const start = performance.now();
+      to.volume = 0;
+      const timer = window.setInterval(() => {
+        const g = Math.min(1, (performance.now() - start) / (length * 1000));
+        const v = latest.current.volume;
+        from.volume = v * Math.cos((g * Math.PI) / 2);
+        to.volume = v * Math.sin((g * Math.PI) / 2);
+        if (g >= 1) endFade();
+      }, FADE_STEP_MS);
+      fade.current = { from, to, timer };
+    } else {
+      to.volume = latest.current.volume;
+      from.pause();
+    }
+    wantPlay.current = true;
+    to.play().catch(() => {});
+    takeHandoff(p.uid);
+    dispatch({ type: 'jump', index: n });
+    return true;
+  }, [audio, decks, endFade, latest, takeHandoff]);
 
   const stopAtEnd = useCallback(() => {
     wantPlay.current = false;
@@ -187,6 +304,7 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
       setShuffle(s.shuffle);
       setVolumeState(s.volume);
       setMuted(s.muted);
+      setCrossfadeState(s.crossfade);
       const valid = s.lastQueue.filter((id) => byId.has(id));
       if (valid.length) {
         // Where the saved index lands after dropping deleted tracks.
@@ -219,6 +337,7 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
   useEffect(() => {
     if (!audio) return;
     if (!currentUid || !audioBlobId) {
+      endFade();
       audio.removeAttribute('src');
       audio.load();
       return;
@@ -231,6 +350,41 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
       failCurrent(`“${title}” isn't stored on this device. Import the file again to relink it.`);
       return;
     }
+
+    // The preloaded deck already holds this track: adopt it instead of loading (gapless).
+    const h = handoff.current;
+    if (h && h.uid === currentUid && decks[h.deck] === audio) {
+      handoff.current = null;
+      switching.current = false;
+      const previous = decks[other(h.deck)];
+      if (previous && fade.current?.from !== previous) {
+        previous.pause();
+        previous.removeAttribute('src');
+        previous.load();
+      }
+      const onReady = () => {
+        if (long) resumable.current = { uid: currentUid, trackId: track.id };
+      };
+      if (audio.error) {
+        // It failed while preloading, before anything was listening for its errors.
+        failCurrent(
+          `Couldn't play “${title}”. The file may be damaged or in an unsupported format.`,
+        );
+        return () => releaseBlobUrl(audioBlobId);
+      }
+      if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) onReady();
+      else audio.addEventListener('loadedmetadata', onReady, { once: true });
+      if (wantPlay.current && audio.paused) startAudio();
+      setIsPlaying(!audio.paused || wantPlay.current);
+      return () => {
+        if (resumable.current?.uid === currentUid) saveResume();
+        resumable.current = null;
+        audio.removeEventListener('loadedmetadata', onReady);
+        releaseBlobUrl(audioBlobId); // acquired by the preload, handed over with the deck
+      };
+    }
+    endFade();
+
     let cancelled = false;
     let acquired = false;
     let onMetadata: (() => void) | null = null;
@@ -278,9 +432,11 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
     };
   }, [
     audio,
+    decks,
     currentUid,
     audioBlobId,
     audioMissing,
+    endFade,
     failCurrent,
     latest,
     saveResume,
@@ -288,12 +444,79 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
     toast,
   ]);
 
+  /* ------------------------ preload the next track ------------------------ */
+
+  const upcomingIndex = repeat === 'one' ? null : nextIndex(queue, repeat);
+  const upcoming = upcomingIndex === null ? null : queue.items[upcomingIndex];
+  const upcomingUid = upcoming && upcoming.uid !== currentUid ? upcoming.uid : undefined;
+  const upcomingTrack = upcoming ? byId.get(upcoming.trackId) : undefined;
+  const upcomingBlobId =
+    upcomingTrack && !upcomingTrack.audioMissing ? upcomingTrack.audioBlobId : undefined;
+
+  useEffect(() => {
+    // While a crossfade runs, the standby deck is the one fading out; wait for it.
+    if (!standby || !upcomingUid || !upcomingBlobId || fade.current) return;
+    const entry: NonNullable<typeof preload.current> = {
+      uid: upcomingUid,
+      blobId: upcomingBlobId,
+      deck: other(activeDeck),
+    };
+    let cancelled = false;
+    let acquired = false;
+    acquireBlobUrl(upcomingBlobId)
+      .then((url) => {
+        if (cancelled) {
+          if (url) releaseBlobUrl(upcomingBlobId);
+          return;
+        }
+        if (!url) return;
+        acquired = true;
+        standby.src = url;
+        preload.current = entry;
+      })
+      .catch(() => {
+        /* the track will load normally when it becomes current */
+      });
+    return () => {
+      cancelled = true;
+      if (preload.current === entry) preload.current = null;
+      if (entry.handedOff) return; // the load effect owns the deck and URL now
+      if (acquired) {
+        if (fade.current?.from !== standby) {
+          standby.removeAttribute('src');
+          standby.load();
+        }
+        releaseBlobUrl(upcomingBlobId);
+      }
+    };
+  }, [standby, activeDeck, upcomingUid, upcomingBlobId, fadeEnded]);
+
   /* --------------------------- audio events --------------------------- */
 
   useEffect(() => {
     if (!audio) return;
     const onPlay = () => setIsPlaying(true);
+    // Start the next track `crossfade` seconds before the end (or right at it, gapless).
+    let transitionTimer = 0;
+    const scheduleTransition = () => {
+      clearTimeout(transitionTimer);
+      if (audio.paused || !preload.current || fade.current) return;
+      const d = audio.duration;
+      if (!Number.isFinite(d) || d <= 0) return;
+      const lead = Math.min(latest.current.crossfade, d / 3);
+      const wait = (d - audio.currentTime - lead) / (audio.playbackRate || 1);
+      if (wait > 2) return; // a later timeupdate schedules it more precisely
+      transitionTimer = window.setTimeout(
+        () => {
+          if (!audio.paused) beginTransition();
+        },
+        Math.max(0, wait * 1000),
+      );
+    };
     const onPause = () => {
+      clearTimeout(transitionTimer);
+      if (switching.current) return; // the outgoing deck stopping during a gapless switch
+      if (fade.current?.to === audio) endFade(); // pausing mid-crossfade stops both tracks
       setIsPlaying(false);
       savePosition();
     };
@@ -302,7 +525,9 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
       errorStreak.current = 0;
     };
     const onWaiting = () => setIsBuffering(true);
-    const onEnded = () => next(true);
+    const onEnded = () => {
+      if (!beginTransition()) next(true);
+    };
     const onError = () => {
       if (!audio.getAttribute('src')) return;
       const title = latest.current.currentTrack?.title ?? 'this song';
@@ -320,6 +545,7 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
         }
       }
       if (!audio.paused && Date.now() - lastPositionSave.current > POSITION_SAVE_MS) savePosition();
+      scheduleTransition();
     };
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
@@ -328,7 +554,10 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
     audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('seeked', scheduleTransition);
     return () => {
+      clearTimeout(transitionTimer);
+      audio.removeEventListener('seeked', scheduleTransition);
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('playing', onPlaying);
@@ -337,7 +566,7 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
       audio.removeEventListener('error', onError);
       audio.removeEventListener('timeupdate', onTimeUpdate);
     };
-  }, [audio, failCurrent, latest, next, savePosition]);
+  }, [audio, beginTransition, endFade, failCurrent, latest, next, savePosition]);
 
   // Save the position when the tab is hidden or closed.
   useEffect(() => {
@@ -367,14 +596,13 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
   }, [queue, restored]);
 
   useEffect(() => {
-    if (restored) void updateSettings({ repeat, shuffle, volume, muted });
-  }, [repeat, shuffle, volume, muted, restored]);
+    if (restored) void updateSettings({ repeat, shuffle, volume, muted, crossfade });
+  }, [repeat, shuffle, volume, muted, crossfade, restored]);
 
   useEffect(() => {
-    if (!audio) return;
-    audio.volume = volume;
-    audio.muted = muted;
-  }, [audio, volume, muted]);
+    for (const d of decks) if (d) d.muted = muted;
+    if (audio && !fade.current) audio.volume = volume; // during a fade the fade sets volumes
+  }, [audio, decks, volume, muted]);
 
   /* --------------------------- media session -------------------------- */
 
@@ -540,6 +768,8 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
       shuffle,
       volume,
       muted,
+      crossfade,
+      canCrossfade,
       play: () => {
         if (latest.current.queue.items.length === 0 && latest.current.tracks?.length) {
           playTracks(latest.current.tracks.map((t) => t.id));
@@ -576,6 +806,8 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
         setShuffle(on);
         dispatch({ type: 'setShuffle', on });
       },
+      setCrossfade: (seconds) =>
+        setCrossfadeState(Math.round(Math.max(0, Math.min(MAX_CROSSFADE, seconds)))),
       playTracks,
       enqueue: (trackIds) => dispatch({ type: 'enqueue', trackIds }),
       playNext: (trackIds) => dispatch({ type: 'playNext', trackIds }),
@@ -595,6 +827,8 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
       shuffle,
       volume,
       muted,
+      crossfade,
+      canCrossfade,
       latest,
       next,
       prev,

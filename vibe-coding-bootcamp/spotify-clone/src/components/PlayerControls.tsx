@@ -12,7 +12,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { usePlayer } from '@/hooks/usePlayer';
+import { MAX_CROSSFADE, usePlayer } from '@/hooks/usePlayer';
 import { useProgress } from '@/hooks/useProgress';
 import { formatTime, spokenTime } from '@/lib/audio';
 import { cn } from '@/lib/utils';
@@ -272,6 +272,42 @@ export function VolumeControl({ className }: { className?: string }) {
         aria-label="Volume"
         aria-valuetext={`${Math.round(effective * 100)}%`}
       />
+    </div>
+  );
+}
+
+/** Crossfade length between tracks. 0 plays tracks back to back with no gap. */
+export function CrossfadeControl({ className }: { className?: string }) {
+  const { crossfade, canCrossfade, setCrossfade } = usePlayer();
+  const value = canCrossfade ? crossfade : 0;
+  const label = value === 0 ? 'Off (gapless)' : `${value} s`;
+  return (
+    <div className={cn('flex flex-col gap-1', className)}>
+      <div className="flex items-center gap-3">
+        <label htmlFor="crossfade" className="text-sm font-semibold">
+          Crossfade
+        </label>
+        <input
+          id="crossfade"
+          type="range"
+          className="range w-32"
+          min={0}
+          max={MAX_CROSSFADE}
+          step={1}
+          value={value}
+          disabled={!canCrossfade}
+          onChange={(e) => setCrossfade(Number(e.target.value))}
+          style={{ '--pct': `${(value / MAX_CROSSFADE) * 100}%` } as CSSProperties}
+          aria-valuetext={value === 0 ? 'Off, gapless' : `${value} seconds`}
+          aria-describedby="crossfade-help"
+        />
+        <span className="w-24 text-sm tabular-nums text-muted">{label}</span>
+      </div>
+      <p id="crossfade-help" className="text-xs text-muted">
+        {canCrossfade
+          ? 'Overlaps the end of each song with the start of the next.'
+          : "This device controls volume in hardware, so songs can't fade. They still play without gaps."}
+      </p>
     </div>
   );
 }

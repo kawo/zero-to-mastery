@@ -94,6 +94,8 @@ export interface AppSettings {
   lastTrackId?: string;
   /** Seconds into `lastTrackId`. */
   lastPosition: number;
+  /** Seconds the end of one track overlaps the start of the next. 0 = gapless, no fade. */
+  crossfade: number;
 }
 
 export interface AppRow {
