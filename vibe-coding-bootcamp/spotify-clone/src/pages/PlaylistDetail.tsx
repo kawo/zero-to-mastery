@@ -1,7 +1,8 @@
 import { useDeferredValue, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ListMinus, Pencil, Play, Plus, Shuffle, Trash2 } from 'lucide-react';
+import { ListMinus, Pencil, Plus, Shuffle, Trash2 } from 'lucide-react';
 import { Artwork, ArtworkMosaic } from '@/components/Artwork';
+import { ListPlayButton } from '@/components/ListPlayButton';
 import { PlaylistNameDialog } from '@/components/PlaylistNameDialog';
 import { SearchBar } from '@/components/SearchBar';
 import { SelectionBar } from '@/components/SelectionBar';
@@ -21,7 +22,7 @@ import { useLibrary, usePlaylist, useTracksByIds } from '@/hooks/useIndexedDb';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useTrackActions } from '@/hooks/useTrackActions';
 import { formatTime, formatTotalDuration } from '@/lib/audio';
-import { cn, moveItem, normalize, pluralize, startIndex } from '@/lib/utils';
+import { cn, moveItem, normalize, pluralize } from '@/lib/utils';
 import { useToast } from '@/state/contexts';
 import type { Playlist, Track } from '@/types';
 
@@ -134,21 +135,7 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
             {total > 0 && ` · ${formatTotalDuration(total)}`}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={!tracks.length}
-              onClick={() =>
-                playTracks(
-                  tracks.map((t) => t.id),
-                  startIndex(tracks.length, shuffle),
-                )
-              }
-              aria-label={`Play ${playlist.name}`}
-            >
-              <Play className="h-4 w-4 fill-current" aria-hidden />
-              Play
-            </button>
+            <ListPlayButton trackIds={tracks.map((t) => t.id)} label={`Play ${playlist.name}`} />
             <button
               type="button"
               className={cn('btn-secondary', shuffle && 'border-accent text-accent')}
