@@ -14,8 +14,13 @@ import {
   useState,
 } from 'react';
 import { getSettings, updateSettings } from '@/db/indexedDb';
-import { recordPlay } from '@/db/library';
-import { acquireBlobUrl, releaseBlobUrl } from '@/lib/audio';
+import {
+  getResumePosition,
+  recordPlay,
+  RESUME_MIN_DURATION,
+  saveResumePosition,
+} from '@/db/library';
+import { acquireBlobUrl, formatTime, releaseBlobUrl } from '@/lib/audio';
 import { EMPTY_QUEUE, nextIndex, prevIndex, queueReducer } from '@/lib/queue';
 import { useLibrary } from '@/hooks/useIndexedDb';
 import {
@@ -66,16 +71,28 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
   /** Queue item uid whose play has been counted. */
   const counted = useRef<string | null>(null);
   const lastPositionSave = useRef(0);
+  /**
+   * The long track now loaded in <audio>, once any resume seek has been applied.
+   * Null while a source is loading, so a half-loaded track never overwrites its saved spot.
+   */
+  const resumable = useRef<{ uid: string; trackId: string } | null>(null);
 
   const latest = useLatest({ queue, repeat, shuffle, currentTrack, byId, tracks, isPlaying });
 
   /* ---------------------------- primitives ---------------------------- */
 
+  const saveResume = useCallback(() => {
+    const r = resumable.current;
+    if (!audio || !r || !audio.duration) return;
+    void saveResumePosition(r.trackId, audio.currentTime, audio.duration);
+  }, [audio]);
+
   const savePosition = useCallback(() => {
     if (!audio || !latest.current.currentTrack) return;
     lastPositionSave.current = Date.now();
     void updateSettings({ lastPosition: audio.currentTime || 0 });
-  }, [audio, latest]);
+    saveResume();
+  }, [audio, latest, saveResume]);
 
   const startAudio = useCallback(() => {
     if (!audio) return;
@@ -205,16 +222,26 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
       audio.load();
       return;
     }
-    const title = latest.current.currentTrack?.title ?? 'This song';
+    const track = latest.current.currentTrack;
+    const title = track?.title ?? 'This song';
+    const long = !!track && track.duration >= RESUME_MIN_DURATION;
+    resumable.current = null;
     if (audioMissing) {
       failCurrent(`“${title}” isn't stored on this device. Import the file again to relink it.`);
       return;
     }
     let cancelled = false;
     let acquired = false;
+    let onMetadata: (() => void) | null = null;
     counted.current = null;
-    acquireBlobUrl(audioBlobId)
-      .then((url) => {
+    // A session restore already knows where to seek; otherwise long tracks resume where they stopped.
+    const sessionSeek = pendingSeek.current;
+    pendingSeek.current = null;
+    Promise.all([
+      acquireBlobUrl(audioBlobId),
+      long && !sessionSeek ? getResumePosition(track.id).catch(() => null) : null,
+    ])
+      .then(([url, resumeAt]) => {
         if (cancelled) {
           if (url) releaseBlobUrl(audioBlobId);
           return;
@@ -225,21 +252,40 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
         }
         acquired = true;
         audio.src = url;
-        const seekTo = pendingSeek.current;
-        pendingSeek.current = null;
-        if (seekTo) {
-          audio.addEventListener('loadedmetadata', () => (audio.currentTime = seekTo), {
-            once: true,
+        const seekTo = sessionSeek ?? resumeAt;
+        onMetadata = () => {
+          if (seekTo) audio.currentTime = seekTo;
+          if (long) resumable.current = { uid: currentUid, trackId: track.id };
+        };
+        audio.addEventListener('loadedmetadata', onMetadata, { once: true });
+        if (resumeAt)
+          toast({
+            tone: 'info',
+            message: `Resuming “${title}” at ${formatTime(resumeAt)}. Press Previous to start over.`,
           });
-        }
         if (wantPlay.current) startAudio();
       })
       .catch(() => failCurrent(`“${title}” could not be loaded from storage.`));
     return () => {
       cancelled = true;
+      // Leaving a long track: remember where it stopped (or forget it if it finished).
+      if (resumable.current?.uid === currentUid) saveResume();
+      resumable.current = null;
+      // A source that never loaded must not seek the next one.
+      if (onMetadata) audio.removeEventListener('loadedmetadata', onMetadata);
       if (acquired) releaseBlobUrl(audioBlobId);
     };
-  }, [audio, currentUid, audioBlobId, audioMissing, failCurrent, latest, startAudio]);
+  }, [
+    audio,
+    currentUid,
+    audioBlobId,
+    audioMissing,
+    failCurrent,
+    latest,
+    saveResume,
+    startAudio,
+    toast,
+  ]);
 
   /* --------------------------- audio events --------------------------- */
 

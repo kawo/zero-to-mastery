@@ -182,8 +182,9 @@ erDiagram
     }
 ```
 
+- `resumePoints` (added in v3) holds `{ trackId, position, updatedAt }` for long tracks. Deleting a track deletes its resume point. It isn't part of backups.
 - Indexes: `tracks` on `title, artist, album, createdAt, hash, artworkBlobId, [fileName+duration], playCount`; `blobs` on `type`; `playlists` on `name, updatedAt`.
-- **Migrations**: every schema change is a new `db.version(n)` block in `src/db/indexedDb.ts`, with an `.upgrade()` that fills in data. Version 2 added play counts and backfills `playCount = 0` for libraries created on v1. If another tab upgrades the schema, this tab closes its connection and reloads instead of blocking.
+- **Migrations**: every schema change is a new `db.version(n)` block in `src/db/indexedDb.ts`, with an `.upgrade()` that fills in data. Version 2 added play counts and backfills `playCount = 0` for libraries created on v1. Version 3 added the `resumePoints` store. If another tab upgrades the schema, this tab closes its connection and reloads instead of blocking.
 - Artwork blobs are **content-addressed**, so the tracks of one album share one image. Deleting a track deletes its artwork only when no other track still uses it.
 
 ### Playback and queue
@@ -206,6 +207,7 @@ erDiagram
 - **Previous** restarts the track if you are more than 3 seconds in; otherwise it goes back one track.
 - The timeline reads `audio.currentTime` on `requestAnimationFrame`, but only inside the timeline component, so the rest of the UI doesn't re-render every frame. Dragging previews the position and seeks on release. Arrow keys seek 5 s.
 - A play counts after 30 s (or half of a short track). Play counts drive the "Most played" sort.
+- **Resume**: songs of 10 minutes or more (mixes, audiobooks, podcasts) remember where you stopped, and pick up there the next time you play them, with a toast saying so. Press Previous to start over. The spot is saved every 5 s, on pause, when you switch songs and when the tab is hidden. It's forgotten once you're within 10 s of the start or 15 s of the end. Resume points live in their own `resumePoints` store, so saving them doesn't refresh the library views.
 
 ### Artwork
 

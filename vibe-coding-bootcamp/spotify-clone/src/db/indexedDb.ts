@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { AppRow, AppSettings, BlobDoc, Playlist, Track } from '@/types';
+import type { AppRow, AppSettings, BlobDoc, Playlist, ResumePoint, Track } from '@/types';
 
 /** Also read directly (without Dexie) by the service worker to serve artwork. */
 export const DB_NAME = 'tunebox';
@@ -9,6 +9,7 @@ export type TuneboxDb = Dexie & {
   blobs: EntityTable<BlobDoc, 'id'>;
   playlists: EntityTable<Playlist, 'id'>;
   app: EntityTable<AppRow, 'key'>;
+  resumePoints: EntityTable<ResumePoint, 'trackId'>;
 };
 
 export const db = new Dexie(DB_NAME) as TuneboxDb;
@@ -38,6 +39,12 @@ db.version(2)
         t.playCount ??= 0;
       });
   });
+
+// v3 added per-track resume points for long tracks. Kept out of `tracks` so saving
+// the position every few seconds doesn't refresh every live query of the library.
+db.version(3).stores({
+  resumePoints: 'trackId',
+});
 
 // Another tab upgraded the schema: close so it isn't blocked, then reload into the new code.
 db.on('versionchange', () => {

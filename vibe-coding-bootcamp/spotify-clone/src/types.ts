@@ -36,6 +36,14 @@ export interface Track {
   updatedAt: Timestamp;
 }
 
+/** Where playback stopped in a long track, so it can resume there next time. */
+export interface ResumePoint {
+  trackId: string;
+  /** Seconds into the track. */
+  position: number;
+  updatedAt: Timestamp;
+}
+
 export type BlobKind = 'audio' | 'artwork';
 
 export interface BlobDoc {

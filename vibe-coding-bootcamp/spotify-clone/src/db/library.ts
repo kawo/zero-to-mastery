@@ -14,11 +14,12 @@ export async function deleteTracks(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const idSet = new Set(ids);
   const evicted: string[] = [];
-  await db.transaction('rw', [db.tracks, db.blobs, db.playlists], async () => {
+  await db.transaction('rw', [db.tracks, db.blobs, db.playlists, db.resumePoints], async () => {
     const tracks = (await db.tracks.bulkGet(ids)).filter((t): t is Track => !!t);
     const artworkIds = new Set(tracks.map((t) => t.artworkBlobId).filter((x): x is string => !!x));
 
     await db.tracks.bulkDelete(ids);
+    await db.resumePoints.bulkDelete(ids);
     await db.blobs.bulkDelete(tracks.map((t) => t.audioBlobId));
     evicted.push(...tracks.map((t) => t.audioBlobId));
 
@@ -58,6 +59,31 @@ export async function updateTrack(
   patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'genre' | 'year'>>,
 ): Promise<void> {
   await db.tracks.update(id, { ...patch, updatedAt: Date.now() });
+}
+
+/* --------------------------- Resume points -------------------------- */
+
+/** Tracks at least this long (seconds) remember where playback stopped. */
+export const RESUME_MIN_DURATION = 10 * 60;
+/** Positions this close to the start or end (seconds) count as "not started" or "finished". */
+const RESUME_MARGIN_START = 10;
+const RESUME_MARGIN_END = 15;
+
+export async function getResumePosition(trackId: string): Promise<number | null> {
+  return (await db.resumePoints.get(trackId))?.position ?? null;
+}
+
+/** Saves where playback is in a long track, or forgets it near the start or end. */
+export async function saveResumePosition(
+  trackId: string,
+  position: number,
+  duration: number,
+): Promise<void> {
+  if (position < RESUME_MARGIN_START || position > duration - RESUME_MARGIN_END) {
+    await db.resumePoints.delete(trackId);
+  } else {
+    await db.resumePoints.put({ trackId, position, updatedAt: Date.now() });
+  }
 }
 
 /* ----------------------------- Playlists ---------------------------- */
