@@ -21,7 +21,7 @@ import { useLibrary, usePlaylist, useTracksByIds } from '@/hooks/useIndexedDb';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useTrackActions } from '@/hooks/useTrackActions';
 import { formatTime, formatTotalDuration } from '@/lib/audio';
-import { moveItem, normalize, pluralize } from '@/lib/utils';
+import { cn, moveItem, normalize, pluralize, startIndex } from '@/lib/utils';
 import { useToast } from '@/state/contexts';
 import type { Playlist, Track } from '@/types';
 
@@ -51,7 +51,7 @@ export default function PlaylistDetail() {
 }
 
 function PlaylistView({ playlist }: { playlist: Playlist }) {
-  const { playTracks } = usePlayer();
+  const { playTracks, shuffle, toggleShuffle } = usePlayer();
   const { menuItems } = useTrackActions();
   const toast = useToast();
   const navigate = useNavigate();
@@ -138,7 +138,12 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
               type="button"
               className="btn-primary"
               disabled={!tracks.length}
-              onClick={() => playTracks(tracks.map((t) => t.id))}
+              onClick={() =>
+                playTracks(
+                  tracks.map((t) => t.id),
+                  startIndex(tracks.length, shuffle),
+                )
+              }
               aria-label={`Play ${playlist.name}`}
             >
               <Play className="h-4 w-4 fill-current" aria-hidden />
@@ -146,16 +151,10 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
             </button>
             <button
               type="button"
-              className="btn-secondary"
-              disabled={!tracks.length}
-              onClick={() =>
-                playTracks(
-                  tracks.map((t) => t.id),
-                  0,
-                  { shuffle: true },
-                )
-              }
-              aria-label={`Shuffle ${playlist.name}`}
+              className={cn('btn-secondary', shuffle && 'border-accent text-accent')}
+              onClick={toggleShuffle}
+              aria-pressed={shuffle}
+              title={shuffle ? 'Shuffle on' : 'Shuffle off'}
             >
               <Shuffle className="h-4 w-4" aria-hidden />
               Shuffle

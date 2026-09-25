@@ -1,15 +1,8 @@
 import { useDeferredValue, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import {
-  ArrowDownWideNarrow,
-  ArrowUpNarrowWide,
-  Music2,
-  Play,
-  Shuffle,
-  Trash2,
-  Upload,
-} from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Music2, Play, Trash2, Upload } from 'lucide-react';
 import { DemoSeedButton } from '@/components/DemoSeedButton';
+import { ShuffleButton } from '@/components/PlayerControls';
 import { SearchBar } from '@/components/SearchBar';
 import { SelectionBar } from '@/components/SelectionBar';
 import { SongList } from '@/components/SongList';
@@ -21,7 +14,7 @@ import { useLibrary } from '@/hooks/useIndexedDb';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useTrackActions } from '@/hooks/useTrackActions';
 import { formatTotalDuration } from '@/lib/audio';
-import { normalize, pluralize } from '@/lib/utils';
+import { normalize, pluralize, startIndex } from '@/lib/utils';
 import { useToast } from '@/state/contexts';
 import type { SortDir, SortKey, Track } from '@/types';
 
@@ -66,7 +59,7 @@ function compare(a: Track, b: Track, key: SortKey): number {
 /** Library: search, filter by artist/genre, sort, multi-select. State lives in the URL. */
 export default function Songs() {
   const { tracks } = useLibrary();
-  const { playTracks } = usePlayer();
+  const { playTracks, shuffle } = usePlayer();
   const { menuItems } = useTrackActions();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
@@ -170,28 +163,19 @@ export default function Songs() {
             <button
               type="button"
               className="btn-primary"
-              onClick={() => playTracks(shown.map((t) => t.id))}
+              onClick={() =>
+                playTracks(
+                  shown.map((t) => t.id),
+                  startIndex(shown.length, shuffle),
+                )
+              }
               disabled={!shown.length}
               aria-label={filtered ? 'Play matching songs' : 'Play all songs'}
             >
               <Play className="h-4 w-4 fill-current" aria-hidden />
               <span className="hidden sm:inline">Play</span>
             </button>
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() =>
-                playTracks(
-                  shown.map((t) => t.id),
-                  0,
-                  { shuffle: true },
-                )
-              }
-              disabled={!shown.length}
-              aria-label="Shuffle play"
-            >
-              <Shuffle className="h-5 w-5" aria-hidden />
-            </button>
+            <ShuffleButton />
           </>
         }
       />

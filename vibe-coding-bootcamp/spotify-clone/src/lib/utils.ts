@@ -63,6 +63,11 @@ export function shuffleArray<T>(list: readonly T[]): T[] {
   return a;
 }
 
+/** Where "Play" starts in a list: a random track when shuffle is on, else the first. */
+export function startIndex(length: number, shuffle: boolean): number {
+  return shuffle ? Math.floor(Math.random() * length) : 0;
+}
+
 const NON_TEXT_INPUTS = [
   'button',
   'checkbox',
