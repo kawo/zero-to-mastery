@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import { DEFAULT_EQ } from '@/lib/eq';
 import type { AppRow, AppSettings, BlobDoc, Playlist, ResumePoint, Track } from '@/types';
 
 /** Also read directly (without Dexie) by the service worker to serve artwork. */
@@ -63,6 +64,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lastIndex: -1,
   lastPosition: 0,
   crossfade: 0,
+  playbackRate: 1,
+  normalize: false,
+  eq: DEFAULT_EQ,
 };
 
 export async function getSettings(): Promise<AppSettings> {

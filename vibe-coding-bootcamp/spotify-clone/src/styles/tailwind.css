@@ -125,6 +125,13 @@
   .range:focus-visible::-webkit-slider-thumb {
     @apply ring-2 ring-accent ring-offset-2 ring-offset-bg;
   }
+  /* Vertical equalizer band: native slider turned upright (top = boost). */
+  .eq-range {
+    @apply h-32 w-6 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40;
+    writing-mode: vertical-lr;
+    direction: rtl;
+    accent-color: rgb(var(--accent));
+  }
 }
 
 @layer utilities {

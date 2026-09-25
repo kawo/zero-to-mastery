@@ -3,6 +3,7 @@
  * only export components, which keeps Vite fast-refresh happy.
  */
 import { createContext, useContext } from 'react';
+import type { EqSettings } from '@/lib/eq';
 import type { QueueItem, RepeatMode, Track } from '@/types';
 
 /* ------------------------------ Library ----------------------------- */
@@ -38,6 +39,9 @@ export interface PlayerValue {
   crossfade: number;
   /** False where the browser ignores `audio.volume` (iOS), so tracks can't fade. */
   canCrossfade: boolean;
+  playbackRate: number;
+  normalize: boolean;
+  eq: EqSettings;
 
   play: () => void;
   pause: () => void;
@@ -50,6 +54,9 @@ export interface PlayerValue {
   cycleRepeat: () => void;
   toggleShuffle: () => void;
   setCrossfade: (seconds: number) => void;
+  setPlaybackRate: (rate: number) => void;
+  setNormalize: (on: boolean) => void;
+  setEq: (patch: Partial<EqSettings>) => void;
 
   /** Replace the queue with `trackIds` and start at `startIndex`. */
   playTracks: (trackIds: string[], startIndex?: number, opts?: PlayOptions) => void;

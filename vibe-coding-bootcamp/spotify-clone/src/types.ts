@@ -3,8 +3,18 @@
  * Everything lives in the browser (IndexedDB); there is no server.
  */
 
+import type { EqSettings } from '@/lib/eq';
+
 /** Epoch milliseconds. */
 export type Timestamp = number;
+
+/** Measured loudness (ITU-R BS.1770), used for volume normalization. */
+export interface Loudness {
+  /** Integrated loudness in LUFS. */
+  lufs: number;
+  /** Sample peak in dBFS. */
+  peakDb: number;
+}
 
 export interface Track {
   id: string;
@@ -32,6 +42,8 @@ export interface Track {
   audioMissing?: boolean;
   playCount: number;
   lastPlayedAt?: Timestamp;
+  /** Measured on first play with normalization on; null if it couldn't be measured. */
+  loudness?: Loudness | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -96,6 +108,11 @@ export interface AppSettings {
   lastPosition: number;
   /** Seconds the end of one track overlaps the start of the next. 0 = gapless, no fade. */
   crossfade: number;
+  /** 0.5–2; pitch is preserved. */
+  playbackRate: number;
+  /** Play every track at the same loudness. */
+  normalize: boolean;
+  eq: EqSettings;
 }
 
 export interface AppRow {

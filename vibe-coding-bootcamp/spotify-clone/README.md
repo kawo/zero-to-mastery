@@ -13,8 +13,9 @@ Import your own MP3s and play them in the browser, even offline. Tunebox reads I
 - **Import** (`/upload`): drag and drop files or a whole folder, or use the file and folder pickers. Files are hashed (SHA-256) for dedupe, then their tags are parsed with [`music-metadata`](https://github.com/Borewit/music-metadata), the maintained successor of `music-metadata-browser`. Embedded cover art is extracted. A per-file progress list shows the result: added, duplicate, relinked or failed (with a reason). When a file has no tags, the title and artist come from its file name (`01 - Artist - Title.mp3`).
 - **Songs** (`/songs`): search, filter by artist or genre, and sort by date added, title, artist, album, duration or play count. These settings live in the URL, so they survive reloads and the Back button. You can multi-select (Shift-click selects a range), then Play, Play next, Add to queue, Add to playlist or Delete.
 - **Playlists** (`/playlists`, `/playlists/:id`): create, rename and delete playlists. You can add songs from a picker or from any song list, remove them, and reorder them with drag and drop (mouse, touch long-press or keyboard). You can also search inside a playlist. Export a playlist from its **⋯** menu as M3U (`.m3u8`, readable by VLC, foobar2000 and most players) or Tunebox JSON, and import either on the Playlists page. Imported entries are matched to songs already in your library by content hash, then file name, then artist and title; the toast lists any that weren't found.
-- **Now Playing** (`/now-playing`): large artwork on a backdrop tinted with the artwork's dominant colour, and a scrubbable timeline driven by `requestAnimationFrame`. It has play/pause, previous/next, shuffle, repeat (off, all, one), volume, the crossfade setting and an "Up next" preview.
-- **Gapless playback and crossfade**: the next song is preloaded, so songs follow each other with no gap. Set **Crossfade** on the Now Playing page (off, or 1–12 s) to overlap the end of each song with the start of the next.
+- **Now Playing** (`/now-playing`): large artwork on a backdrop tinted with the artwork's dominant colour, and a scrubbable timeline driven by `requestAnimationFrame`. It has play/pause, previous/next, shuffle, repeat (off, all, one), volume, a **Sound** button and an "Up next" preview.
+- **Gapless playback and crossfade**: the next song is preloaded, so songs follow each other with no gap. Set **Crossfade** in the Sound panel (off, or 1–12 s) to overlap the end of each song with the start of the next.
+- **Sound panel** (the sliders button in the player bar, or **Sound** on Now Playing): playback speed (0.5×–2×, pitch preserved), crossfade, volume normalization (every song at about −14 LUFS), and a 10-band equalizer with presets or custom bands. All settings are saved.
 - **Queue**: a collapsible panel (side panel on desktop, bottom sheet on mobile) with drag-to-reorder, remove, clear and jump-to. It restores after a reload, including the last position.
 - **Media Session**: title, artist, album and artwork on the lock screen and in OS media controls, plus play, pause, previous, next and seek actions.
 - **PWA**: installable, with the app shell and all code chunks precached. Artwork thumbnails are served and cached by the service worker. The library, playlists and playback work fully offline.
@@ -204,6 +205,7 @@ erDiagram
 
 - **Two decks**: `PlayerProvider` renders two `<audio>` elements. One plays the current track; the other preloads the next track in the queue (none with repeat one). At the end of a track, or `crossfade` seconds before it, the preloaded deck starts and the two swap roles, so there is no load gap. Skipping to the preloaded track by hand also switches instantly.
 - **Crossfade** (0–12 s, stored in settings): an equal-power fade (cos/sin curves) on `audio.volume`, updated every 40 ms, capped at a third of the track so short songs still mostly play. Pausing mid-fade stops both tracks; skipping ends the fade. Fades deliberately don't use the Web Audio API, which can stop background playback on iOS. iOS ignores `audio.volume`, so there the setting is disabled and songs play gaplessly without fading.
+- **Speed** sets `playbackRate` and `defaultPlaybackRate` on both decks (a new source resets `playbackRate` to the default) with `preservesPitch`.
 - The queue holds track IDs plus a per-slot `uid`, so the same song can be queued twice. It supports play-from-here, enqueue, **Play next**, remove, reorder, clear upcoming and jump.
 - **Shuffle** keeps the current track and shuffles only what comes next, remembering the original order. Turning shuffle off restores that order.
 - **Repeat** cycles off → all → one. With repeat one, a track loops when it ends naturally, but Next still skips.
@@ -211,6 +213,19 @@ erDiagram
 - The timeline reads `audio.currentTime` on `requestAnimationFrame`, but only inside the timeline component, so the rest of the UI doesn't re-render every frame. Dragging previews the position and seeks on release. Arrow keys seek 5 s.
 - A play counts after 30 s (or half of a short track). Play counts drive the "Most played" sort.
 - **Resume**: songs of 10 minutes or more (mixes, audiobooks, podcasts) remember where you stopped, and pick up there the next time you play them, with a toast saying so. Press Previous to start over. The spot is saved every 5 s, on pause, when you switch songs and when the tab is hidden. It's forgotten once you're within 10 s of the start or 15 s of the end. Resume points live in their own `resumePoints` store, so saving them doesn't refresh the library views.
+
+### Equalizer and normalization
+
+```
+ deck A <audio> ─► source ─► gain (normalization A) ─┐
+                                                     ├─► preamp ─► 10 peaking bands ─► speakers
+ deck B <audio> ─► source ─► gain (normalization B) ─┘
+```
+
+- The Web Audio graph (`src/lib/soundGraph.ts`) is built only the first time the equalizer or normalization is switched on. Once an `<audio>` element is routed through Web Audio it can't be un-routed, and on iOS that routing can stop playback when the screen locks, so with both effects off playback stays on the plain `<audio>` path. Turning them off later makes the graph neutral; a reload removes it.
+- **Equalizer**: octave bands at 31 Hz–16 kHz, ±12 dB, Q 1.41. The preamp lowers the input by the largest boost so boosted bands don't clip. Presets live in `src/lib/eq.ts`; moving any band switches the preset to _Custom_.
+- **Normalization** (`src/lib/loudness.ts`): each track is measured once, in the background, when it's current or next with normalization on. The audio is decoded at a reduced sample rate, K-weighted, and gated per ITU-R BS.1770 (400 ms blocks, −70 LUFS absolute and −10 LU relative gates). The result (`loudness: { lufs, peakDb }`) is stored on the track. Playback applies `−14 LUFS − lufs`, limited to −12…+8 dB and to 1 dB below the track's peak, on that deck's own gain node, so crossfades stay balanced. Tracks over 30 minutes aren't measured and play unchanged.
+- Element `volume` and `muted` still apply before the source node, so the volume slider and crossfades work the same with effects on.
 
 ### Artwork
 
@@ -245,6 +260,7 @@ Press `?` (or click **Keyboard shortcuts** at the bottom of the sidebar) to see 
 | `Shift` + `↑` / `↓`, `+` / `-`            | Volume up / down 10 %                                |
 | `M`                                       | Mute / unmute                                        |
 | `S` · `R`                                 | Shuffle on/off · cycle repeat (off → all → one)      |
+| `<` / `>`                                 | Slower / faster (0.5× – 2×)                          |
 | `Q`                                       | Show / hide the queue                                |
 | `/`                                       | Focus the search box                                 |
 | `?`                                       | Show the shortcuts list                              |
@@ -277,6 +293,8 @@ An automated run of these steps against the production build passed with Playwri
 
 - **Storage quotas**: every browser caps how much a site can store, usually a share of free disk space; the exact limits vary by browser and version. The Import page shows your usage and quota, and has a **Make storage persistent** button. If storage fills up, the import stops with an explanation.
 - **Safari and iOS**:
+  - The equalizer and normalization route audio through Web Audio, which iOS may stop when the screen locks. They're off by default; if background playback stops, turn both off and reload.
+  - Crossfade is unavailable (iOS ignores `audio.volume`), but playback is still gapless.
   - Safari may delete site data after 7 days without a visit, unless the app is installed to the Home Screen. Install it if you care about your library.
   - iOS ignores `audio.volume`; the hardware buttons control volume.
   - Background audio in an installed iOS PWA works, but it can stop if iOS suspends the app.

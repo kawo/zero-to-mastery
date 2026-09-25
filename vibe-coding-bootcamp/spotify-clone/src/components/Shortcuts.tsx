@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { usePlayer } from '@/hooks/usePlayer';
 import { formatTime } from '@/lib/audio';
+import { formatSpeed, stepSpeed } from '@/lib/eq';
 import { MEDIA_KEY_GRACE_MS, mediaSessionActedSince } from '@/lib/mediaSession';
 import { isInteractiveTarget, isTypingTarget, usesArrowKeys } from '@/lib/utils';
 import { useUi } from '@/state/contexts';
@@ -30,6 +31,7 @@ const SHORTCUTS: { keys: string[]; action: string }[] = [
   { keys: ['M'], action: 'Mute / unmute' },
   { keys: ['S'], action: 'Shuffle on / off' },
   { keys: ['R'], action: 'Cycle repeat: off → all → one' },
+  { keys: ['<', '>'], action: 'Slower / faster (0.5× – 2×)' },
   { keys: ['Q'], action: 'Show / hide the queue' },
   { keys: ['/'], action: 'Focus the search box' },
   { keys: ['?'], action: 'Show this list' },
@@ -132,6 +134,10 @@ function useKeyboardShortcuts(onHelp: () => void): { text: string; n: number } |
       } else if (key === 'r') {
         player.cycleRepeat();
         show(REPEAT_LABEL[NEXT_REPEAT[player.repeat]]);
+      } else if (key === '<' || key === '>') {
+        const rate = stepSpeed(player.playbackRate, key === '>' ? 1 : -1);
+        player.setPlaybackRate(rate);
+        show(`Speed ${formatSpeed(rate)}`);
       } else if (key === 'q') toggleQueue();
       else if (key === '?') onHelp();
       else handled = false;

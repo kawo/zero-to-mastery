@@ -3,12 +3,8 @@ import { Link } from 'react-router-dom';
 import { Disc3, ListPlus, Play } from 'lucide-react';
 import { Artwork } from '@/components/Artwork';
 import { QueueToggle } from '@/components/PlayerBar';
-import {
-  CrossfadeControl,
-  Timeline,
-  TransportControls,
-  VolumeControl,
-} from '@/components/PlayerControls';
+import { Timeline, TransportControls, VolumeControl } from '@/components/PlayerControls';
+import { SoundButton } from '@/components/SoundPanel';
 import { TopBar } from '@/components/TopBar';
 import { useBlobUrl, useLibrary } from '@/hooks/useIndexedDb';
 import { usePlayer } from '@/hooks/usePlayer';
@@ -136,8 +132,10 @@ export default function NowPlaying() {
             <Timeline size="lg" />
             <TransportControls size="lg" />
 
-            <VolumeControl className="justify-center md:justify-start" />
-            <CrossfadeControl className="items-center md:items-start" />
+            <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
+              <VolumeControl />
+              <SoundButton withLabel />
+            </div>
 
             <section aria-labelledby="up-next-heading" className="rounded-xl bg-surface/70 p-4">
               <div className="flex items-center justify-between">

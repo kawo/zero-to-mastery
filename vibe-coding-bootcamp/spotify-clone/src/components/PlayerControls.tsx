@@ -277,14 +277,21 @@ export function VolumeControl({ className }: { className?: string }) {
 }
 
 /** Crossfade length between tracks. 0 plays tracks back to back with no gap. */
-export function CrossfadeControl({ className }: { className?: string }) {
+export function CrossfadeControl({
+  className,
+  hideLabel,
+}: {
+  className?: string;
+  /** When a surrounding heading already says "Crossfade". */
+  hideLabel?: boolean;
+}) {
   const { crossfade, canCrossfade, setCrossfade } = usePlayer();
   const value = canCrossfade ? crossfade : 0;
   const label = value === 0 ? 'Off (gapless)' : `${value} s`;
   return (
     <div className={cn('flex flex-col gap-1', className)}>
       <div className="flex items-center gap-3">
-        <label htmlFor="crossfade" className="text-sm font-semibold">
+        <label htmlFor="crossfade" className={cn('text-sm font-semibold', hideLabel && 'sr-only')}>
           Crossfade
         </label>
         <input

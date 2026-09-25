@@ -21,7 +21,16 @@ import {
   saveResumePosition,
 } from '@/db/library';
 import { acquireBlobUrl, formatTime, releaseBlobUrl } from '@/lib/audio';
+import { DEFAULT_EQ, MAX_SPEED, MIN_SPEED, type EqSettings } from '@/lib/eq';
+import { normalizationGainDb, queueLoudnessAnalysis } from '@/lib/loudness';
 import { noteMediaSessionAction } from '@/lib/mediaSession';
+import {
+  ensureSoundGraph,
+  resumeSoundGraph,
+  setDeckGain,
+  setEqualizer,
+  soundGraphActive,
+} from '@/lib/soundGraph';
 import { EMPTY_QUEUE, nextIndex, prevIndex, queueReducer } from '@/lib/queue';
 import { useLibrary } from '@/hooks/useIndexedDb';
 import {
@@ -72,6 +81,11 @@ export function usePlayerEngine(
   const standby = decks[other(activeDeck)];
   const [canCrossfade] = useState(volumeIsControllable);
   const [crossfade, setCrossfadeState] = useState(0);
+  const [playbackRate, setPlaybackRateState] = useState(1);
+  const [normalize, setNormalize] = useState(false);
+  const [eq, setEqState] = useState<EqSettings>(DEFAULT_EQ);
+  /** Track id loaded in each deck, so each gets its own normalization gain. */
+  const deckTracks = useRef<[string | null, string | null]>([null, null]);
 
   const [queue, dispatch] = useReducer(queueReducer, EMPTY_QUEUE);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -123,9 +137,20 @@ export function usePlayerEngine(
     volume,
     muted,
     crossfade: canCrossfade ? crossfade : 0,
+    normalize,
   });
 
   /* ---------------------------- primitives ---------------------------- */
+
+  /** Records which track a deck holds and sets its normalization gain. */
+  const assignDeck = useCallback(
+    (deck: Deck, trackId: string | null) => {
+      deckTracks.current[deck] = trackId;
+      const t = trackId ? latest.current.byId.get(trackId) : undefined;
+      setDeckGain(decks[deck], latest.current.normalize ? normalizationGainDb(t?.loudness) : 0);
+    },
+    [decks, latest],
+  );
 
   const saveResume = useCallback(() => {
     const r = resumable.current;
@@ -144,6 +169,7 @@ export function usePlayerEngine(
     if (!audio) return;
     wantPlay.current = true;
     if (!audio.getAttribute('src')) return; // the load effect will start it
+    void resumeSoundGraph();
     audio.play().catch((err: unknown) => {
       const name = err instanceof Error ? err.name : '';
       if (name === 'AbortError') return; // a newer load interrupted this one
@@ -233,6 +259,7 @@ export function usePlayerEngine(
       from.pause();
     }
     wantPlay.current = true;
+    void resumeSoundGraph();
     to.play().catch(() => {});
     takeHandoff(p.uid);
     dispatch({ type: 'jump', index: n });
@@ -305,6 +332,9 @@ export function usePlayerEngine(
       setVolumeState(s.volume);
       setMuted(s.muted);
       setCrossfadeState(s.crossfade);
+      setPlaybackRateState(s.playbackRate);
+      setNormalize(s.normalize);
+      setEqState({ ...DEFAULT_EQ, ...s.eq });
       const valid = s.lastQueue.filter((id) => byId.has(id));
       if (valid.length) {
         // Where the saved index lands after dropping deleted tracks.
@@ -407,6 +437,7 @@ export function usePlayerEngine(
         }
         acquired = true;
         audio.src = url;
+        assignDeck(activeDeck, track?.id ?? null);
         const seekTo = sessionSeek ?? resumeAt;
         onMetadata = () => {
           if (seekTo) audio.currentTime = seekTo;
@@ -432,6 +463,8 @@ export function usePlayerEngine(
     };
   }, [
     audio,
+    activeDeck,
+    assignDeck,
     decks,
     currentUid,
     audioBlobId,
@@ -472,6 +505,7 @@ export function usePlayerEngine(
         if (!url) return;
         acquired = true;
         standby.src = url;
+        assignDeck(entry.deck, upcomingTrack?.id ?? null);
         preload.current = entry;
       })
       .catch(() => {
@@ -489,7 +523,44 @@ export function usePlayerEngine(
         releaseBlobUrl(upcomingBlobId);
       }
     };
-  }, [standby, activeDeck, upcomingUid, upcomingBlobId, fadeEnded]);
+    // upcomingTrack is read when the source is set; its identity changes with every library update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [standby, activeDeck, assignDeck, upcomingUid, upcomingBlobId, fadeEnded]);
+
+  /* ---------------------------- sound effects ---------------------------- */
+
+  // Speed. Loading a new source resets playbackRate to defaultPlaybackRate, so set both.
+  useEffect(() => {
+    for (const d of decks) {
+      if (!d) continue;
+      d.defaultPlaybackRate = playbackRate;
+      d.playbackRate = playbackRate;
+      d.preservesPitch = true;
+    }
+  }, [decks, playbackRate]);
+
+  // Web Audio only once the EQ or normalization is actually used (see soundGraph.ts).
+  useEffect(() => {
+    if ((eq.enabled || normalize) && decks[0] && decks[1]) ensureSoundGraph(decks);
+    if (soundGraphActive()) setEqualizer(eq.enabled, eq.gains);
+  }, [decks, eq, normalize]);
+
+  // Normalization gains follow the setting and newly measured tracks.
+  useEffect(() => {
+    if (!soundGraphActive()) return;
+    decks.forEach((d, i) => {
+      const id = deckTracks.current[i as Deck];
+      const t = id ? byId.get(id) : undefined;
+      setDeckGain(d, normalize ? normalizationGainDb(t?.loudness) : 0);
+    });
+  }, [decks, byId, normalize, eq.enabled]);
+
+  // Measure the current and next track (once each) while normalization is on.
+  useEffect(() => {
+    if (!normalize) return;
+    if (currentTrack) queueLoudnessAnalysis(currentTrack);
+    if (upcomingTrack) queueLoudnessAnalysis(upcomingTrack);
+  }, [normalize, currentTrack, upcomingTrack]);
 
   /* --------------------------- audio events --------------------------- */
 
@@ -596,8 +667,18 @@ export function usePlayerEngine(
   }, [queue, restored]);
 
   useEffect(() => {
-    if (restored) void updateSettings({ repeat, shuffle, volume, muted, crossfade });
-  }, [repeat, shuffle, volume, muted, crossfade, restored]);
+    if (restored)
+      void updateSettings({
+        repeat,
+        shuffle,
+        volume,
+        muted,
+        crossfade,
+        playbackRate,
+        normalize,
+        eq,
+      });
+  }, [repeat, shuffle, volume, muted, crossfade, playbackRate, normalize, eq, restored]);
 
   useEffect(() => {
     for (const d of decks) if (d) d.muted = muted;
@@ -770,6 +851,9 @@ export function usePlayerEngine(
       muted,
       crossfade,
       canCrossfade,
+      playbackRate,
+      normalize,
+      eq,
       play: () => {
         if (latest.current.queue.items.length === 0 && latest.current.tracks?.length) {
           playTracks(latest.current.tracks.map((t) => t.id));
@@ -806,6 +890,12 @@ export function usePlayerEngine(
         setShuffle(on);
         dispatch({ type: 'setShuffle', on });
       },
+      setPlaybackRate: (rate) =>
+        setPlaybackRateState(
+          Math.round(Math.max(MIN_SPEED, Math.min(MAX_SPEED, rate)) * 100) / 100,
+        ),
+      setNormalize,
+      setEq: (patch) => setEqState((e) => ({ ...e, ...patch })),
       setCrossfade: (seconds) =>
         setCrossfadeState(Math.round(Math.max(0, Math.min(MAX_CROSSFADE, seconds)))),
       playTracks,
@@ -829,6 +919,9 @@ export function usePlayerEngine(
       muted,
       crossfade,
       canCrossfade,
+      playbackRate,
+      normalize,
+      eq,
       latest,
       next,
       prev,

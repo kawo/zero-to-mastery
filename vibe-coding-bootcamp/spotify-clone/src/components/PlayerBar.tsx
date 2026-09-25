@@ -8,6 +8,7 @@ import {
   TransportControls,
   VolumeControl,
 } from '@/components/PlayerControls';
+import { SoundButton } from '@/components/SoundPanel';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useProgress } from '@/hooks/useProgress';
 import { cn } from '@/lib/utils';
@@ -117,6 +118,7 @@ export function PlayerBar() {
               <Maximize2 className="h-4 w-4" aria-hidden />
             </Link>
           )}
+          <SoundButton />
           <QueueToggle />
           <VolumeControl className="hidden lg:flex" />
         </div>
