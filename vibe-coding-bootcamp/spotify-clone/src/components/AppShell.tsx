@@ -1,12 +1,12 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Disc3, ListMusic, Music2, Upload } from 'lucide-react';
+import { Disc3, Keyboard, ListMusic, Music2, Upload } from 'lucide-react';
 import { PlayerBar } from '@/components/PlayerBar';
 import { QueueDrawer } from '@/components/QueueDrawer';
+import { Shortcuts } from '@/components/Shortcuts';
 import { useMediaQuery } from '@/hooks/useBrowser';
 import { usePlaylists } from '@/hooks/useIndexedDb';
-import { usePlayer } from '@/hooks/usePlayer';
-import { cn, isInteractiveTarget, isTypingTarget } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useUi } from '@/state/contexts';
 
 const NAV = [
@@ -16,33 +16,9 @@ const NAV = [
   { to: '/upload', label: 'Import', icon: Upload },
 ] as const;
 
-/** Global keyboard shortcuts (ignored while typing or when a control owns the key). */
-function useShortcuts() {
-  const player = usePlayer();
-  const { toggleQueue } = useUi();
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (isTypingTarget(e.target) || document.querySelector('dialog[open]')) return;
-      // Space activates a focused button/checkbox/slider; only take it when nothing else would.
-      if (e.key === ' ' && isInteractiveTarget(e.target)) return;
-      if (e.key === ' ' || e.key === 'k') {
-        e.preventDefault();
-        player.toggle();
-      } else if (e.key === 'ArrowRight' && e.shiftKey) player.next();
-      else if (e.key === 'ArrowLeft' && e.shiftKey) player.prev();
-      else if (e.key === 'q' || e.key === 'Q') toggleQueue();
-      else if (e.key === 'm') player.toggleMute();
-      else if (e.key === 's') player.toggleShuffle();
-      else if (e.key === 'r') player.cycleRepeat();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [player, toggleQueue]);
-}
-
 export function AppShell() {
-  useShortcuts();
+  const [helpOpen, setHelpOpen] = useState(false);
+  const openHelp = useCallback(() => setHelpOpen(true), []);
   const desktop = useMediaQuery('(min-width: 768px)');
   const playlists = usePlaylists();
   const { pathname } = useLocation();
@@ -120,6 +96,15 @@ export function AppShell() {
               )}
             </ul>
           </div>
+          <button
+            type="button"
+            className="btn-ghost justify-start px-3 text-xs"
+            onClick={openHelp}
+            aria-keyshortcuts="Shift+?"
+          >
+            <Keyboard className="h-4 w-4" aria-hidden />
+            Keyboard shortcuts
+          </button>
         </nav>
 
         <main
@@ -158,6 +143,8 @@ export function AppShell() {
       </nav>
 
       {!desktop && <QueueDrawer variant="sheet" />}
+
+      <Shortcuts helpOpen={helpOpen} onHelp={openHelp} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

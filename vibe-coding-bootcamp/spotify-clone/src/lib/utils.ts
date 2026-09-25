@@ -96,6 +96,14 @@ export function isInteractiveTarget(target: EventTarget | null): boolean {
   );
 }
 
+/** True for controls that use the arrow keys themselves (sliders, menus, sortable handles…). */
+export function usesArrowKeys(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return !!target.closest(
+    'input, select, textarea, [role="slider"], [role="menu"], [role="menuitem"], [role="listbox"], [role="option"], [role="tablist"], [role="radiogroup"], [aria-roledescription="sortable"]',
+  );
+}
+
 export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

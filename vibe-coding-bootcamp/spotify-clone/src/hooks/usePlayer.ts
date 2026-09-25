@@ -21,6 +21,7 @@ import {
   saveResumePosition,
 } from '@/db/library';
 import { acquireBlobUrl, formatTime, releaseBlobUrl } from '@/lib/audio';
+import { noteMediaSessionAction } from '@/lib/mediaSession';
 import { EMPTY_QUEUE, nextIndex, prevIndex, queueReducer } from '@/lib/queue';
 import { useLibrary } from '@/hooks/useIndexedDb';
 import {
@@ -475,7 +476,10 @@ export function usePlayerEngine(audio: HTMLAudioElement | null): PlayerValue {
     ];
     for (const [action, handler] of handlers) {
       try {
-        ms.setActionHandler(action, handler);
+        ms.setActionHandler(action, (details) => {
+          noteMediaSessionAction();
+          handler(details);
+        });
       } catch {
         /* action not supported in this browser */
       }

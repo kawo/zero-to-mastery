@@ -229,16 +229,28 @@ Backups live on the **Import** page, under _Backup & restore_.
 
 ## Keyboard shortcuts
 
+Press `?` (or click **Keyboard shortcuts** at the bottom of the sidebar) to see this list in the app. Shortcuts work anywhere except while typing in a field or while a dialog is open. Volume, seek, shuffle and repeat keys show a short indicator at the top of the screen, which screen readers also announce. Letter keys work with Caps Lock on.
+
 | Key                                       | Action                                               |
 | ----------------------------------------- | ---------------------------------------------------- |
 | `Space` / `K`                             | Play / pause (when focus isn't on a button or field) |
-| `Shift` + `→` / `←`                       | Next / previous track                                |
+| `Shift` + `→` / `N`                       | Next track                                           |
+| `Shift` + `←` / `P`                       | Previous track (restarts the track after 3 s)        |
+| `←` / `→`                                 | Seek back / forward 5 seconds                        |
+| `J` / `L`                                 | Seek back / forward 10 seconds                       |
+| `0` – `9`                                 | Jump to 0 % – 90 % of the track                      |
+| `Shift` + `↑` / `↓`, `+` / `-`            | Volume up / down 10 %                                |
+| `M`                                       | Mute / unmute                                        |
+| `S` · `R`                                 | Shuffle on/off · cycle repeat (off → all → one)      |
 | `Q`                                       | Show / hide the queue                                |
-| `S` · `R` · `M`                           | Shuffle · cycle repeat · mute                        |
 | `/`                                       | Focus the search box                                 |
-| `←` / `→` on the timeline                 | Seek 5 seconds                                       |
+| `?`                                       | Show the shortcuts list                              |
 | `Space`, arrows, `Space` on a drag handle | Pick up, move, drop (`Esc` cancels)                  |
 | `Esc`                                     | Close menus, dialogs and the mobile queue sheet      |
+
+Arrow keys are left alone when the focused control uses them itself: the timeline and volume sliders, menus, and drag handles.
+
+**Media keys**: the play/pause, next, previous and stop keys on keyboards and headsets, and the OS media controls, go through the Media Session API. They work even when Tunebox isn't the focused tab. In browsers without Media Session, the same keys are handled as ordinary key presses while the tab has focus.
 
 ## Acceptance test (manual script)
 
