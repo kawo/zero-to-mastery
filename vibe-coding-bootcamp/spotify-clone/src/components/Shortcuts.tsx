@@ -2,40 +2,44 @@ import { useEffect, useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { usePlayer } from '@/hooks/usePlayer';
 import { formatTime } from '@/lib/audio';
-import { formatSpeed, stepSpeed } from '@/lib/eq';
+import { stepSpeed } from '@/lib/eq';
 import { MEDIA_KEY_GRACE_MS, mediaSessionActedSince } from '@/lib/mediaSession';
 import { isInteractiveTarget, isTypingTarget, usesArrowKeys } from '@/lib/utils';
 import { useUi } from '@/state/contexts';
 import type { RepeatMode } from '@/types';
+import { formatPercent, formatSpeed, useI18n, type MessageKey } from '@/i18n';
 
 const SEEK_SMALL = 5; // seconds for ← / →
 const SEEK_LARGE = 10; // seconds for J / L
 const VOLUME_STEP = 0.1;
 
 const NEXT_REPEAT: Record<RepeatMode, RepeatMode> = { off: 'all', all: 'one', one: 'off' };
-const REPEAT_LABEL: Record<RepeatMode, string> = {
-  off: 'Repeat off',
-  all: 'Repeat all',
-  one: 'Repeat one',
-};
+const REPEAT_LABEL = {
+  off: 'player.repeatOff',
+  all: 'player.repeatAll',
+  one: 'player.repeatOne',
+} as const satisfies Record<RepeatMode, MessageKey>;
 
-/** Shown in the help dialog and the README; keep in sync with the handler below. */
-const SHORTCUTS: { keys: string[]; action: string }[] = [
-  { keys: ['Space', 'K'], action: 'Play / pause' },
-  { keys: ['Shift + →', 'N'], action: 'Next track' },
-  { keys: ['Shift + ←', 'P'], action: 'Previous track (restarts after 3 s)' },
-  { keys: ['←', '→'], action: `Seek back / forward ${SEEK_SMALL} s` },
-  { keys: ['J', 'L'], action: `Seek back / forward ${SEEK_LARGE} s` },
-  { keys: ['0 – 9'], action: 'Jump to 0 % – 90 % of the track' },
-  { keys: ['Shift + ↑', 'Shift + ↓', '+', '−'], action: 'Volume up / down' },
-  { keys: ['M'], action: 'Mute / unmute' },
-  { keys: ['S'], action: 'Shuffle on / off' },
-  { keys: ['R'], action: 'Cycle repeat: off → all → one' },
-  { keys: ['<', '>'], action: 'Slower / faster (0.5× – 2×)' },
-  { keys: ['Q'], action: 'Show / hide the queue' },
-  { keys: ['/'], action: 'Focus the search box' },
-  { keys: ['?'], action: 'Show this list' },
-  { keys: ['Esc'], action: 'Close menus, dialogs and the queue sheet' },
+/**
+ * Shown in the help dialog and the README; keep in sync with the handler below.
+ * {space}, {shift} and {esc} are replaced with the key names in the current language.
+ */
+const SHORTCUTS: { keys: string[]; action: MessageKey; params?: Record<string, number> }[] = [
+  { keys: ['{space}', 'K'], action: 'shortcuts.playPause' },
+  { keys: ['{shift} + →', 'N'], action: 'shortcuts.next' },
+  { keys: ['{shift} + ←', 'P'], action: 'shortcuts.previous' },
+  { keys: ['←', '→'], action: 'shortcuts.seekBy', params: { s: SEEK_SMALL } },
+  { keys: ['J', 'L'], action: 'shortcuts.seekBy', params: { s: SEEK_LARGE } },
+  { keys: ['0 – 9'], action: 'shortcuts.jump' },
+  { keys: ['{shift} + ↑', '{shift} + ↓', '+', '−'], action: 'shortcuts.volume' },
+  { keys: ['M'], action: 'shortcuts.mute' },
+  { keys: ['S'], action: 'shortcuts.shuffle' },
+  { keys: ['R'], action: 'shortcuts.repeat' },
+  { keys: ['<', '>'], action: 'shortcuts.speed' },
+  { keys: ['Q'], action: 'shortcuts.queue' },
+  { keys: ['/'], action: 'shortcuts.search' },
+  { keys: ['?'], action: 'shortcuts.help' },
+  { keys: ['{esc}'], action: 'shortcuts.escape' },
 ];
 
 /** Hardware media keys. The Media Session normally handles them; see src/lib/mediaSession.ts. */
@@ -49,6 +53,7 @@ const MEDIA_KEYS = new Set(['MediaPlayPause', 'MediaTrackNext', 'MediaTrackPrevi
 function useKeyboardShortcuts(onHelp: () => void): { text: string; n: number } | null {
   const player = usePlayer();
   const { toggleQueue } = useUi();
+  const { t: tr } = useI18n();
   const [hud, setHud] = useState<{ text: string; n: number } | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -75,7 +80,11 @@ function useKeyboardShortcuts(onHelp: () => void): { text: string; n: number } |
       const v = Math.round(Math.max(0, Math.min(1, base + delta)) * 100) / 100;
       player.setVolume(v);
       if (v === 0 && !player.muted) player.toggleMute();
-      show(v === 0 ? 'Muted' : `Volume ${Math.round(v * 100)} %`);
+      show(
+        v === 0
+          ? tr('shortcuts.hudMuted')
+          : tr('shortcuts.hudVolume', { percent: formatPercent(v) }),
+      );
     };
 
     const onKey = (e: KeyboardEvent) => {
@@ -127,17 +136,21 @@ function useKeyboardShortcuts(onHelp: () => void): { text: string; n: number } |
       else if ((key === 'ArrowDown' && e.shiftKey) || key === '-') changeVolume(-VOLUME_STEP);
       else if (key === 'm') {
         player.toggleMute();
-        show(player.muted ? `Volume ${Math.round(player.volume * 100)} %` : 'Muted');
+        show(
+          player.muted
+            ? tr('shortcuts.hudVolume', { percent: formatPercent(player.volume) })
+            : tr('shortcuts.hudMuted'),
+        );
       } else if (key === 's') {
         player.toggleShuffle();
-        show(player.shuffle ? 'Shuffle off' : 'Shuffle on');
+        show(player.shuffle ? tr('player.shuffleOff') : tr('player.shuffleOn'));
       } else if (key === 'r') {
         player.cycleRepeat();
-        show(REPEAT_LABEL[NEXT_REPEAT[player.repeat]]);
+        show(tr(REPEAT_LABEL[NEXT_REPEAT[player.repeat]]));
       } else if (key === '<' || key === '>') {
         const rate = stepSpeed(player.playbackRate, key === '>' ? 1 : -1);
         player.setPlaybackRate(rate);
-        show(`Speed ${formatSpeed(rate)}`);
+        show(tr('shortcuts.hudSpeed', { speed: formatSpeed(rate) }));
       } else if (key === 'q') toggleQueue();
       else if (key === '?') onHelp();
       else handled = false;
@@ -148,7 +161,7 @@ function useKeyboardShortcuts(onHelp: () => void): { text: string; n: number } |
       window.removeEventListener('keydown', onKey);
       mediaKeyTimers.forEach(clearTimeout);
     };
-  }, [player, toggleQueue, onHelp]);
+  }, [player, toggleQueue, onHelp, tr]);
 
   useEffect(() => () => clearTimeout(hideTimer.current), []);
 
@@ -167,6 +180,12 @@ export function Shortcuts({
   onClose: () => void;
 }) {
   const hud = useKeyboardShortcuts(onHelp);
+  const { t } = useI18n();
+  const keyName = (k: string) =>
+    k
+      .replace('{space}', t('shortcuts.keySpace'))
+      .replace('{shift}', t('shortcuts.keyShift'))
+      .replace('{esc}', t('shortcuts.keyEsc'));
 
   return (
     <>
@@ -190,13 +209,19 @@ export function Shortcuts({
       <Dialog
         open={helpOpen}
         onClose={onClose}
-        title="Keyboard shortcuts"
-        description="They work anywhere except while typing in a field. Headset and keyboard media keys control playback too."
+        title={t('shortcuts.title')}
+        description={t('shortcuts.description')}
       >
         <table className="w-full text-sm">
+          <thead className="sr-only">
+            <tr>
+              <th scope="col">{t('shortcuts.keysHeader')}</th>
+              <th scope="col">{t('shortcuts.actionHeader')}</th>
+            </tr>
+          </thead>
           <tbody>
-            {SHORTCUTS.map(({ keys, action }) => (
-              <tr key={action} className="border-b border-border last:border-0">
+            {SHORTCUTS.map(({ keys, action, params }) => (
+              <tr key={keys.join()} className="border-b border-border last:border-0">
                 <td className="py-2 pr-4 align-top">
                   <span className="flex flex-wrap gap-1">
                     {keys.map((k) => (
@@ -204,12 +229,12 @@ export function Shortcuts({
                         key={k}
                         className="rounded border border-border bg-elevated px-1.5 py-0.5 font-mono text-xs"
                       >
-                        {k}
+                        {keyName(k)}
                       </kbd>
                     ))}
                   </span>
                 </td>
-                <td className="py-2 text-muted">{action}</td>
+                <td className="py-2 text-muted">{t(action, params)}</td>
               </tr>
             ))}
           </tbody>

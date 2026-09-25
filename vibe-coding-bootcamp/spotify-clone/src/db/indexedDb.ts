@@ -10,6 +10,7 @@ import type {
   Track,
   WaveformDoc,
 } from '@/types';
+import { t } from '@/i18n/core';
 
 /** Also read directly (without Dexie) by the service worker to serve artwork. */
 export const DB_NAME = 'tunebox';
@@ -77,6 +78,8 @@ db.on('versionchange', () => {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
+  contrast: 'system',
+  language: 'auto',
   repeat: 'off',
   shuffle: false,
   volume: 0.9,
@@ -108,16 +111,16 @@ export function describeDbError(err: unknown): string {
   const name = err instanceof Error ? err.name : '';
   const inner = (err as { inner?: { name?: string } } | null)?.inner?.name ?? '';
   if (name === 'QuotaExceededError' || inner === 'QuotaExceededError') {
-    return 'Your browser is out of storage space for this site. Delete some songs, or free up disk space, then try again.';
+    return t('errors.quota');
   }
   if (name === 'MissingAPIError' || name === 'InvalidStateError') {
-    return 'This browser does not allow local storage here (private browsing can block it). Open Tunebox in a normal window.';
+    return t('errors.storageBlocked');
   }
   if (name === 'VersionError') {
-    return 'Tunebox was updated in another tab. Reload this page.';
+    return t('errors.upgraded');
   }
   if (name === 'DatabaseClosedError' || name === 'OpenFailedError') {
-    return 'The music library could not be opened. Reload the page; if it keeps happening, check that site data is allowed.';
+    return t('errors.cantOpen');
   }
-  return err instanceof Error ? err.message : 'Something went wrong while accessing your library.';
+  return err instanceof Error ? err.message : t('errors.generic');
 }

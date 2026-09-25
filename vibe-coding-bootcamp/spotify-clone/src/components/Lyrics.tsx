@@ -35,17 +35,18 @@ import {
 import { cn } from '@/lib/utils';
 import { useToast } from '@/state/contexts';
 import type { Track } from '@/types';
+import { useI18n, type MessageKey } from '@/i18n';
 
 const OFFSET_STEP_MS = 250;
 /** After the user scrolls the lyrics, leave them alone this long before following again. */
 const MANUAL_SCROLL_MS = 4000;
 
 const SOURCE_LABEL = {
-  embedded: 'From the file’s tags',
-  file: 'From an .lrc file',
-  lrclib: 'Lyrics from LRCLIB (lrclib.net)',
-  manual: 'Added by you',
-} as const;
+  embedded: 'lyrics.sourceEmbedded',
+  file: 'lyrics.sourceFile',
+  lrclib: 'lyrics.sourceLrclib',
+  manual: 'lyrics.sourceManual',
+} as const satisfies Record<string, MessageKey>;
 
 /* ----------------------------- lyrics view ----------------------------- */
 
@@ -59,6 +60,7 @@ export function LyricsView({ track, className }: { track: Track; className?: str
   const { byId } = useLibrary();
   const settings = useSettings();
   const toast = useToast();
+  const { t, num } = useI18n();
   const { doc, lines, plain, offset } = useLyrics(track.id);
   const [lookup, setLookup] = useState<{ trackId: string; state: 'searching' | LookupResult }>();
   const [editing, setEditing] = useState(false);
@@ -91,10 +93,8 @@ export function LyricsView({ track, className }: { track: Track; className?: str
     setLookup({ trackId: track.id, state: 'searching' });
     const state = await lookupLyrics(track);
     setLookup({ trackId: track.id, state });
-    if (state === 'error')
-      toast({ tone: 'error', message: 'LRCLIB could not be reached. Try again later.' });
-    else if (state === 'offline')
-      toast({ tone: 'error', message: "You're offline, so lyrics can't be looked up." });
+    if (state === 'error') toast({ tone: 'error', message: t('lyrics.unreachableToast') });
+    else if (state === 'offline') toast({ tone: 'error', message: t('lyrics.offlineToast') });
   };
 
   // Look up the next song too, so karaoke and the lyrics view keep going offline-ready.
@@ -128,19 +128,19 @@ export function LyricsView({ track, className }: { track: Track; className?: str
 
   const menuItems = [
     ...(lines.length
-      ? [{ label: 'Karaoke mode', icon: <Mic2 />, onSelect: () => setKaraoke(true) }]
+      ? [{ label: t('lyrics.karaokeMode'), icon: <Mic2 />, onSelect: () => setKaraoke(true) }]
       : []),
     {
-      label: doc?.lrc || plain ? 'Edit lyrics' : 'Add lyrics',
+      label: doc?.lrc || plain ? t('lyrics.edit') : t('lyrics.add'),
       icon: <Pencil />,
       onSelect: () => setEditing(true),
     },
-    { label: 'Import .lrc file', icon: <FileUp />, onSelect: () => fileInput.current?.click() },
-    { label: 'Search LRCLIB again', icon: <RefreshCw />, onSelect: () => void searchNow() },
+    { label: t('lyrics.importFile'), icon: <FileUp />, onSelect: () => fileInput.current?.click() },
+    { label: t('lyrics.searchAgain'), icon: <RefreshCw />, onSelect: () => void searchNow() },
     ...(doc?.lrc || plain
       ? [
           {
-            label: 'Remove lyrics',
+            label: t('lyrics.remove'),
             icon: <Trash2 />,
             danger: true,
             onSelect: () => void removeLyrics(track.id),
@@ -148,7 +148,7 @@ export function LyricsView({ track, className }: { track: Track; className?: str
         ]
       : []),
     {
-      label: online ? 'Stop searching online' : 'Search online automatically',
+      label: online ? t('lyrics.stopOnline') : t('lyrics.startOnline'),
       icon: <Search />,
       onSelect: () => void updateSettings({ lyricsOnline: !online }),
     },
@@ -160,7 +160,7 @@ export function LyricsView({ track, className }: { track: Track; className?: str
   else if (status === 'searching' && !hasLyrics)
     body = (
       <p className="flex items-center gap-2 text-muted" role="status">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Looking for lyrics…
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {t('lyrics.looking')}
       </p>
     );
   else if (lines.length)
@@ -190,34 +190,34 @@ export function LyricsView({ track, className }: { track: Track; className?: str
     );
   else if (plain) body = <p className="whitespace-pre-line text-lg leading-relaxed">{plain}</p>;
   else if (doc?.instrumental)
-    body = <p className="text-lg text-muted">This song is instrumental.</p>;
+    body = <p className="text-lg text-muted">{t('lyrics.instrumental')}</p>;
   else
     body = (
       <div className="space-y-3 text-muted">
-        <p className="text-lg font-semibold text-fg">No lyrics for this song</p>
+        <p className="text-lg font-semibold text-fg">{t('lyrics.none')}</p>
         <p className="text-sm">
           {status === 'offline'
-            ? "You're offline, so lyrics can't be looked up right now."
+            ? t('lyrics.offline')
             : status === 'error'
-              ? 'LRCLIB could not be reached.'
+              ? t('lyrics.unreachable')
               : online
-                ? 'LRCLIB has no lyrics for it.'
-                : 'Online search is off.'}{' '}
-          Add them by pasting the text or importing an .lrc file.
+                ? t('lyrics.notFound')
+                : t('lyrics.searchOff')}{' '}
+          {t('lyrics.addThem')}
         </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
-            <Pencil className="h-4 w-4" aria-hidden /> Add lyrics
+            <Pencil className="h-4 w-4" aria-hidden /> {t('lyrics.add')}
           </button>
           <button
             type="button"
             className="btn-secondary"
             onClick={() => fileInput.current?.click()}
           >
-            <FileUp className="h-4 w-4" aria-hidden /> Import .lrc
+            <FileUp className="h-4 w-4" aria-hidden /> {t('lyrics.importShort')}
           </button>
           <button type="button" className="btn-secondary" onClick={() => void searchNow()}>
-            <Search className="h-4 w-4" aria-hidden /> Search LRCLIB
+            <Search className="h-4 w-4" aria-hidden /> {t('lyrics.searchLrclib')}
           </button>
         </div>
       </div>
@@ -225,7 +225,7 @@ export function LyricsView({ track, className }: { track: Track; className?: str
 
   return (
     <section
-      aria-label={`Lyrics for ${track.title}`}
+      aria-label={t('lyrics.region', { title: track.title })}
       className={cn('flex min-h-0 flex-col', className)}
     >
       <div
@@ -240,19 +240,19 @@ export function LyricsView({ track, className }: { track: Track; className?: str
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
         <span className="min-w-0 flex-1 truncate">
           {doc?.source && hasLyrics
-            ? SOURCE_LABEL[doc.source]
+            ? t(SOURCE_LABEL[doc.source])
             : online
-              ? 'Looks up lyrics on lrclib.net'
+              ? t('lyrics.looksUp')
               : ''}
         </span>
         {lines.length > 0 && (
-          <span className="flex items-center gap-1" role="group" aria-label="Lyrics timing">
+          <span className="flex items-center gap-1" role="group" aria-label={t('lyrics.timing')}>
             <button
               type="button"
               className="icon-btn h-7 w-7"
               onClick={() => void setLyricsOffset(track.id, (doc?.offsetMs ?? 0) - OFFSET_STEP_MS)}
-              aria-label="Show lines later"
-              title="Lines appear too early? Show them later"
+              aria-label={t('lyrics.later')}
+              title={t('lyrics.laterHint')}
             >
               <Minus className="h-3.5 w-3.5" aria-hidden />
             </button>
@@ -260,16 +260,20 @@ export function LyricsView({ track, className }: { track: Track; className?: str
               type="button"
               className="w-14 tabular-nums hover:text-fg"
               onClick={() => void setLyricsOffset(track.id, 0)}
-              title="Reset timing"
+              title={t('lyrics.resetTiming')}
             >
-              {offset === 0 ? 'In sync' : `${offset > 0 ? '+' : ''}${offset.toFixed(2)} s`}
+              {offset === 0
+                ? t('lyrics.inSync')
+                : t('lyrics.offsetSeconds', {
+                    offset: `${offset > 0 ? '+' : ''}${num(Number(offset.toFixed(2)))}`,
+                  })}
             </button>
             <button
               type="button"
               className="icon-btn h-7 w-7"
               onClick={() => void setLyricsOffset(track.id, (doc?.offsetMs ?? 0) + OFFSET_STEP_MS)}
-              aria-label="Show lines sooner"
-              title="Lines appear too late? Show them sooner"
+              aria-label={t('lyrics.sooner')}
+              title={t('lyrics.soonerHint')}
             >
               <Plus className="h-3.5 w-3.5" aria-hidden />
             </button>
@@ -281,10 +285,10 @@ export function LyricsView({ track, className }: { track: Track; className?: str
             className="btn-secondary px-3 py-1 text-xs"
             onClick={() => setKaraoke(true)}
           >
-            <Mic2 className="h-3.5 w-3.5" aria-hidden /> Karaoke
+            <Mic2 className="h-3.5 w-3.5" aria-hidden /> {t('lyrics.karaoke')}
           </button>
         )}
-        <Menu label="Lyrics options" items={menuItems} />
+        <Menu label={t('lyrics.options')} items={menuItems} />
       </div>
 
       <input
@@ -297,9 +301,10 @@ export function LyricsView({ track, className }: { track: Track; className?: str
           e.target.value = '';
           if (!file) return;
           const text = await file.text();
-          if (!text.trim()) return toast({ tone: 'error', message: `${file.name} is empty.` });
+          if (!text.trim())
+            return toast({ tone: 'error', message: t('lyrics.fileEmpty', { name: file.name }) });
           await saveLyrics(track.id, lyricsFromText(text), 'file');
-          toast({ tone: 'success', message: `Lyrics added to ${track.title}.` });
+          toast({ tone: 'success', message: t('lyrics.added', { title: track.title }) });
         }}
       />
       <LyricsEditor
@@ -334,19 +339,20 @@ function LyricsEditor({
   initial: string;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [text, setText] = useState(initial);
   const id = useId();
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title={`Lyrics for ${track.title}`}
-      description="Paste plain text, or LRC with [mm:ss.xx] timestamps for synced lyrics."
+      title={t('lyrics.editorTitle', { title: track.title })}
+      description={t('lyrics.editorHelp')}
       className="max-w-xl"
       footer={
         <>
           <button type="button" className="btn-secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -357,20 +363,20 @@ function LyricsEditor({
               onClose();
             }}
           >
-            Save
+            {t('common.save')}
           </button>
         </>
       }
     >
       <label htmlFor={id} className="sr-only">
-        Lyrics
+        {t('lyrics.editorLabel')}
       </label>
       <textarea
         id={id}
         className="input h-72 font-mono text-sm"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={'[00:12.30] First line\n[00:17.80] Second line'}
+        placeholder={t('lyrics.editorPlaceholder')}
       />
     </Dialog>
   );
@@ -423,6 +429,7 @@ function KaraokeOverlay({
   onClose: () => void;
 }) {
   const { audio, toggle, seek, isPlaying } = usePlayer();
+  const { t } = useI18n();
   const { current, duration } = useProgress(audio, track.duration);
   const ref = useRef<HTMLDialogElement>(null);
   const playButton = useRef<HTMLButtonElement>(null);
@@ -444,7 +451,7 @@ function KaraokeOverlay({
   return (
     <dialog
       ref={ref}
-      aria-label={`Karaoke: ${track.title}`}
+      aria-label={t('lyrics.karaokeLabel', { title: track.title })}
       onClose={onClose}
       onKeyUp={(e) => e.key === ' ' && e.preventDefault()}
       onKeyDown={(e) => {
@@ -467,7 +474,7 @@ function KaraokeOverlay({
             type="button"
             className="grid h-10 w-10 place-items-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
             onClick={() => ref.current?.close()}
-            aria-label="Close karaoke"
+            aria-label={t('lyrics.closeKaraoke')}
           >
             <X className="h-6 w-6" aria-hidden />
           </button>
@@ -514,7 +521,7 @@ function KaraokeOverlay({
             type="button"
             ref={playButton}
             onClick={toggle}
-            aria-label={isPlaying ? 'Pause' : 'Play'}
+            aria-label={isPlaying ? t('common.pause') : t('common.play')}
             className="grid h-16 w-16 place-items-center rounded-full bg-white text-black transition-transform hover:scale-105"
           >
             {isPlaying ? (

@@ -8,15 +8,17 @@ import { useMediaQuery } from '@/hooks/useBrowser';
 import { usePlaylists } from '@/hooks/useIndexedDb';
 import { cn } from '@/lib/utils';
 import { useUi } from '@/state/contexts';
+import { useI18n } from '@/i18n';
 
 const NAV = [
-  { to: '/songs', label: 'Songs', icon: Music2 },
-  { to: '/playlists', label: 'Playlists', icon: ListMusic },
-  { to: '/now-playing', label: 'Now Playing', icon: Disc3 },
-  { to: '/upload', label: 'Import', icon: Upload },
+  { to: '/songs', label: 'nav.songs', icon: Music2 },
+  { to: '/playlists', label: 'nav.playlists', icon: ListMusic },
+  { to: '/now-playing', label: 'nav.nowPlaying', icon: Disc3 },
+  { to: '/upload', label: 'nav.import', icon: Upload },
 ] as const;
 
 export function AppShell() {
+  const { t } = useI18n();
   const [helpOpen, setHelpOpen] = useState(false);
   const openHelp = useCallback(() => setHelpOpen(true), []);
   const desktop = useMediaQuery('(min-width: 768px)');
@@ -41,12 +43,12 @@ export function AppShell() {
         href="#main"
         className="sr-only z-50 rounded-md bg-accent px-4 py-2 text-accent-fg focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
       >
-        Skip to content
+        {t('nav.skipToContent')}
       </a>
       <div className="flex min-h-0 flex-1">
         {/* Desktop sidebar */}
         <nav
-          aria-label="Main"
+          aria-label={t('nav.main')}
           className="hidden w-60 shrink-0 flex-col gap-6 border-r border-border bg-surface p-4 md:flex"
         >
           <div className="flex items-center gap-2 px-2 pt-1 text-lg font-extrabold">
@@ -66,14 +68,14 @@ export function AppShell() {
                   }
                 >
                   <Icon className="h-5 w-5" aria-hidden />
-                  {label}
+                  {t(label)}
                 </NavLink>
               </li>
             ))}
           </ul>
           <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
             <h2 className="px-3 text-xs font-semibold uppercase tracking-wider text-muted">
-              Your playlists
+              {t('nav.yourPlaylists')}
             </h2>
             <ul className="mt-2 space-y-0.5">
               {(playlists ?? []).map((p) => (
@@ -92,7 +94,7 @@ export function AppShell() {
                 </li>
               ))}
               {playlists?.length === 0 && (
-                <li className="px-3 py-1.5 text-sm text-muted">None yet</li>
+                <li className="px-3 py-1.5 text-sm text-muted">{t('nav.noPlaylistsYet')}</li>
               )}
             </ul>
           </div>
@@ -103,7 +105,7 @@ export function AppShell() {
             aria-keyshortcuts="Shift+?"
           >
             <Keyboard className="h-4 w-4" aria-hidden />
-            Keyboard shortcuts
+            {t('nav.keyboardShortcuts')}
           </button>
         </nav>
 
@@ -121,7 +123,10 @@ export function AppShell() {
       <PlayerBar />
 
       {/* Mobile tab bar */}
-      <nav aria-label="Main" className="pb-safe border-t border-border bg-surface md:hidden">
+      <nav
+        aria-label={t('nav.main')}
+        className="pb-safe border-t border-border bg-surface md:hidden"
+      >
         <ul className="grid grid-cols-4">
           {NAV.map(({ to, label, icon: Icon }) => (
             <li key={to}>
@@ -135,7 +140,7 @@ export function AppShell() {
                 }
               >
                 <Icon className="h-5 w-5" aria-hidden />
-                {label}
+                {t(label)}
               </NavLink>
             </li>
           ))}

@@ -27,20 +27,21 @@ import {
 } from '@/lib/backup';
 import { importFiles, isAudioFile } from '@/lib/importer';
 import { attachLyricsFiles, isLyricsFile } from '@/lib/lyrics';
-import { cn, downloadBlob, formatBytes, pluralize, uid } from '@/lib/utils';
+import { cn, downloadBlob, uid } from '@/lib/utils';
 import { useToast } from '@/state/contexts';
 import type { ImportItem, ImportStatus } from '@/types';
+import { formatBytes, useI18n, type MessageKey } from '@/i18n';
 
-const STATUS_TEXT: Record<ImportStatus, string> = {
-  queued: 'Waiting',
-  hashing: 'Checking for duplicates',
-  parsing: 'Reading tags',
-  saving: 'Saving',
-  done: 'Added',
-  relinked: 'Relinked',
-  duplicate: 'Already in library',
-  error: 'Failed',
-};
+const STATUS_TEXT = {
+  queued: 'upload.status.queued',
+  hashing: 'upload.status.hashing',
+  parsing: 'upload.status.parsing',
+  saving: 'upload.status.saving',
+  done: 'upload.status.done',
+  relinked: 'upload.status.relinked',
+  duplicate: 'upload.status.duplicate',
+  error: 'upload.status.error',
+} as const satisfies Record<ImportStatus, MessageKey>;
 const FINISHED: ImportStatus[] = ['done', 'relinked', 'duplicate', 'error'];
 
 /** Full backups above this size get an extra warning: the zip is built in memory. */
@@ -49,6 +50,7 @@ const LARGE_EXPORT = 500 * 1024 * 1024;
 export default function Upload() {
   const toast = useToast();
   const online = useOnline();
+  const { t } = useI18n();
   const { tracks } = useLibrary();
   const [items, setItems] = useState<ImportItem[]>([]);
   const [busy, setBusy] = useState(false);
@@ -73,8 +75,13 @@ export default function Upload() {
     toast({
       tone: matched ? 'success' : 'info',
       message: matched
-        ? `Added lyrics to ${pluralize(matched, 'song')}${matched < lrc.length ? ` (${lrc.length - matched} .lrc ${lrc.length - matched === 1 ? "file didn't" : "files didn't"} match a song's file name)` : ''}.`
-        : `None of the ${pluralize(lrc.length, '.lrc file')} match a song's file name. Name them like the audio file (Song.mp3 → Song.lrc).`,
+        ? t('upload.lyricsAdded', { count: matched }).replace(
+            /\.$/,
+            matched < lrc.length
+              ? `${t('upload.lyricsUnmatched', { count: lrc.length - matched })}.`
+              : '.',
+          )
+        : t('upload.lyricsNoneMatched', { count: lrc.length }),
     });
   };
 
@@ -82,10 +89,7 @@ export default function Upload() {
     const lrc = files.filter(isLyricsFile);
     const audio = files.filter(isAudioFile);
     const skipped = files.length - audio.length - lrc.length;
-    if (skipped)
-      toast(
-        `Skipped ${pluralize(skipped, 'file')} that ${skipped === 1 ? "isn't" : "aren't"} audio or lyrics.`,
-      );
+    if (skipped) toast(t('upload.skipped', { count: skipped }));
     if (!audio.length) {
       await addLyricsFiles(lrc);
       return;
@@ -110,14 +114,14 @@ export default function Upload() {
       });
       if (res.quotaError) toast({ tone: 'error', message: res.quotaError, duration: 0 });
       const parts = [
-        res.added && `${pluralize(res.added, 'song')} added`,
-        res.relinked && `${res.relinked} relinked`,
-        res.duplicates && `${pluralize(res.duplicates, 'duplicate')} skipped`,
-        res.failed && `${res.failed} failed`,
+        res.added && t('upload.partAdded', { count: res.added }),
+        res.relinked && t('upload.partRelinked', { count: res.relinked }),
+        res.duplicates && t('upload.partDuplicates', { count: res.duplicates }),
+        res.failed && t('upload.partFailed', { count: res.failed }),
       ].filter(Boolean);
       toast({
         tone: res.failed && !res.added ? 'error' : 'success',
-        message: `Import finished: ${parts.join(', ')}.`,
+        message: t('upload.finished', { parts: parts.join(', ') }),
       });
       await addLyricsFiles(lrc);
     } finally {
@@ -132,12 +136,11 @@ export default function Upload() {
 
   return (
     <>
-      <TopBar title="Import" subtitle="Add music from this device" />
+      <TopBar title={t('upload.title')} subtitle={t('upload.subtitle')} />
 
       {!online && (
         <p className="mb-4 rounded-lg bg-elevated px-4 py-3 text-sm text-muted">
-          You're offline. That's fine: importing reads files from your device and never needs the
-          network.
+          {t('upload.offline')}
         </p>
       )}
 
@@ -148,8 +151,11 @@ export default function Upload() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 id="progress-heading" className="font-bold">
               {busy
-                ? `Importing ${done + 1 > items.length ? items.length : done + 1} of ${items.length}…`
-                : `Imported ${pluralize(added, 'song')}`}
+                ? t('upload.importing', {
+                    current: Math.min(done + 1, items.length),
+                    total: items.length,
+                  })
+                : t('upload.imported', { count: added })}
             </h2>
             <div className="flex gap-2">
               {busy ? (
@@ -158,13 +164,13 @@ export default function Upload() {
                   className="btn-secondary px-3 py-1.5"
                   onClick={() => abort.current?.abort()}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               ) : (
                 <>
                   {added > 0 && (
                     <Link to="/songs?sort=createdAt" className="btn-primary px-3 py-1.5">
-                      View songs
+                      {t('upload.viewSongs')}
                     </Link>
                   )}
                   <button
@@ -172,7 +178,7 @@ export default function Upload() {
                     className="btn-ghost px-3 py-1.5"
                     onClick={() => setItems([])}
                   >
-                    Clear list
+                    {t('upload.clearList')}
                   </button>
                 </>
               )}
@@ -180,7 +186,7 @@ export default function Upload() {
           </div>
           <div
             role="progressbar"
-            aria-label="Import progress"
+            aria-label={t('upload.progress')}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={pct}
@@ -193,7 +199,7 @@ export default function Upload() {
           </div>
           <ul
             className="scrollbar-thin mt-4 max-h-80 divide-y divide-border overflow-y-auto"
-            aria-label="Files"
+            aria-label={t('upload.files')}
           >
             {items.map((it) => (
               <li key={it.key} className="flex items-center gap-3 py-2 text-sm">
@@ -211,7 +217,7 @@ export default function Upload() {
                     </p>
                   )}
                 </div>
-                <span className="shrink-0 text-xs text-muted">{STATUS_TEXT[it.status]}</span>
+                <span className="shrink-0 text-xs text-muted">{t(STATUS_TEXT[it.status])}</span>
                 <span className="hidden w-16 shrink-0 text-right text-xs tabular-nums text-muted sm:block">
                   {formatBytes(it.size)}
                 </span>
@@ -228,8 +234,8 @@ export default function Upload() {
             const ok = await requestPersistentStorage();
             toast(
               ok
-                ? { tone: 'success', message: 'Storage is now persistent.' }
-                : 'The browser declined. Installing the app usually helps.',
+                ? { tone: 'success', message: t('upload.persistOk') }
+                : t('upload.persistDeclined'),
             );
             refreshStorage();
           }}
@@ -263,22 +269,25 @@ function StorageCard({
   storage: StorageInfo | null;
   onPersist: () => void;
 }) {
+  const { t } = useI18n();
   const pct = storage && storage.quota ? Math.min(100, (storage.usage / storage.quota) * 100) : 0;
   return (
     <section aria-labelledby="storage-heading" className="card p-5">
       <h2 id="storage-heading" className="flex items-center gap-2 font-bold">
         <Database className="h-5 w-5 text-muted" aria-hidden />
-        Storage on this device
+        {t('upload.storageTitle')}
       </h2>
       {storage ? (
         <>
           <p className="mt-2 text-sm text-muted">
-            Using {formatBytes(storage.usage)} of about {formatBytes(storage.quota)} available to
-            this site.
+            {t('upload.storageUsage', {
+              usage: formatBytes(storage.usage),
+              quota: formatBytes(storage.quota),
+            })}
           </p>
           <div
             role="meter"
-            aria-label="Storage used"
+            aria-label={t('upload.storageUsed')}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(pct)}
@@ -294,18 +303,16 @@ function StorageCard({
               className={cn('h-4 w-4', storage.persisted ? 'text-accent' : 'text-muted')}
               aria-hidden
             />
-            {storage.persisted
-              ? 'Persistent: the browser will not clear it automatically.'
-              : 'Best-effort: the browser may clear it if the disk fills up.'}
+            {storage.persisted ? t('upload.persistent') : t('upload.bestEffort')}
           </p>
           {!storage.persisted && (
             <button type="button" className="btn-secondary mt-3" onClick={onPersist}>
-              Make storage persistent
+              {t('upload.makePersistent')}
             </button>
           )}
         </>
       ) : (
-        <p className="mt-2 text-sm text-muted">This browser doesn't report storage usage.</p>
+        <p className="mt-2 text-sm text-muted">{t('upload.noStorageInfo')}</p>
       )}
     </section>
   );
@@ -313,16 +320,17 @@ function StorageCard({
 
 function BackupCard({ trackCount }: { trackCount: number }) {
   const toast = useToast();
+  const { t } = useI18n();
   const [working, setWorking] = useState<string | null>(null);
   const [confirmFull, setConfirmFull] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const exportJson = async () => {
-    setWorking('Exporting…');
+    setWorking(t('upload.exporting'));
     try {
       const { blob, fileName } = await exportMetadata();
       downloadBlob(blob, fileName);
-      toast({ tone: 'success', message: 'Library metadata exported.' });
+      toast({ tone: 'success', message: t('upload.exported') });
     } catch (err) {
       toast({ tone: 'error', message: describeDbError(err) });
     } finally {
@@ -332,20 +340,17 @@ function BackupCard({ trackCount }: { trackCount: number }) {
 
   const exportFull = async () => {
     setConfirmFull(null);
-    setWorking('Preparing zip…');
+    setWorking(t('upload.preparingZip'));
     try {
-      const { blob, fileName } = await exportWithAudio((d, t) =>
-        setWorking(`Packing ${d} of ${t} files…`),
+      const { blob, fileName } = await exportWithAudio((done, total) =>
+        setWorking(t('upload.packing', { done, total })),
       );
       downloadBlob(blob, fileName);
-      toast({ tone: 'success', message: `Full backup ready (${formatBytes(blob.size)}).` });
+      toast({ tone: 'success', message: t('upload.zipReady', { size: formatBytes(blob.size) }) });
     } catch (err) {
       toast({
         tone: 'error',
-        message:
-          err instanceof RangeError
-            ? 'The library is too large to zip in this browser. Export metadata only, and keep your original files.'
-            : describeDbError(err),
+        message: err instanceof RangeError ? t('upload.zipTooLarge') : describeDbError(err),
       });
     } finally {
       setWorking(null);
@@ -353,21 +358,21 @@ function BackupCard({ trackCount }: { trackCount: number }) {
   };
 
   const restore = async (file: File) => {
-    setWorking('Restoring…');
+    setWorking(t('upload.restoring'));
     try {
       const s = await importBackup(file);
       const parts = [
-        s.tracksAdded && `${pluralize(s.tracksAdded, 'song')} added`,
-        s.tracksLinked && `${s.tracksLinked} matched songs already here`,
-        s.playlists && pluralize(s.playlists, 'playlist'),
+        s.tracksAdded && t('upload.restoredSongs', { count: s.tracksAdded }),
+        s.tracksLinked && t('upload.restoredLinked', { count: s.tracksLinked }),
+        s.playlists && t('common.playlists', { count: s.playlists }),
       ].filter(Boolean);
       toast({
         tone: 'success',
-        message: `Restore complete: ${parts.join(', ') || 'nothing new'}.`,
+        message: t('upload.restoreComplete', { parts: parts.join(', ') || t('upload.nothingNew') }),
       });
       if (s.tracksMissingAudio) {
         toast({
-          message: `${pluralize(s.tracksMissingAudio, 'song')} ${s.tracksMissingAudio === 1 ? 'has' : 'have'} no audio on this device yet. Import the original files to relink them.`,
+          message: t('upload.missingAudio', { count: s.tracksMissingAudio }),
           duration: 0,
         });
       }
@@ -385,13 +390,9 @@ function BackupCard({ trackCount }: { trackCount: number }) {
     <section aria-labelledby="backup-heading" className="card p-5">
       <h2 id="backup-heading" className="flex items-center gap-2 font-bold">
         <FileDown className="h-5 w-5 text-muted" aria-hidden />
-        Backup &amp; restore
+        {t('upload.backupTitle')}
       </h2>
-      <p className="mt-2 text-sm text-muted">
-        A metadata backup (JSON) holds songs, playlists and settings, but no audio. When restored,
-        it relinks to songs already on the device, or to files you import later. A full backup (zip)
-        also includes the audio and artwork.
-      </p>
+      <p className="mt-2 text-sm text-muted">{t('upload.backupHelp')}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
@@ -399,7 +400,7 @@ function BackupCard({ trackCount }: { trackCount: number }) {
           disabled={!!working || !trackCount}
           onClick={exportJson}
         >
-          Export metadata (.json)
+          {t('upload.exportJson')}
         </button>
         <button
           type="button"
@@ -407,7 +408,7 @@ function BackupCard({ trackCount }: { trackCount: number }) {
           disabled={!!working || !trackCount}
           onClick={async () => setConfirmFull(await estimateFullExportSize())}
         >
-          Export with audio (.zip)
+          {t('upload.exportZip')}
         </button>
         <button
           type="button"
@@ -416,7 +417,7 @@ function BackupCard({ trackCount }: { trackCount: number }) {
           onClick={() => fileRef.current?.click()}
         >
           <FileUp className="h-4 w-4" aria-hidden />
-          Restore backup
+          {t('upload.restore')}
         </button>
         <input
           ref={fileRef}
@@ -440,23 +441,21 @@ function BackupCard({ trackCount }: { trackCount: number }) {
       <Dialog
         open={confirmFull !== null}
         onClose={() => setConfirmFull(null)}
-        title="Export with audio?"
-        description={`About ${formatBytes(confirmFull ?? 0)} of audio and artwork will be packed into one zip file.`}
+        title={t('upload.confirmZipTitle')}
+        description={t('upload.confirmZipHelp', { size: formatBytes(confirmFull ?? 0) })}
         footer={
           <>
             <button type="button" className="btn-secondary" onClick={() => setConfirmFull(null)}>
-              Cancel
+              {t('common.cancel')}
             </button>
             <button type="button" className="btn-primary" onClick={exportFull}>
-              Export
+              {t('upload.export')}
             </button>
           </>
         }
       >
         <p className="text-sm text-muted">
-          {(confirmFull ?? 0) > LARGE_EXPORT
-            ? 'That is large. The zip is built in memory, which can fail on phones. If it fails, export metadata only and keep your original files.'
-            : 'The download starts when the zip is ready.'}
+          {(confirmFull ?? 0) > LARGE_EXPORT ? t('upload.zipLarge') : t('upload.zipStarts')}
         </p>
       </Dialog>
     </section>

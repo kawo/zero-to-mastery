@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { desktop, type UpdateStatus } from '@/lib/desktop';
 import { useToast } from '@/state/contexts';
+import { t } from '@/i18n/core';
 
 /**
  * Desktop app updates → toasts. Takes the place of the service-worker status in the
@@ -20,15 +21,15 @@ export function DesktopStatus() {
       if (s.state === 'ready') {
         shown.current.add(key);
         toast({
-          message: `Tunebox ${s.version} is ready to install.`,
-          action: { label: 'Restart', onClick: () => void api.installUpdate() },
+          message: t('desktop.ready', { version: s.version }),
+          action: { label: t('common.restart'), onClick: () => void api.installUpdate() },
           duration: 0,
         });
       } else if (s.state === 'manual') {
         shown.current.add(key);
         toast({
-          message: `Tunebox ${s.version} is available.`,
-          action: { label: 'Download', onClick: () => window.open(s.url, '_blank') },
+          message: t('desktop.available', { version: s.version }),
+          action: { label: t('common.download'), onClick: () => window.open(s.url, '_blank') },
           duration: 0,
         });
       }

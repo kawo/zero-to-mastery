@@ -9,8 +9,10 @@ import { PlayerProvider } from '@/components/providers/PlayerProvider';
 import { ToastProvider } from '@/components/providers/ToastProvider';
 import { UiProvider } from '@/components/providers/UiProvider';
 import { useLibrary } from '@/hooks/useIndexedDb';
+import { Preferences } from '@/hooks/useTheme';
 import { isDesktop } from '@/lib/desktop';
 import { useToast } from '@/state/contexts';
+import { t } from '@/i18n/core';
 
 // Route-level code splitting. Every chunk is precached by the service worker, so this works offline too.
 const Songs = lazy(() => import('@/pages/Songs'));
@@ -24,7 +26,7 @@ const page = (el: ReactNode) => (
     <Suspense
       fallback={
         <p className="py-16 text-center text-muted" role="status">
-          Loading…
+          {t('app.pageLoading')}
         </p>
       }
     >
@@ -51,9 +53,9 @@ const router = createBrowserRouter([
 function NotFound() {
   return (
     <div className="py-20 text-center">
-      <h1 className="text-2xl font-bold">Page not found</h1>
+      <h1 className="text-2xl font-bold">{t('app.notFound')}</h1>
       <Link to="/songs" className="btn-primary mt-6">
-        Go to your songs
+        {t('app.goToSongs')}
       </Link>
     </div>
   );
@@ -66,10 +68,10 @@ function StorageGate({ children }: { children: ReactNode }) {
   return (
     <div className="grid min-h-dvh place-items-center p-6">
       <div className="max-w-md text-center">
-        <h1 className="text-2xl font-bold">Your library couldn't be opened</h1>
+        <h1 className="text-2xl font-bold">{t('app.libraryError')}</h1>
         <p className="mt-3 text-muted">{error}</p>
         <button type="button" className="btn-primary mt-6" onClick={() => window.location.reload()}>
-          Reload
+          {t('common.reload')}
         </button>
       </div>
     </div>
@@ -88,14 +90,14 @@ function PwaStatus() {
   });
 
   useEffect(() => {
-    if (offlineReady) toast({ tone: 'success', message: 'Tunebox is ready to work offline.' });
+    if (offlineReady) toast({ tone: 'success', message: t('app.offlineReady') });
   }, [offlineReady, toast]);
 
   useEffect(() => {
     if (needRefresh) {
       toast({
-        message: 'A new version of Tunebox is available.',
-        action: { label: 'Reload', onClick: () => void updateServiceWorker(true) },
+        message: t('app.updateAvailable'),
+        action: { label: t('common.reload'), onClick: () => void updateServiceWorker(true) },
         duration: 0,
       });
     }
@@ -109,6 +111,7 @@ export default function App() {
     <ErrorBoundary fullPage>
       <ToastProvider>
         <LibraryProvider>
+          <Preferences />
           <StorageGate>
             <PlayerProvider>
               <UiProvider>

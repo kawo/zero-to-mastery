@@ -16,12 +16,31 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <script>
-      // Apply the saved theme before first paint to avoid a flash.
+      // Apply the saved theme, contrast and language before first paint to avoid a flash.
       try {
+        var root = document.documentElement;
         var t = localStorage.getItem('tunebox-theme') || 'system';
         var dark =
           t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.classList.toggle('dark', dark);
+        root.classList.toggle('dark', dark);
+        var c = localStorage.getItem('tunebox-contrast') || 'system';
+        root.classList.toggle(
+          'hc',
+          c === 'high' || (c === 'system' && matchMedia('(prefers-contrast: more)').matches),
+        );
+        var l = localStorage.getItem('tunebox-language') || 'auto';
+        if (l === 'auto') {
+          var langs = navigator.languages || [navigator.language];
+          l = 'en';
+          for (var i = 0; i < langs.length; i++) {
+            var base = String(langs[i]).slice(0, 2).toLowerCase();
+            if (base === 'fr' || base === 'en') {
+              l = base;
+              break;
+            }
+          }
+        }
+        root.lang = l;
       } catch (e) {
         document.documentElement.classList.add('dark');
       }
@@ -29,7 +48,10 @@
   </head>
   <body>
     <div id="root"></div>
-    <noscript>Tunebox needs JavaScript to play your music.</noscript>
+    <noscript
+      >Tunebox needs JavaScript to play your music. / Tunebox a besoin de JavaScript pour lire votre
+      musique.</noscript
+    >
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

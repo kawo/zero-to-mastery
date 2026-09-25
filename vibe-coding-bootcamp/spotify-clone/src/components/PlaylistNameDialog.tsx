@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
+import { useI18n } from '@/i18n';
 
 interface Props {
   open: boolean;
@@ -12,7 +13,8 @@ interface Props {
 /** Create or rename a playlist. Remounted per open (via `key`) so the field resets. */
 export function PlaylistNameDialog({ open, mode, initialName = '', onClose, onSubmit }: Props) {
   const [name, setName] = useState(initialName);
-  const title = mode === 'create' ? 'New playlist' : 'Rename playlist';
+  const { t } = useI18n();
+  const title = mode === 'create' ? t('playlistName.newTitle') : t('playlistName.renameTitle');
   return (
     <Dialog
       open={open}
@@ -21,7 +23,7 @@ export function PlaylistNameDialog({ open, mode, initialName = '', onClose, onSu
       footer={
         <>
           <button type="button" className="btn-secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
@@ -29,7 +31,7 @@ export function PlaylistNameDialog({ open, mode, initialName = '', onClose, onSu
             className="btn-primary"
             disabled={!name.trim()}
           >
-            {mode === 'create' ? 'Create' : 'Save'}
+            {mode === 'create' ? t('common.create') : t('common.save')}
           </button>
         </>
       }
@@ -42,7 +44,7 @@ export function PlaylistNameDialog({ open, mode, initialName = '', onClose, onSu
         }}
       >
         <label htmlFor="playlist-name" className="mb-1 block text-sm font-medium">
-          Name
+          {t('playlistName.name')}
         </label>
         <input
           id="playlist-name"
@@ -51,7 +53,7 @@ export function PlaylistNameDialog({ open, mode, initialName = '', onClose, onSu
           onChange={(e) => setName(e.target.value)}
           maxLength={100}
           autoFocus
-          placeholder="My playlist"
+          placeholder={t('playlistName.placeholder')}
         />
       </form>
     </Dialog>

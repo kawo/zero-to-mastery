@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn, isTypingTarget } from '@/lib/utils';
+import { useI18n } from '@/i18n';
 
 interface SearchBarProps {
   value: string;
@@ -15,12 +16,13 @@ interface SearchBarProps {
 export function SearchBar({
   value,
   onChange,
-  placeholder = 'Search',
-  label = 'Search',
+  placeholder,
+  label,
   className,
   hotkey,
 }: SearchBarProps) {
   const ref = useRef<HTMLInputElement>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!hotkey) return;
@@ -51,8 +53,8 @@ export function SearchBar({
             onChange('');
           }
         }}
-        placeholder={placeholder}
-        aria-label={label}
+        placeholder={placeholder ?? t('search.label')}
+        aria-label={label ?? t('search.label')}
         aria-keyshortcuts={hotkey ? '/' : undefined}
         className="input rounded-full pl-9 pr-9 [&::-webkit-search-cancel-button]:hidden"
       />
@@ -64,7 +66,7 @@ export function SearchBar({
             ref.current?.focus();
           }}
           className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted hover:text-fg"
-          aria-label="Clear search"
+          aria-label={t('search.clear')}
         >
           <X className="h-4 w-4" aria-hidden />
         </button>

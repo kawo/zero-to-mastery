@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 import { ToastContext, type ToastInput } from '@/state/contexts';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n';
 
 interface ToastItem extends Required<Pick<ToastInput, 'message' | 'tone'>> {
   id: number;
@@ -14,6 +15,7 @@ const MAX_VISIBLE = 3;
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(1);
+  const { t: tr } = useI18n();
 
   const dismiss = useCallback((id: number) => setToasts((ts) => ts.filter((t) => t.id !== id)), []);
 
@@ -66,7 +68,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => dismiss(t.id)}
             className="-mr-1 rounded text-muted hover:text-fg"
-            aria-label="Dismiss notification"
+            aria-label={tr('common.dismissNotification')}
           >
             <X className="h-4 w-4" aria-hidden />
           </button>

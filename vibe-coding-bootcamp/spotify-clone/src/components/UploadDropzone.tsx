@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import { FolderOpen, UploadCloud } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n';
 
 interface UploadDropzoneProps {
   onFiles: (files: File[]) => void;
@@ -41,6 +42,7 @@ export function UploadDropzone({ onFiles, disabled }: UploadDropzoneProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const hintId = useId();
+  const { t } = useI18n();
 
   return (
     <div
@@ -65,10 +67,9 @@ export function UploadDropzone({ onFiles, disabled }: UploadDropzoneProps) {
     >
       <UploadCloud className={cn('h-12 w-12', over ? 'text-accent' : 'text-muted')} aria-hidden />
       <div>
-        <p className="text-lg font-bold">Drop MP3s or a folder here</p>
+        <p className="text-lg font-bold">{t('dropzone.title')}</p>
         <p id={hintId} className="mt-1 text-sm text-muted">
-          Files stay on this device. Nothing is uploaded to a server. Add .lrc files with the same
-          name as a song to give it synced lyrics.
+          {t('dropzone.hint')}
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
@@ -80,7 +81,7 @@ export function UploadDropzone({ onFiles, disabled }: UploadDropzoneProps) {
           aria-describedby={hintId}
         >
           <UploadCloud className="h-4 w-4" aria-hidden />
-          Choose files
+          {t('dropzone.chooseFiles')}
         </button>
         <button
           type="button"
@@ -89,7 +90,7 @@ export function UploadDropzone({ onFiles, disabled }: UploadDropzoneProps) {
           onClick={() => folderInput.current?.click()}
         >
           <FolderOpen className="h-4 w-4" aria-hidden />
-          Choose folder
+          {t('dropzone.chooseFolder')}
         </button>
       </div>
       <input

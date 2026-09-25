@@ -2,14 +2,16 @@ import { useCallback } from 'react';
 import { ListEnd, ListPlus, ListStart } from 'lucide-react';
 import type { MenuItem } from '@/components/ui/Menu';
 import { usePlayer } from '@/hooks/usePlayer';
-import { pluralize } from '@/lib/utils';
+
 import { useToast, useUi } from '@/state/contexts';
+import { useI18n } from '@/i18n';
 
 /** Queue/playlist actions shared by song rows, selection bars and Now Playing. */
 export function useTrackActions() {
   const player = usePlayer();
   const toast = useToast();
   const ui = useUi();
+  const { t } = useI18n();
   const { playNext: pn, enqueue: eq } = player;
 
   const playNext = useCallback(
@@ -17,10 +19,10 @@ export function useTrackActions() {
       pn(ids);
       toast({
         tone: 'success',
-        message: `${ids.length === 1 ? 'Song' : pluralize(ids.length, 'song')} will play next.`,
+        message: t('trackActions.willPlayNext', { count: ids.length }),
       });
     },
-    [pn, toast],
+    [pn, t, toast],
   );
 
   const enqueue = useCallback(
@@ -28,21 +30,25 @@ export function useTrackActions() {
       eq(ids);
       toast({
         tone: 'success',
-        message: `Added ${ids.length === 1 ? 'to' : `${pluralize(ids.length, 'song')} to`} queue.`,
-        action: { label: 'View', onClick: () => ui.setQueueOpen(true) },
+        message: t('trackActions.addedToQueue', { count: ids.length }),
+        action: { label: t('common.view'), onClick: () => ui.setQueueOpen(true) },
       });
     },
-    [eq, toast, ui],
+    [eq, t, toast, ui],
   );
 
   /** Standard menu items for one or more tracks. */
   const menuItems = useCallback(
     (ids: string[]): MenuItem[] => [
-      { label: 'Play next', icon: <ListStart />, onSelect: () => playNext(ids) },
-      { label: 'Add to queue', icon: <ListEnd />, onSelect: () => enqueue(ids) },
-      { label: 'Add to playlist…', icon: <ListPlus />, onSelect: () => ui.addToPlaylist(ids) },
+      { label: t('trackActions.playNext'), icon: <ListStart />, onSelect: () => playNext(ids) },
+      { label: t('trackActions.addToQueue'), icon: <ListEnd />, onSelect: () => enqueue(ids) },
+      {
+        label: t('trackActions.addToPlaylist'),
+        icon: <ListPlus />,
+        onSelect: () => ui.addToPlaylist(ids),
+      },
     ],
-    [enqueue, playNext, ui],
+    [enqueue, playNext, t, ui],
   );
 
   return { playNext, enqueue, addToPlaylist: ui.addToPlaylist, menuItems };

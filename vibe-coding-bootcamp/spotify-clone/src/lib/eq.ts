@@ -17,17 +17,18 @@ export type EqPresetId =
   | 'electronic'
   | 'small-speakers';
 
-export const EQ_PRESETS: { id: EqPresetId; label: string; gains: number[] }[] = [
-  { id: 'flat', label: 'Flat', gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
-  { id: 'bass', label: 'Bass boost', gains: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0] },
-  { id: 'treble', label: 'Treble boost', gains: [0, 0, 0, 0, 0, 1, 2, 4, 5, 6] },
-  { id: 'vocal', label: 'Vocal', gains: [-2, -2, -1, 1, 3, 4, 3, 1, 0, -1] },
-  { id: 'rock', label: 'Rock', gains: [4, 3, 2, 0, -1, -1, 1, 3, 4, 4] },
-  { id: 'pop', label: 'Pop', gains: [-1, 1, 3, 4, 3, 0, -1, -1, 1, 2] },
-  { id: 'jazz', label: 'Jazz', gains: [3, 2, 1, 2, -1, -1, 0, 1, 2, 3] },
-  { id: 'classical', label: 'Classical', gains: [4, 3, 2, 1, -1, -1, 0, 2, 3, 4] },
-  { id: 'electronic', label: 'Electronic', gains: [5, 4, 1, 0, -2, 1, 0, 1, 4, 5] },
-  { id: 'small-speakers', label: 'Small speakers', gains: [-6, -4, 2, 4, 3, 1, 1, 2, 2, 1] },
+/** Preset names are translated: `sound.presets.<key>`. */
+export const EQ_PRESETS: { id: EqPresetId; key: string; gains: number[] }[] = [
+  { id: 'flat', key: 'flat', gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  { id: 'bass', key: 'bass', gains: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0] },
+  { id: 'treble', key: 'treble', gains: [0, 0, 0, 0, 0, 1, 2, 4, 5, 6] },
+  { id: 'vocal', key: 'vocal', gains: [-2, -2, -1, 1, 3, 4, 3, 1, 0, -1] },
+  { id: 'rock', key: 'rock', gains: [4, 3, 2, 0, -1, -1, 1, 3, 4, 4] },
+  { id: 'pop', key: 'pop', gains: [-1, 1, 3, 4, 3, 0, -1, -1, 1, 2] },
+  { id: 'jazz', key: 'jazz', gains: [3, 2, 1, 2, -1, -1, 0, 1, 2, 3] },
+  { id: 'classical', key: 'classical', gains: [4, 3, 2, 1, -1, -1, 0, 2, 3, 4] },
+  { id: 'electronic', key: 'electronic', gains: [5, 4, 1, 0, -2, 1, 0, 1, 4, 5] },
+  { id: 'small-speakers', key: 'smallSpeakers', gains: [-6, -4, 2, 4, 3, 1, 1, 2, 2, 1] },
 ];
 
 export interface EqSettings {
@@ -63,8 +64,4 @@ export const MAX_SPEED = 2;
 export function stepSpeed(rate: number, dir: 1 | -1): number {
   if (dir > 0) return SPEEDS.find((s) => s > rate + 0.001) ?? MAX_SPEED;
   return [...SPEEDS].reverse().find((s) => s < rate - 0.001) ?? MIN_SPEED;
-}
-
-export function formatSpeed(rate: number): string {
-  return `${Number(rate.toFixed(2))}×`;
 }

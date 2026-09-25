@@ -9,15 +9,17 @@ import { createPlaylist, deletePlaylist, renamePlaylist } from '@/db/library';
 import { describeDbError } from '@/db/indexedDb';
 import { useLibrary, usePlaylists } from '@/hooks/useIndexedDb';
 import { describeEntry, matchEntries, parsePlaylistFile } from '@/lib/playlistFiles';
-import { pluralize } from '@/lib/utils';
+
 import { useToast } from '@/state/contexts';
 import type { Playlist } from '@/types';
+import { useI18n } from '@/i18n';
 
 type Editing = { mode: 'create' } | { mode: 'rename'; playlist: Playlist } | null;
 
 export default function Playlists() {
   const playlists = usePlaylists();
   const toast = useToast();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [editing, setEditing] = useState<Editing>(null);
   const [deleting, setDeleting] = useState<Playlist | null>(null);
@@ -27,25 +29,32 @@ export default function Playlists() {
   const importFile = async (file: File) => {
     try {
       const parsed = await parsePlaylistFile(file);
-      if (!parsed.entries.length) throw new Error(`${file.name} has no songs in it.`);
+      if (!parsed.entries.length) throw new Error(t('playlists.fileEmpty', { name: file.name }));
       const { trackIds, missing } = matchEntries(parsed.entries, tracks ?? []);
       if (!trackIds.length)
         throw new Error(
-          `None of the ${pluralize(parsed.entries.length, 'song')} in ${file.name} are in your library. Import the music first.`,
+          t('playlists.noneInLibrary', { count: parsed.entries.length, name: file.name }),
         );
       const p = await createPlaylist(parsed.name, trackIds);
       navigate(`/playlists/${p.id}`);
       if (missing.length) {
         const sample = missing.slice(0, 3).map(describeEntry).join(', ');
-        const more = missing.length > 3 ? ` and ${missing.length - 3} more` : '';
+        const list =
+          missing.length > 3
+            ? t('playlists.andMore', { list: sample, count: missing.length - 3 })
+            : sample;
         toast({
           tone: 'info',
-          message: `Imported ${pluralize(trackIds.length, 'song')} into ${p.name}. Not in your library: ${sample}${more}.`,
+          message: t('playlists.importedSome', {
+            count: trackIds.length,
+            name: p.name,
+            missing: list,
+          }),
         });
       } else {
         toast({
           tone: 'success',
-          message: `Imported ${p.name} (${pluralize(trackIds.length, 'song')}).`,
+          message: t('playlists.imported', { name: p.name, count: trackIds.length }),
         });
       }
     } catch (err) {
@@ -65,8 +74,8 @@ export default function Playlists() {
   return (
     <>
       <TopBar
-        title="Playlists"
-        subtitle={playlists ? pluralize(playlists.length, 'playlist') : undefined}
+        title={t('playlists.title')}
+        subtitle={playlists ? t('common.playlists', { count: playlists.length }) : undefined}
         actions={
           <>
             <button
@@ -74,11 +83,11 @@ export default function Playlists() {
               className="btn-secondary"
               onClick={() => fileInput.current?.click()}
               disabled={!tracks}
-              title="Import an M3U or Tunebox JSON playlist"
+              title={t('playlists.importTooltip')}
             >
               <FileUp className="h-4 w-4" aria-hidden />
-              <span className="hidden sm:inline">Import</span>
-              <span className="sr-only sm:hidden">Import playlist</span>
+              <span className="hidden sm:inline">{t('playlists.import')}</span>
+              <span className="sr-only sm:hidden">{t('playlists.importPlaylist')}</span>
             </button>
             <button
               type="button"
@@ -86,8 +95,8 @@ export default function Playlists() {
               onClick={() => setEditing({ mode: 'create' })}
             >
               <Plus className="h-4 w-4" aria-hidden />
-              <span className="hidden sm:inline">New playlist</span>
-              <span className="sr-only sm:hidden">New playlist</span>
+              <span className="hidden sm:inline">{t('playlists.newPlaylist')}</span>
+              <span className="sr-only sm:hidden">{t('playlists.newPlaylist')}</span>
             </button>
             <input
               ref={fileInput}
@@ -109,24 +118,21 @@ export default function Playlists() {
           <div className="grid h-20 w-20 place-items-center rounded-full bg-elevated">
             <ListMusic className="h-9 w-9 text-muted" aria-hidden />
           </div>
-          <h2 className="mt-5 text-xl font-bold">No playlists yet</h2>
-          <p className="mt-2 text-muted">
-            Create one here, import an M3U or JSON playlist, or select songs in your library and
-            choose “Add to playlist”.
-          </p>
+          <h2 className="mt-5 text-xl font-bold">{t('playlists.emptyTitle')}</h2>
+          <p className="mt-2 text-muted">{t('playlists.emptyHelp')}</p>
           <button
             type="button"
             className="btn-primary mt-6"
             onClick={() => setEditing({ mode: 'create' })}
           >
             <Plus className="h-4 w-4" aria-hidden />
-            Create playlist
+            {t('playlists.createPlaylist')}
           </button>
         </div>
       ) : (
         <ul
           className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6"
-          aria-label="Playlists"
+          aria-label={t('playlists.title')}
         >
           {(playlists ?? []).map((p) => (
             <li key={p.id}>
@@ -148,7 +154,7 @@ export default function Playlists() {
         onClose={() => setEditing(null)}
         onSubmit={async (name) => {
           if (editing?.mode === 'rename') {
-            await run(() => renamePlaylist(editing.playlist.id, name), 'Playlist renamed.');
+            await run(() => renamePlaylist(editing.playlist.id, name), t('playlists.renamed'));
           } else {
             try {
               const p = await createPlaylist(name);
@@ -164,28 +170,31 @@ export default function Playlists() {
       <Dialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        title={`Delete “${deleting?.name ?? ''}”?`}
-        description="The songs stay in your library."
+        title={t('playlists.confirmDelete', { name: deleting?.name ?? '' })}
+        description={t('playlists.confirmDeleteHelp')}
         footer={
           <>
             <button type="button" className="btn-secondary" onClick={() => setDeleting(null)}>
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="button"
               className="btn-danger"
               onClick={async () => {
                 if (deleting)
-                  await run(() => deletePlaylist(deleting.id), `Deleted ${deleting.name}.`);
+                  await run(
+                    () => deletePlaylist(deleting.id),
+                    t('playlists.deleted', { name: deleting.name }),
+                  );
                 setDeleting(null);
               }}
             >
-              Delete
+              {t('common.delete')}
             </button>
           </>
         }
       >
-        <p className="text-sm text-muted">This can't be undone.</p>
+        <p className="text-sm text-muted">{t('playlists.cannotUndo')}</p>
       </Dialog>
     </>
   );

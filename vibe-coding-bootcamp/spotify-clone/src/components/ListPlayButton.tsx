@@ -1,6 +1,7 @@
 import { Play, Square } from 'lucide-react';
 import { usePlayer } from '@/hooks/usePlayer';
 import { startIndex } from '@/lib/utils';
+import { useI18n } from '@/i18n';
 
 /**
  * "Play" for a list of songs. While one of them is playing it becomes "Stop",
@@ -17,6 +18,7 @@ export function ListPlayButton({
   textClassName?: string;
 }) {
   const { playTracks, pause, seek, isPlaying, currentTrack, shuffle } = usePlayer();
+  const { t } = useI18n();
   const playing = isPlaying && !!currentTrack && trackIds.includes(currentTrack.id);
 
   return (
@@ -32,14 +34,14 @@ export function ListPlayButton({
         }
       }}
       disabled={!trackIds.length}
-      aria-label={playing ? 'Stop' : label}
+      aria-label={playing ? t('common.stop') : label}
     >
       {playing ? (
         <Square className="h-4 w-4 fill-current" aria-hidden />
       ) : (
         <Play className="h-4 w-4 fill-current" aria-hidden />
       )}
-      <span className={textClassName}>{playing ? 'Stop' : 'Play'}</span>
+      <span className={textClassName}>{playing ? t('common.stop') : t('common.play')}</span>
     </button>
   );
 }

@@ -13,6 +13,7 @@ import { usePlayer } from '@/hooks/usePlayer';
 import { dominantColor, hueFrom, hslToRgb, type Rgb } from '@/lib/audio';
 import { cn } from '@/lib/utils';
 import { useUi } from '@/state/contexts';
+import { albumName, artistName, useI18n, type MessageKey } from '@/i18n';
 
 /** Background tint from the artwork's dominant colour (or the placeholder hue). */
 function useTint(blobId: string | undefined, seed: string): Rgb {
@@ -34,10 +35,10 @@ function useTint(blobId: string | undefined, seed: string): Rgb {
 
 type View = 'artwork' | 'lyrics' | 'visualizer';
 const VIEW_KEY = 'tunebox-now-playing-view';
-const VIEWS: { id: View; label: string; icon: typeof MicVocal }[] = [
-  { id: 'artwork', label: 'Artwork', icon: ImageIcon },
-  { id: 'lyrics', label: 'Lyrics', icon: MicVocal },
-  { id: 'visualizer', label: 'Visualizer', icon: AudioLines },
+const VIEWS: { id: View; label: MessageKey; icon: typeof MicVocal }[] = [
+  { id: 'artwork', label: 'nowPlaying.artwork', icon: ImageIcon },
+  { id: 'lyrics', label: 'nowPlaying.lyrics', icon: MicVocal },
+  { id: 'visualizer', label: 'nowPlaying.visualizer', icon: AudioLines },
 ];
 
 /** What fills the left of Now Playing; remembered per browser. */
@@ -68,6 +69,7 @@ export default function NowPlaying() {
   const { tracks, byId } = useLibrary();
   const { addToPlaylist, setQueueOpen } = useUi();
   const [view, setView] = useView();
+  const { t } = useI18n();
   const tint = useTint(
     currentTrack?.artworkBlobId,
     currentTrack?.hash ?? currentTrack?.id ?? 'none',
@@ -76,13 +78,13 @@ export default function NowPlaying() {
   if (!currentTrack) {
     return (
       <>
-        <TopBar title="Now Playing" />
+        <TopBar title={t('nowPlaying.title')} />
         <div className="mx-auto flex max-w-md flex-col items-center py-16 text-center">
           <div className="grid h-20 w-20 place-items-center rounded-full bg-elevated">
             <Disc3 className="h-9 w-9 text-muted" aria-hidden />
           </div>
-          <h2 className="mt-5 text-xl font-bold">Nothing is playing</h2>
-          <p className="mt-2 text-muted">Pick a song or playlist to start listening.</p>
+          <h2 className="mt-5 text-xl font-bold">{t('nowPlaying.nothingTitle')}</h2>
+          <p className="mt-2 text-muted">{t('nowPlaying.nothingHelp')}</p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             {tracks && tracks.length > 0 ? (
               <button
@@ -97,15 +99,15 @@ export default function NowPlaying() {
                 }
               >
                 <Play className="h-4 w-4 fill-current" aria-hidden />
-                Shuffle my library
+                {t('nowPlaying.shuffleLibrary')}
               </button>
             ) : (
               <Link to="/upload" className="btn-primary">
-                Import songs
+                {t('nowPlaying.importSongs')}
               </Link>
             )}
             <Link to="/songs" className="btn-secondary">
-              Browse songs
+              {t('nowPlaying.browseSongs')}
             </Link>
           </div>
         </div>
@@ -117,7 +119,7 @@ export default function NowPlaying() {
     .slice(index + 1, index + 4)
     .map((it) => byId.get(it.trackId))
     .filter((t) => !!t);
-  const details = [currentTrack.album, currentTrack.year, currentTrack.genre]
+  const details = [albumName(currentTrack.album), currentTrack.year, currentTrack.genre]
     .filter(Boolean)
     .join(' · ');
 
@@ -133,12 +135,12 @@ export default function NowPlaying() {
       />
       <div className="relative">
         <TopBar
-          title="Now Playing"
+          title={t('nowPlaying.title')}
           actions={
             <>
               <div
                 role="group"
-                aria-label="View"
+                aria-label={t('nowPlaying.view')}
                 className="flex items-center rounded-full border border-border p-0.5"
               >
                 {VIEWS.map(({ id, label, icon: Icon }) => (
@@ -147,14 +149,14 @@ export default function NowPlaying() {
                     type="button"
                     onClick={() => setView(id)}
                     aria-pressed={view === id}
-                    title={label}
+                    title={t(label)}
                     className={cn(
                       'grid h-8 w-8 place-items-center rounded-full transition-colors',
                       view === id ? 'bg-fg text-bg' : 'text-muted hover:text-fg',
                     )}
                   >
                     <Icon className="h-4 w-4" aria-hidden />
-                    <span className="sr-only">{label}</span>
+                    <span className="sr-only">{t(label)}</span>
                   </button>
                 ))}
               </div>
@@ -172,7 +174,7 @@ export default function NowPlaying() {
             <Artwork
               track={currentTrack}
               size="lg"
-              alt={`Artwork for ${currentTrack.album}`}
+              alt={t('nowPlaying.artworkFor', { album: albumName(currentTrack.album) })}
               className="mx-auto max-w-sm shadow-2xl md:max-w-md"
             />
           )}
@@ -186,14 +188,14 @@ export default function NowPlaying() {
                 >
                   {currentTrack.title}
                 </h2>
-                <p className="mt-1 text-lg text-fg/80">{currentTrack.artist}</p>
+                <p className="mt-1 text-lg text-fg/80">{artistName(currentTrack.artist)}</p>
                 {details && <p className="mt-1 text-sm text-muted">{details}</p>}
               </div>
               <button
                 type="button"
                 className="icon-btn"
                 onClick={() => addToPlaylist([currentTrack.id])}
-                aria-label={`Add ${currentTrack.title} to playlist`}
+                aria-label={t('player.addToPlaylist', { name: currentTrack.title })}
               >
                 <ListPlus className="h-6 w-6" aria-hidden />
               </button>
@@ -213,30 +215,32 @@ export default function NowPlaying() {
                   id="up-next-heading"
                   className="text-sm font-semibold uppercase tracking-wider text-muted"
                 >
-                  Up next
+                  {t('nowPlaying.upNext')}
                 </h3>
                 <button
                   type="button"
                   className="text-sm font-semibold text-accent hover:underline"
                   onClick={() => setQueueOpen(true)}
                 >
-                  Open queue
+                  {t('nowPlaying.openQueue')}
                 </button>
               </div>
               {upNext.length ? (
                 <ol className="mt-3 space-y-2">
-                  {upNext.map((t, i) => (
-                    <li key={`${t.id}-${i}`} className="flex items-center gap-3">
-                      <Artwork track={t} size="xs" />
+                  {upNext.map((track, i) => (
+                    <li key={`${track.id}-${i}`} className="flex items-center gap-3">
+                      <Artwork track={track} size="xs" />
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium">{t.title}</span>
-                        <span className="block truncate text-xs text-muted">{t.artist}</span>
+                        <span className="block truncate text-sm font-medium">{track.title}</span>
+                        <span className="block truncate text-xs text-muted">
+                          {artistName(track.artist)}
+                        </span>
                       </span>
                     </li>
                   ))}
                 </ol>
               ) : (
-                <p className="mt-2 text-sm text-muted">Nothing queued after this song.</p>
+                <p className="mt-2 text-sm text-muted">{t('nowPlaying.nothingQueued')}</p>
               )}
             </section>
           </div>

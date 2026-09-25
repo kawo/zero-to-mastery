@@ -21,30 +21,32 @@ import { describeDbError } from '@/db/indexedDb';
 import { useLibrary, usePlaylist, useTracksByIds } from '@/hooks/useIndexedDb';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useTrackActions } from '@/hooks/useTrackActions';
-import { formatTime, formatTotalDuration } from '@/lib/audio';
+import { formatTime } from '@/lib/audio';
 import { exportPlaylist, type PlaylistFormat } from '@/lib/playlistFiles';
-import { cn, downloadBlob, moveItem, normalize, pluralize } from '@/lib/utils';
+import { cn, downloadBlob, moveItem, normalize } from '@/lib/utils';
 import { useToast } from '@/state/contexts';
 import type { Playlist, Track } from '@/types';
+import { artistName, formatTotalDuration, useI18n } from '@/i18n';
 
 export default function PlaylistDetail() {
   const { id } = useParams<{ id: string }>();
   const playlist = usePlaylist(id);
+  const { t } = useI18n();
 
   if (playlist === undefined) {
     return (
       <p className="py-10 text-center text-muted" role="status">
-        Loading playlist…
+        {t('playlist.loading')}
       </p>
     );
   }
   if (playlist === null) {
     return (
       <>
-        <TopBar title="Playlist not found" />
-        <p className="text-muted">It may have been deleted.</p>
+        <TopBar title={t('playlist.notFound')} />
+        <p className="text-muted">{t('playlist.maybeDeleted')}</p>
         <Link to="/playlists" className="btn-secondary mt-4">
-          Back to playlists
+          {t('playlist.back')}
         </Link>
       </>
     );
@@ -54,6 +56,7 @@ export default function PlaylistDetail() {
 
 function PlaylistView({ playlist }: { playlist: Playlist }) {
   const { playTracks, shuffle, toggleShuffle } = usePlayer();
+  const { t } = useI18n();
   const { menuItems } = useTrackActions();
   const toast = useToast();
   const navigate = useNavigate();
@@ -107,7 +110,7 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
     setSelected((s) => new Set([...s].filter((x) => !ids.includes(x))));
     void safely(
       () => removeFromPlaylist(playlist.id, ids),
-      `Removed ${pluralize(ids.length, 'song')} from ${playlist.name}.`,
+      t('playlist.removed', { count: ids.length, name: playlist.name }),
     );
   };
 
@@ -117,24 +120,24 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
         title={playlist.name}
         actions={
           <Menu
-            label={`More options for ${playlist.name}`}
+            label={t('common.moreOptions', { name: playlist.name })}
             items={[
-              { label: 'Add songs', icon: <Plus />, onSelect: () => setDialog('add') },
-              { label: 'Rename', icon: <Pencil />, onSelect: () => setDialog('rename') },
+              { label: t('playlist.addSongs'), icon: <Plus />, onSelect: () => setDialog('add') },
+              { label: t('common.rename'), icon: <Pencil />, onSelect: () => setDialog('rename') },
               {
-                label: 'Export as M3U',
+                label: t('playlist.exportM3u'),
                 icon: <FileDown />,
                 disabled: !tracks.length,
                 onSelect: () => exportAs('m3u'),
               },
               {
-                label: 'Export as JSON',
+                label: t('playlist.exportJson'),
                 icon: <FileDown />,
                 disabled: !tracks.length,
                 onSelect: () => exportAs('json'),
               },
               {
-                label: 'Delete playlist',
+                label: t('playlist.deletePlaylist'),
                 icon: <Trash2 />,
                 danger: true,
                 onSelect: () => setDialog('delete'),
@@ -147,26 +150,31 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
       <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-end">
         <ArtworkMosaic tracks={tracks} className="w-40 shrink-0 shadow-2xl sm:w-48" />
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted">Playlist</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+            {t('playlist.label')}
+          </p>
           <p className="text-sm text-muted">
-            {pluralize(tracks.length, 'song')}
+            {t('common.songs', { count: tracks.length })}
             {total > 0 && ` · ${formatTotalDuration(total)}`}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <ListPlayButton trackIds={tracks.map((t) => t.id)} label={`Play ${playlist.name}`} />
+            <ListPlayButton
+              trackIds={tracks.map((t) => t.id)}
+              label={t('common.playItem', { name: playlist.name })}
+            />
             <button
               type="button"
               className={cn('btn-secondary', shuffle && 'border-accent text-accent')}
               onClick={toggleShuffle}
               aria-pressed={shuffle}
-              title={shuffle ? 'Shuffle on' : 'Shuffle off'}
+              title={shuffle ? t('player.shuffleOn') : t('player.shuffleOff')}
             >
               <Shuffle className="h-4 w-4" aria-hidden />
-              Shuffle
+              {t('common.shuffle')}
             </button>
             <button type="button" className="btn-secondary" onClick={() => setDialog('add')}>
               <Plus className="h-4 w-4" aria-hidden />
-              Add songs
+              {t('playlist.addSongs')}
             </button>
           </div>
         </div>
@@ -174,13 +182,11 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
 
       {tracks.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border py-12 text-center">
-          <p className="font-semibold">This playlist is empty</p>
-          <p className="mt-1 text-sm text-muted">
-            Add songs here, or from the Songs page with “Add to playlist”.
-          </p>
+          <p className="font-semibold">{t('playlist.empty')}</p>
+          <p className="mt-1 text-sm text-muted">{t('playlist.emptyHelp')}</p>
           <button type="button" className="btn-primary mt-4" onClick={() => setDialog('add')}>
             <Plus className="h-4 w-4" aria-hidden />
-            Add songs
+            {t('playlist.addSongs')}
           </button>
         </div>
       ) : (
@@ -189,15 +195,13 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
             <SearchBar
               value={query}
               onChange={setQuery}
-              placeholder="Find in playlist"
-              label="Find in playlist"
+              placeholder={t('playlist.find')}
+              label={t('playlist.find')}
               className="w-full sm:w-72"
               hotkey
             />
             <p className="text-xs text-muted">
-              {needle
-                ? 'Clear the search to reorder songs.'
-                : 'Drag the handle, or focus it and press Space, to reorder.'}
+              {needle ? t('playlist.reorderBlocked') : t('playlist.reorderHelp')}
             </p>
           </div>
 
@@ -211,20 +215,18 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
                 onClick={() => remove(selectedIds)}
               >
                 <ListMinus className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">Remove</span>
-                <span className="sr-only sm:hidden">Remove from playlist</span>
+                <span className="hidden sm:inline">{t('playlist.remove')}</span>
+                <span className="sr-only sm:hidden">{t('playlist.removeFromPlaylist')}</span>
               </button>
             }
           />
 
           {shown.length === 0 ? (
-            <p className="py-10 text-center text-muted">
-              No songs in this playlist match “{query}”.
-            </p>
+            <p className="py-10 text-center text-muted">{t('playlist.noMatch', { query })}</p>
           ) : (
             <SongList
               tracks={shown}
-              label={`Songs in ${playlist.name}`}
+              label={t('playlist.songsIn', { name: playlist.name })}
               onPlay={(i) =>
                 playTracks(
                   shown.map((t) => t.id),
@@ -233,12 +235,12 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
               }
               selection={{ selected, onChange: setSelected }}
               reorder={{ onReorder: reorder, disabled: !!needle }}
-              rowActions={(t) => [
-                ...menuItems([t.id]),
+              rowActions={(track) => [
+                ...menuItems([track.id]),
                 {
-                  label: 'Remove from playlist',
+                  label: t('playlist.removeFromPlaylist'),
                   icon: <ListMinus />,
-                  onSelect: () => remove([t.id]),
+                  onSelect: () => remove([track.id]),
                 },
               ]}
             />
@@ -261,12 +263,12 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
       <Dialog
         open={dialog === 'delete'}
         onClose={() => setDialog(null)}
-        title={`Delete “${playlist.name}”?`}
-        description="The songs stay in your library. This can't be undone."
+        title={t('playlists.confirmDelete', { name: playlist.name })}
+        description={t('playlist.confirmDeleteHelp')}
         footer={
           <>
             <button type="button" className="btn-secondary" onClick={() => setDialog(null)}>
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -274,15 +276,20 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
               onClick={async () => {
                 setDialog(null);
                 navigate('/playlists');
-                await safely(() => deletePlaylist(playlist.id), `Deleted ${playlist.name}.`);
+                await safely(
+                  () => deletePlaylist(playlist.id),
+                  t('playlists.deleted', { name: playlist.name }),
+                );
               }}
             >
-              Delete
+              {t('common.delete')}
             </button>
           </>
         }
       >
-        <p className="text-sm text-muted">{pluralize(tracks.length, 'song')} in this playlist.</p>
+        <p className="text-sm text-muted">
+          {t('playlist.inThisPlaylist', { count: tracks.length })}
+        </p>
       </Dialog>
 
       <AddSongsDialog
@@ -292,7 +299,7 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
         onAdd={async (ids) => {
           await safely(
             () => addToPlaylist(playlist.id, ids),
-            `Added ${pluralize(ids.length, 'song')}.`,
+            t('playlist.added', { count: ids.length }),
           );
           setDialog(null);
         }}
@@ -313,6 +320,7 @@ function AddSongsDialog({
   onClose: () => void;
   onAdd: (ids: string[]) => void | Promise<void>;
 }) {
+  const { t: tr } = useI18n();
   const { tracks } = useLibrary();
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -345,12 +353,12 @@ function AddSongsDialog({
     <Dialog
       open={open}
       onClose={close}
-      title={`Add songs to ${playlist.name}`}
+      title={tr('playlist.addTitle', { name: playlist.name })}
       className="w-[min(94vw,36rem)]"
       footer={
         <>
           <button type="button" className="btn-secondary" onClick={close}>
-            Cancel
+            {tr('common.cancel')}
           </button>
           <button
             type="button"
@@ -367,7 +375,7 @@ function AddSongsDialog({
               setQuery('');
             }}
           >
-            Add {picked.size || ''}
+            {picked.size ? tr('playlist.addCount', { count: picked.size }) : tr('playlist.add')}
           </button>
         </>
       }
@@ -375,10 +383,10 @@ function AddSongsDialog({
       <SearchBar
         value={query}
         onChange={setQuery}
-        placeholder="Search your library"
-        label="Search your library"
+        placeholder={tr('playlist.searchLibrary')}
+        label={tr('playlist.searchLibrary')}
       />
-      <ul className="mt-3 space-y-0.5" aria-label="Songs you can add">
+      <ul className="mt-3 space-y-0.5" aria-label={tr('playlist.candidates')}>
         {candidates.map((t) => (
           <li key={t.id}>
             <label className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-elevated">
@@ -391,7 +399,7 @@ function AddSongsDialog({
               <Artwork track={t} size="xs" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{t.title}</span>
-                <span className="block truncate text-xs text-muted">{t.artist}</span>
+                <span className="block truncate text-xs text-muted">{artistName(t.artist)}</span>
               </span>
               <span className="text-xs tabular-nums text-muted">{formatTime(t.duration)}</span>
             </label>
@@ -401,9 +409,9 @@ function AddSongsDialog({
           <li className="py-8 text-center text-sm text-muted">
             {tracks?.length
               ? needle
-                ? 'No songs match.'
-                : 'Every song in your library is already here.'
-              : 'Your library is empty.'}
+                ? tr('playlist.noSongsMatch')
+                : tr('playlist.allHere')
+              : tr('playlist.libraryEmpty')}
           </li>
         )}
       </ul>

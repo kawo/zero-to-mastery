@@ -6,6 +6,7 @@ import { db } from '@/db/indexedDb';
 import { evictBlobUrl } from '@/lib/audio';
 import { uid } from '@/lib/utils';
 import type { Playlist, Track } from '@/types';
+import { t } from '@/i18n/core';
 
 /* ------------------------------ Tracks ------------------------------ */
 
@@ -100,7 +101,7 @@ export async function createPlaylist(name: string, trackIds: string[] = []): Pro
   const now = Date.now();
   const playlist: Playlist = {
     id: uid(),
-    name: name.trim() || 'Untitled playlist',
+    name: name.trim() || t('playlistName.untitled'),
     trackIds: [...new Set(trackIds)],
     createdAt: now,
     updatedAt: now,
@@ -111,7 +112,7 @@ export async function createPlaylist(name: string, trackIds: string[] = []): Pro
 
 export async function renamePlaylist(id: string, name: string): Promise<void> {
   await db.playlists.update(id, {
-    name: name.trim() || 'Untitled playlist',
+    name: name.trim() || t('playlistName.untitled'),
     updatedAt: Date.now(),
   });
 }
@@ -128,7 +129,7 @@ export async function addToPlaylist(id: string, trackIds: string[]): Promise<num
   let added = 0;
   await db.transaction('rw', db.playlists, async () => {
     const p = await db.playlists.get(id);
-    if (!p) throw new Error('That playlist no longer exists.');
+    if (!p) throw new Error(t('errors.playlistGone'));
     const existing = new Set(p.trackIds);
     const fresh = [...new Set(trackIds)].filter((t) => !existing.has(t));
     added = fresh.length;

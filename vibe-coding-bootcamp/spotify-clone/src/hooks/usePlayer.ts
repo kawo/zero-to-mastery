@@ -42,6 +42,7 @@ import {
   type PlayOptions,
 } from '@/state/contexts';
 import type { RepeatMode } from '@/types';
+import { t } from '@/i18n/core';
 
 export const usePlayer = () => required(PlayerContext, 'usePlayer');
 
@@ -176,8 +177,7 @@ export function usePlayerEngine(
       if (name === 'AbortError') return; // a newer load interrupted this one
       wantPlay.current = false;
       setIsPlaying(false);
-      if (name !== 'NotAllowedError')
-        toast({ tone: 'error', message: 'Playback could not start.' });
+      if (name !== 'NotAllowedError') toast({ tone: 'error', message: t('player.playbackFailed') });
     });
   }, [audio, toast]);
 
@@ -374,11 +374,11 @@ export function usePlayerEngine(
       return;
     }
     const track = latest.current.currentTrack;
-    const title = track?.title ?? 'This song';
+    const title = track?.title ?? t('player.thisSong');
     const long = !!track && track.duration >= RESUME_MIN_DURATION;
     resumable.current = null;
     if (audioMissing) {
-      failCurrent(`“${title}” isn't stored on this device. Import the file again to relink it.`);
+      failCurrent(t('player.notOnDevice', { title }));
       return;
     }
 
@@ -398,9 +398,7 @@ export function usePlayerEngine(
       };
       if (audio.error) {
         // It failed while preloading, before anything was listening for its errors.
-        failCurrent(
-          `Couldn't play “${title}”. The file may be damaged or in an unsupported format.`,
-        );
+        failCurrent(t('player.damaged', { title }));
         return () => releaseBlobUrl(audioBlobId);
       }
       if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) onReady();
@@ -433,7 +431,7 @@ export function usePlayerEngine(
           return;
         }
         if (!url) {
-          failCurrent(`The audio for “${title}” is missing. Try importing it again.`);
+          failCurrent(t('player.audioMissing', { title }));
           return;
         }
         acquired = true;
@@ -448,11 +446,11 @@ export function usePlayerEngine(
         if (resumeAt)
           toast({
             tone: 'info',
-            message: `Resuming “${title}” at ${formatTime(resumeAt)}. Press Previous to start over.`,
+            message: t('player.resuming', { title, time: formatTime(resumeAt) }),
           });
         if (wantPlay.current) startAudio();
       })
-      .catch(() => failCurrent(`“${title}” could not be loaded from storage.`));
+      .catch(() => failCurrent(t('player.loadFailed', { title })));
     return () => {
       cancelled = true;
       // Leaving a long track: remember where it stopped (or forget it if it finished).
@@ -602,8 +600,8 @@ export function usePlayerEngine(
     };
     const onError = () => {
       if (!audio.getAttribute('src')) return;
-      const title = latest.current.currentTrack?.title ?? 'this song';
-      failCurrent(`Couldn't play “${title}”. The file may be damaged or in an unsupported format.`);
+      const title = latest.current.currentTrack?.title ?? t('player.thisSong');
+      failCurrent(t('player.damaged', { title }));
     };
     const onTimeUpdate = () => {
       const t = latest.current.currentTrack;
@@ -819,7 +817,7 @@ export function usePlayerEngine(
     (trackIds: string[], startIndex = 0, opts: PlayOptions = {}) => {
       const ids = trackIds.filter((id) => !latest.current.byId.get(id)?.audioMissing);
       if (ids.length === 0) {
-        toast({ tone: 'error', message: 'None of these songs have audio on this device.' });
+        toast({ tone: 'error', message: t('player.noAudioForAny') });
         return;
       }
       const shuffleOn = opts.shuffle ?? shuffle;

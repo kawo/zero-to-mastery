@@ -14,27 +14,6 @@ export function formatTime(seconds: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
 }
 
-/** "1 hr 12 min" style total for playlists. */
-export function formatTotalDuration(seconds: number): string {
-  if (seconds < 60) return `${Math.round(seconds)} sec`;
-  const mins = Math.round(seconds / 60);
-  if (mins < 60) return `${mins} min`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m ? `${h} hr ${m} min` : `${h} hr`;
-}
-
-/** Spoken form for aria-valuetext: "2 minutes 5 seconds". */
-export function spokenTime(seconds: number): string {
-  if (!Number.isFinite(seconds)) return 'unknown';
-  const s = Math.floor(seconds);
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return m
-    ? `${m} minute${m === 1 ? '' : 's'} ${r} second${r === 1 ? '' : 's'}`
-    : `${r} second${r === 1 ? '' : 's'}`;
-}
-
 /* ------------------------------------------------------------------ */
 /* Object URLs for blobs stored in IndexedDB                           */
 /* ------------------------------------------------------------------ */

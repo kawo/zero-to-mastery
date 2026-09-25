@@ -9,17 +9,18 @@ import {
   EQ_PRESETS,
   eqPreampDb,
   formatBand,
-  formatSpeed,
   SPEEDS,
   type EqPresetId,
 } from '@/lib/eq';
 import { normalizationGainDb, TARGET_LUFS } from '@/lib/loudness';
 import { cn } from '@/lib/utils';
+import { formatSpeed, rich, useI18n, type MessageKey } from '@/i18n';
 
 /** Opens the Sound panel: speed, crossfade, normalization and equalizer. */
 export function SoundButton({ className, withLabel }: { className?: string; withLabel?: boolean }) {
   const [open, setOpen] = useState(false);
   const { eq, normalize, playbackRate } = usePlayer();
+  const { t } = useI18n();
   const active = eq.enabled || normalize || playbackRate !== 1;
   return (
     <>
@@ -32,10 +33,10 @@ export function SoundButton({ className, withLabel }: { className?: string; with
           className,
         )}
         aria-haspopup="dialog"
-        title="Sound: speed, crossfade, normalization, equalizer"
+        title={t('sound.tooltip')}
       >
         <SlidersHorizontal className={withLabel ? 'h-4 w-4' : 'h-5 w-5'} aria-hidden />
-        {withLabel ? 'Sound' : <span className="sr-only">Sound settings</span>}
+        {withLabel ? t('sound.button') : <span className="sr-only">{t('sound.settings')}</span>}
         {active && !withLabel && (
           <span className="absolute bottom-1 h-1 w-1 rounded-full bg-accent" aria-hidden />
         )}
@@ -98,6 +99,7 @@ function SoundPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
     canCrossfade,
   } = usePlayer();
   const presetId = useId();
+  const { t, num } = useI18n();
 
   const setBand = (i: number, db: number) => {
     const gains = eq.gains.map((g, j) => (j === i ? db : g));
@@ -109,22 +111,23 @@ function SoundPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const normStatus = !currentTrack
     ? null
     : loudness === undefined
-      ? 'Measuring this song…'
+      ? t('sound.measuring')
       : loudness === null
-        ? "This song couldn't be measured, so it plays unchanged."
+        ? t('sound.notMeasurable')
         : (() => {
             const g = normalizationGainDb(loudness);
+            const db = num(Math.round(Math.abs(g) * 10) / 10);
             const change =
               Math.abs(g) < 0.1
-                ? 'unchanged'
-                : `${Math.abs(g).toFixed(1)} dB ${g < 0 ? 'quieter' : 'louder'}`;
-            return `This song measures ${loudness.lufs.toFixed(1)} LUFS, so it plays ${change}.`;
+                ? t('sound.unchanged')
+                : t(g < 0 ? 'sound.quieter' : 'sound.louder', { db });
+            return t('sound.measured', { lufs: num(Math.round(loudness.lufs * 10) / 10), change });
           })();
 
   return (
-    <Dialog open={open} onClose={onClose} title="Sound" className="max-w-xl">
-      <Section title="Playback speed">
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Playback speed">
+    <Dialog open={open} onClose={onClose} title={t('sound.title')} className="max-w-xl">
+      <Section title={t('sound.speed')}>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('sound.speed')}>
           {SPEEDS.map((s) => (
             <button
               key={s}
@@ -143,23 +146,20 @@ function SoundPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
           ))}
         </div>
         <p className="mt-2 text-xs text-muted">
-          Pitch stays the same. Keyboard: <kbd>&lt;</kbd> slower, <kbd>&gt;</kbd> faster.
+          {rich(t('sound.speedHelp'), { k1: () => <kbd>&lt;</kbd>, k2: () => <kbd>&gt;</kbd> })}
         </p>
       </Section>
 
-      <Section title="Crossfade">
+      <Section title={t('sound.crossfade')}>
         <CrossfadeControl hideLabel />
       </Section>
 
-      <Section title="Volume normalization">
+      <Section title={t('sound.normalization')}>
         <div className="flex items-start gap-3">
-          <Switch checked={normalize} onChange={setNormalize} label="Volume normalization" />
+          <Switch checked={normalize} onChange={setNormalize} label={t('sound.normalization')} />
           <div className="text-sm">
-            <p>Play every song at about the same loudness ({TARGET_LUFS} LUFS).</p>
-            <p className="mt-1 text-xs text-muted">
-              Each song is measured once, the first time it plays with this on. Quiet songs are only
-              raised as far as they can go without distorting.
-            </p>
+            <p>{t('sound.normalizationSummary', { lufs: TARGET_LUFS })}</p>
+            <p className="mt-1 text-xs text-muted">{t('sound.normalizationHelp')}</p>
             {normalize && normStatus && (
               <p className="mt-1 text-xs text-muted" role="status">
                 {normStatus}
@@ -169,15 +169,15 @@ function SoundPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
         </div>
       </Section>
 
-      <Section title="Equalizer">
+      <Section title={t('sound.equalizer')}>
         <div className="flex flex-wrap items-center gap-3">
           <Switch
             checked={eq.enabled}
             onChange={(on) => setEq({ enabled: on })}
-            label="Equalizer"
+            label={t('sound.equalizer')}
           />
           <label htmlFor={presetId} className="sr-only">
-            Preset
+            {t('sound.preset')}
           </label>
           <select
             id={presetId}
@@ -190,10 +190,10 @@ function SoundPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
           >
             {EQ_PRESETS.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.label}
+                {t(`sound.presets.${p.key}` as MessageKey)}
               </option>
             ))}
-            {eq.preset === 'custom' && <option value="custom">Custom</option>}
+            {eq.preset === 'custom' && <option value="custom">{t('sound.custom')}</option>}
           </select>
           <button
             type="button"
@@ -201,14 +201,14 @@ function SoundPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
             onClick={() => setEq({ preset: 'flat', gains: EQ_BANDS.map(() => 0) })}
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-            Reset
+            {t('sound.reset')}
           </button>
         </div>
 
         <div
           className="mt-4 grid grid-cols-10 gap-1 text-center"
           role="group"
-          aria-label="Equalizer bands"
+          aria-label={t('sound.bands')}
         >
           {EQ_BANDS.map((hz, i) => {
             const g = eq.gains[i] ?? 0;
@@ -224,8 +224,8 @@ function SoundPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
                   value={g}
                   disabled={!eq.enabled}
                   onChange={(e) => setBand(i, Number(e.target.value))}
-                  aria-label={`${formatBand(hz)}Hz`}
-                  aria-valuetext={`${g > 0 ? '+' : ''}${g} dB`}
+                  aria-label={t('sound.bandLabel', { band: formatBand(hz) })}
+                  aria-valuetext={t('sound.bandValue', { db: `${g > 0 ? '+' : ''}${num(g)}` })}
                 />
                 <span className="text-[10px] text-muted">{formatBand(hz)}</span>
               </div>
@@ -234,15 +234,14 @@ function SoundPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
         </div>
         <p className="mt-2 text-xs text-muted">
           {eq.enabled && eqPreampDb(eq.gains) < 0
-            ? `Overall level lowered by ${-eqPreampDb(eq.gains)} dB so boosted bands don't distort.`
-            : 'Drag a band up to boost it, down to cut it.'}
+            ? t('sound.preamp', { db: -eqPreampDb(eq.gains) })
+            : t('sound.bandHelp')}
         </p>
       </Section>
 
       {!canCrossfade && (eq.enabled || normalize) && (
         <p className="mt-3 rounded-lg bg-elevated p-3 text-xs text-muted">
-          On iPhone and iPad, the equalizer and normalization can stop playback when the screen
-          locks. Turn both off, then reload, if that happens.
+          {t('sound.iosWarning')}
         </p>
       )}
     </Dialog>

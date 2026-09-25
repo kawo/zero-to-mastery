@@ -4,6 +4,7 @@ import { canPlay } from '@/lib/audio';
 import { extractMetadata } from '@/lib/id3';
 import { hashBlob, uid } from '@/lib/utils';
 import type { BlobDoc, ImportItem, ImportStatus, Track } from '@/types';
+import { t } from '@/i18n/core';
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|ogg|oga|opus|flac|wav|webm)$/i;
 
@@ -51,9 +52,9 @@ export async function importFile(
 ): Promise<FileResult> {
   const mimeType = guessMime(file);
   if (!canPlay(mimeType)) {
-    return { status: 'error', message: `${mimeType} files can't be played here.` };
+    return { status: 'error', message: t('importer.cantPlay', { type: mimeType }) };
   }
-  if (file.size === 0) return { status: 'error', message: 'The file is empty.' };
+  if (file.size === 0) return { status: 'error', message: t('importer.empty') };
 
   onStatus('hashing');
   let hash: string;
@@ -62,12 +63,11 @@ export async function importFile(
   } catch {
     return {
       status: 'error',
-      message: 'The file could not be read. It may have been moved or deleted.',
+      message: t('importer.unreadable'),
     };
   }
 
-  if (inFlight.has(hash))
-    return { status: 'duplicate', message: 'The same file is already in this batch.' };
+  if (inFlight.has(hash)) return { status: 'duplicate', message: t('importer.sameBatch') };
   inFlight.add(hash);
   try {
     return await importHashed(file, hash, mimeType, onStatus);
@@ -89,7 +89,7 @@ async function importHashed(
   if (sameContent && !sameContent.audioMissing) {
     return {
       status: 'duplicate',
-      message: `Already in your library as “${sameContent.title}”.`,
+      message: t('importer.alreadyIn', { title: sameContent.title }),
       trackId: sameContent.id,
     };
   }
@@ -105,7 +105,7 @@ async function importHashed(
     if (match)
       return {
         status: 'duplicate',
-        message: `Same file name and length as “${match.title}”.`,
+        message: t('importer.sameNameLength', { title: match.title }),
         trackId: match.id,
       };
   }
@@ -156,7 +156,7 @@ async function importHashed(
       return {
         status: 'relinked',
         trackId: sameContent.id,
-        message: 'Audio relinked to restored track.',
+        message: t('importer.relinked'),
       };
     }
 
@@ -198,7 +198,7 @@ async function importHashed(
     return {
       status: 'done',
       trackId: id,
-      message: meta.fromFileName ? 'No tags found; title taken from the file name.' : undefined,
+      message: meta.fromFileName ? t('importer.noTags') : undefined,
     };
   } catch (err) {
     const message = describeDbError(err);
@@ -257,7 +257,7 @@ export async function importFiles(
         if (err instanceof QuotaError) totals.quotaError = err.message;
         onItem(key, {
           status: 'error',
-          message: err instanceof Error ? err.message : 'Import failed.',
+          message: err instanceof Error ? err.message : t('importer.failed'),
         });
       }
     }
@@ -268,7 +268,7 @@ export async function importFiles(
   for (let i = cursor; i < entries.length; i++) {
     onItem(entries[i]!.key, {
       status: 'error',
-      message: totals.quotaError ? 'Skipped: storage is full.' : 'Cancelled.',
+      message: totals.quotaError ? t('importer.skippedFull') : t('importer.cancelled'),
     });
   }
   return totals;

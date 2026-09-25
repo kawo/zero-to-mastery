@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { FlaskConical } from 'lucide-react';
 import { loadDemoSeed } from '@/dev/flags';
-import { pluralize } from '@/lib/utils';
+
 import { useToast } from '@/state/contexts';
+import { useI18n } from '@/i18n';
 
 /** "Load demo songs" (dev flag only). The seed module is lazy-loaded and dropped from production builds. */
 export function DemoSeedButton() {
   const toast = useToast();
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   if (!loadDemoSeed) return null;
   const load = loadDemoSeed;
@@ -22,14 +24,12 @@ export function DemoSeedButton() {
           const n = await seedDemoLibrary();
           toast({
             tone: 'success',
-            message: n
-              ? `Added ${pluralize(n, 'demo song')}.`
-              : 'Demo songs are already in your library.',
+            message: n ? t('demo.added', { count: n }) : t('demo.already'),
           });
         } catch (err) {
           toast({
             tone: 'error',
-            message: err instanceof Error ? err.message : 'Could not load demo songs.',
+            message: err instanceof Error ? err.message : t('demo.failed'),
           });
         } finally {
           setBusy(false);
@@ -37,7 +37,7 @@ export function DemoSeedButton() {
       }}
     >
       <FlaskConical className="h-4 w-4" aria-hidden />
-      {busy ? 'Loading…' : 'Load demo songs'}
+      {busy ? t('common.loading') : t('demo.load')}
     </button>
   );
 }

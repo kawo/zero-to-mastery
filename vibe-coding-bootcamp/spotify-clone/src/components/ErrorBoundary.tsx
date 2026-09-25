@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { t } from '@/i18n/core';
 
 interface Props {
   children: ReactNode;
@@ -36,15 +37,13 @@ export class ErrorBoundary extends Component<Props, State> {
         role="alert"
       >
         <div className="mx-auto max-w-md text-center">
-          <h2 className="text-xl font-bold">Something went wrong</h2>
+          <h2 className="text-xl font-bold">{t('errorBoundary.title')}</h2>
           <p className="mt-2 text-muted">
-            {chunk
-              ? 'Tunebox was updated. Reload to get the latest version.'
-              : 'This part of the app hit an error. Your music and playlists are safe.'}
+            {chunk ? t('errorBoundary.updated') : t('errorBoundary.crashed')}
           </p>
           <div className="mt-6 flex justify-center gap-2">
             <button type="button" className="btn-primary" onClick={() => window.location.reload()}>
-              Reload
+              {t('common.reload')}
             </button>
             {!this.props.fullPage && !chunk && (
               <button
@@ -52,7 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="btn-secondary"
                 onClick={() => this.setState({ error: null })}
               >
-                Try again
+                {t('common.tryAgain')}
               </button>
             )}
           </div>

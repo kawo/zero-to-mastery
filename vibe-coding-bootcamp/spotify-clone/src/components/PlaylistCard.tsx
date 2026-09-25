@@ -4,9 +4,9 @@ import { ArtworkMosaic } from '@/components/Artwork';
 import { Menu } from '@/components/ui/Menu';
 import { useTracksByIds } from '@/hooks/useIndexedDb';
 import { usePlayer } from '@/hooks/usePlayer';
-import { formatTotalDuration } from '@/lib/audio';
-import { pluralize } from '@/lib/utils';
+
 import type { Playlist } from '@/types';
+import { formatTotalDuration, useI18n } from '@/i18n';
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -17,6 +17,7 @@ interface PlaylistCardProps {
 export function PlaylistCard({ playlist, onRename, onDelete }: PlaylistCardProps) {
   const tracks = useTracksByIds(playlist.trackIds);
   const { playTracks } = usePlayer();
+  const { t } = useI18n();
   const total = tracks.reduce((s, t) => s + t.duration, 0);
 
   return (
@@ -28,7 +29,7 @@ export function PlaylistCard({ playlist, onRename, onDelete }: PlaylistCardProps
             type="button"
             onClick={() => playTracks(tracks.map((t) => t.id))}
             className="absolute bottom-2 right-2 z-10 grid h-12 w-12 place-items-center rounded-full bg-accent text-accent-fg opacity-100 shadow-xl transition hover:scale-105 focus-visible:opacity-100 md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100"
-            aria-label={`Play ${playlist.name}`}
+            aria-label={t('common.playItem', { name: playlist.name })}
           >
             <Play className="h-5 w-5 fill-current" aria-hidden />
           </button>
@@ -36,7 +37,7 @@ export function PlaylistCard({ playlist, onRename, onDelete }: PlaylistCardProps
       </div>
       <div className="mt-3 flex items-start gap-1">
         <div className="min-w-0 flex-1">
-          <h3 className="truncate font-bold">
+          <h2 className="truncate text-base font-bold">
             {/* Stretched link: the whole card opens the playlist. */}
             <Link
               to={`/playlists/${playlist.id}`}
@@ -44,19 +45,19 @@ export function PlaylistCard({ playlist, onRename, onDelete }: PlaylistCardProps
             >
               {playlist.name}
             </Link>
-          </h3>
+          </h2>
           <p className="truncate text-sm text-muted">
-            {pluralize(tracks.length, 'song')}
+            {t('common.songs', { count: tracks.length })}
             {total > 0 && ` · ${formatTotalDuration(total)}`}
           </p>
         </div>
         <div className="relative z-10">
           <Menu
-            label={`More options for ${playlist.name}`}
+            label={t('common.moreOptions', { name: playlist.name })}
             items={[
-              { label: 'Rename', icon: <Pencil />, onSelect: () => onRename(playlist) },
+              { label: t('common.rename'), icon: <Pencil />, onSelect: () => onRename(playlist) },
               {
-                label: 'Delete',
+                label: t('common.delete'),
                 icon: <Trash2 />,
                 danger: true,
                 onSelect: () => onDelete(playlist),

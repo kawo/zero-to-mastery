@@ -4,7 +4,9 @@
 
 /*
  * Theme tokens as space-separated RGB so Tailwind can apply opacity
- * (e.g. bg-accent/20). Light is the default; `.dark` on <html> switches.
+ * (e.g. bg-accent/20). Light is the default; `.dark` on <html> switches, and
+ * `.hc` switches either to its high-contrast variant. Every text/background
+ * pair meets WCAG AA (4.5:1) in the standard themes and AAA (7:1) in high contrast.
  */
 @layer base {
   :root {
@@ -14,10 +16,21 @@
     --border: 222 222 218;
     --fg: 22 22 22;
     --muted: 96 96 92;
-    --accent: 22 163 74;
+    --accent: 14 112 51;
     --accent-fg: 255 255 255;
     --danger: 200 40 40;
     color-scheme: light;
+  }
+  .hc {
+    --bg: 255 255 255;
+    --surface: 255 255 255;
+    --elevated: 235 235 235;
+    --border: 0 0 0;
+    --fg: 0 0 0;
+    --muted: 31 31 31;
+    --accent: 11 93 30;
+    --accent-fg: 255 255 255;
+    --danger: 155 0 0;
   }
   .dark {
     --bg: 18 18 18;
@@ -30,6 +43,54 @@
     --accent-fg: 12 12 12;
     --danger: 248 113 113;
     color-scheme: dark;
+  }
+  .dark.hc {
+    --bg: 0 0 0;
+    --surface: 0 0 0;
+    --elevated: 26 26 26;
+    --border: 255 255 255;
+    --fg: 255 255 255;
+    --muted: 224 224 224;
+    --accent: 125 255 168;
+    --accent-fg: 0 0 0;
+    --danger: 255 128 128;
+  }
+
+  /* High contrast: thicker focus rings, visible control edges, solid slider tracks. */
+  .hc :focus-visible {
+    @apply ring-4;
+  }
+  .hc .btn-ghost,
+  .hc .icon-btn {
+    @apply hover:outline hover:outline-1 hover:outline-border;
+  }
+  .hc main a:not(.btn-primary):not(.btn-secondary):not(.btn-ghost):not(.icon-btn) {
+    @apply underline underline-offset-2;
+  }
+
+  /* Windows high-contrast / forced colours: let the system palette through. */
+  @media (forced-colors: active) {
+    :focus-visible {
+      outline: 3px solid CanvasText;
+      outline-offset: 2px;
+    }
+    .range::-webkit-slider-runnable-track,
+    .range::-moz-range-track {
+      background: CanvasText;
+    }
+    [role='switch'] {
+      border: 1px solid CanvasText;
+    }
+    /* Backgrounds are dropped in this mode: filled buttons need an edge to read as buttons. */
+    .btn-primary,
+    .btn-danger {
+      border: 1px solid ButtonText;
+    }
+    [aria-pressed='true'],
+    [aria-checked='true'],
+    [aria-current='true'] {
+      outline: 2px solid Highlight;
+    }
   }
 
   html {
@@ -64,7 +125,7 @@
     @apply btn text-muted hover:bg-elevated hover:text-fg;
   }
   .btn-danger {
-    @apply btn bg-danger text-white hover:brightness-110;
+    @apply btn bg-danger text-bg hover:brightness-110;
   }
   .icon-btn {
     @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-elevated hover:text-fg disabled:opacity-40;
@@ -92,7 +153,7 @@
     background: linear-gradient(
       to right,
       var(--fill) var(--pct),
-      rgb(var(--muted) / 0.35) var(--pct)
+      rgb(var(--muted) / var(--track-alpha, 0.35)) var(--pct)
     );
   }
   .range::-moz-range-track {
@@ -101,8 +162,11 @@
     background: linear-gradient(
       to right,
       var(--fill) var(--pct),
-      rgb(var(--muted) / 0.35) var(--pct)
+      rgb(var(--muted) / var(--track-alpha, 0.35)) var(--pct)
     );
+  }
+  .hc .range {
+    --track-alpha: 0.6;
   }
   .range::-webkit-slider-thumb {
     @apply -mt-1 h-3 w-3 appearance-none rounded-full bg-fg opacity-0 transition-opacity;

@@ -16,8 +16,9 @@ import { WaveformCanvas } from '@/components/Waveform';
 import { MAX_CROSSFADE, usePlayer } from '@/hooks/usePlayer';
 import { useProgress } from '@/hooks/useProgress';
 import { useWaveform } from '@/hooks/useWaveform';
-import { formatTime, spokenTime } from '@/lib/audio';
+import { formatTime } from '@/lib/audio';
 import { cn } from '@/lib/utils';
+import { formatPercent, spokenTime, useI18n } from '@/i18n';
 
 const KEY_SEEK = 5; // seconds per arrow key on the timeline
 
@@ -37,6 +38,7 @@ export function Timeline({
   waveform?: boolean;
 }) {
   const { audio, currentTrack, seek } = usePlayer();
+  const { t } = useI18n();
   const peaks = useWaveform(waveform ? currentTrack : null);
   const [hover, setHover] = useState<number | null>(null); // 0–1 under the pointer
   const { current, duration } = useProgress(audio, currentTrack?.duration ?? 0);
@@ -131,8 +133,11 @@ export function Timeline({
           value={Math.min(shown, duration || 1)}
           disabled={!currentTrack || !duration}
           style={{ '--pct': `${pct}%` } as CSSProperties}
-          aria-label="Seek"
-          aria-valuetext={`${spokenTime(shown)} of ${spokenTime(duration)}`}
+          aria-label={t('player.seek')}
+          aria-valuetext={t('player.positionOf', {
+            position: spokenTime(shown),
+            duration: spokenTime(duration),
+          })}
           onPointerDown={() => {
             scrubRef.current = shown;
             setScrub(shown);
@@ -173,13 +178,14 @@ export function PlayPauseButton({
   className?: string;
 }) {
   const { isPlaying, isBuffering, toggle } = usePlayer();
+  const { t } = useI18n();
   const dims = { sm: 'h-9 w-9', md: 'h-10 w-10', lg: 'h-16 w-16' }[size];
   const icon = { sm: 'h-4 w-4', md: 'h-5 w-5', lg: 'h-7 w-7' }[size];
   return (
     <button
       type="button"
       onClick={toggle}
-      aria-label={isPlaying ? 'Pause' : 'Play'}
+      aria-label={isPlaying ? t('common.pause') : t('common.play')}
       aria-keyshortcuts="Space"
       className={cn(
         'grid shrink-0 place-items-center rounded-full bg-fg text-bg transition-transform hover:scale-105 active:scale-95',
@@ -200,13 +206,14 @@ export function PlayPauseButton({
 
 export function PrevButton({ className }: { className?: string }) {
   const { prev, currentTrack } = usePlayer();
+  const { t } = useI18n();
   return (
     <button
       type="button"
       onClick={prev}
       disabled={!currentTrack}
       className={cn('icon-btn', className)}
-      aria-label="Previous track"
+      aria-label={t('player.previousTrack')}
     >
       <SkipBack className="h-5 w-5 fill-current" aria-hidden />
     </button>
@@ -215,13 +222,14 @@ export function PrevButton({ className }: { className?: string }) {
 
 export function NextButton({ className }: { className?: string }) {
   const { next, currentTrack } = usePlayer();
+  const { t } = useI18n();
   return (
     <button
       type="button"
       onClick={next}
       disabled={!currentTrack}
       className={cn('icon-btn', className)}
-      aria-label="Next track"
+      aria-label={t('player.nextTrack')}
     >
       <SkipForward className="h-5 w-5 fill-current" aria-hidden />
     </button>
@@ -230,13 +238,14 @@ export function NextButton({ className }: { className?: string }) {
 
 export function ShuffleButton({ className }: { className?: string }) {
   const { shuffle, toggleShuffle } = usePlayer();
+  const { t } = useI18n();
   return (
     <button
       type="button"
       onClick={toggleShuffle}
       aria-pressed={shuffle}
-      aria-label="Shuffle"
-      title={shuffle ? 'Shuffle on' : 'Shuffle off'}
+      aria-label={t('common.shuffle')}
+      title={shuffle ? t('player.shuffleOn') : t('player.shuffleOff')}
       className={cn('icon-btn relative', shuffle && 'text-accent hover:text-accent', className)}
     >
       <Shuffle className="h-5 w-5" aria-hidden />
@@ -247,13 +256,18 @@ export function ShuffleButton({ className }: { className?: string }) {
 
 export function RepeatButton({ className }: { className?: string }) {
   const { repeat, cycleRepeat } = usePlayer();
-  const label = { off: 'Repeat off', all: 'Repeat all', one: 'Repeat one' }[repeat];
+  const { t } = useI18n();
+  const label = t(
+    ({ off: 'player.repeatOff', all: 'player.repeatAll', one: 'player.repeatOne' } as const)[
+      repeat
+    ],
+  );
   const Icon = repeat === 'one' ? Repeat1 : Repeat;
   return (
     <button
       type="button"
       onClick={cycleRepeat}
-      aria-label={`${label}. Activate to change.`}
+      aria-label={t('player.activateToChange', { label })}
       title={label}
       className={cn(
         'icon-btn relative',
@@ -295,6 +309,7 @@ export function TransportControls({
 
 export function VolumeControl({ className }: { className?: string }) {
   const { volume, muted, setVolume, toggleMute } = usePlayer();
+  const { t } = useI18n();
   const effective = muted ? 0 : volume;
   const Icon = effective === 0 ? VolumeX : effective < 0.5 ? Volume1 : Volume2;
   return (
@@ -303,7 +318,7 @@ export function VolumeControl({ className }: { className?: string }) {
         type="button"
         className="icon-btn"
         onClick={toggleMute}
-        aria-label="Mute"
+        aria-label={t('player.mute')}
         aria-pressed={muted}
       >
         <Icon className="h-5 w-5" aria-hidden />
@@ -317,8 +332,8 @@ export function VolumeControl({ className }: { className?: string }) {
         value={effective}
         onChange={(e) => setVolume(Number(e.target.value))}
         style={{ '--pct': `${effective * 100}%` } as CSSProperties}
-        aria-label="Volume"
-        aria-valuetext={`${Math.round(effective * 100)}%`}
+        aria-label={t('player.volume')}
+        aria-valuetext={formatPercent(effective)}
       />
     </div>
   );
@@ -334,13 +349,14 @@ export function CrossfadeControl({
   hideLabel?: boolean;
 }) {
   const { crossfade, canCrossfade, setCrossfade } = usePlayer();
+  const { t } = useI18n();
   const value = canCrossfade ? crossfade : 0;
-  const label = value === 0 ? 'Off (gapless)' : `${value} s`;
+  const label = value === 0 ? t('player.crossfadeOff') : t('player.crossfadeSeconds', { s: value });
   return (
     <div className={cn('flex flex-col gap-1', className)}>
       <div className="flex items-center gap-3">
         <label htmlFor="crossfade" className={cn('text-sm font-semibold', hideLabel && 'sr-only')}>
-          Crossfade
+          {t('player.crossfade')}
         </label>
         <input
           id="crossfade"
@@ -353,15 +369,17 @@ export function CrossfadeControl({
           disabled={!canCrossfade}
           onChange={(e) => setCrossfade(Number(e.target.value))}
           style={{ '--pct': `${(value / MAX_CROSSFADE) * 100}%` } as CSSProperties}
-          aria-valuetext={value === 0 ? 'Off, gapless' : `${value} seconds`}
+          aria-valuetext={
+            value === 0
+              ? t('player.crossfadeOffSpoken')
+              : t('player.crossfadeSecondsSpoken', { count: value })
+          }
           aria-describedby="crossfade-help"
         />
         <span className="w-24 text-sm tabular-nums text-muted">{label}</span>
       </div>
       <p id="crossfade-help" className="text-xs text-muted">
-        {canCrossfade
-          ? 'Overlaps the end of each song with the start of the next.'
-          : "This device controls volume in hardware, so songs can't fade. They still play without gaps."}
+        {canCrossfade ? t('player.crossfadeHelp') : t('player.crossfadeUnavailable')}
       </p>
     </div>
   );

@@ -13,13 +13,15 @@
         --fg: #f5f5f5;
         --muted: #aaa;
         --accent: #1ed760;
+        --accent-fg: #0c0c0c;
       }
       @media (prefers-color-scheme: light) {
         :root {
           --bg: #f7f7f5;
           --fg: #161616;
           --muted: #60605c;
-          --accent: #16a34a;
+          --accent: #0e7033;
+          --accent-fg: #ffffff;
         }
       }
       body {
@@ -62,7 +64,7 @@
         border-radius: 999px;
         border: 0;
         background: var(--accent);
-        color: #0c0c0c;
+        color: var(--accent-fg);
         font: inherit;
         font-weight: 700;
         text-decoration: none;
@@ -78,15 +80,48 @@
   <body>
     <main>
       <img src="/icons/icon.svg" alt="" />
-      <h1>You're offline</h1>
-      <p>This page isn't available offline.</p>
-      <p>
+      <h1 data-t="title">You're offline</h1>
+      <p data-t="page">This page isn't available offline.</p>
+      <p data-t="library">
         Your library, playlists and every song you've imported still work offline. Open Tunebox's
         home screen to keep listening.
       </p>
-      <a href="/songs">Open my library</a>
+      <a href="/songs" data-t="open">Open my library</a>
       <br />
-      <button type="button" onclick="location.reload()">Try again</button>
+      <button type="button" onclick="location.reload()" data-t="retry">Try again</button>
     </main>
+    <script>
+      // Same language choice as the app: the saved setting, else the browser's language.
+      try {
+        var pref = localStorage.getItem('tunebox-language') || 'auto';
+        var langs = navigator.languages || [navigator.language];
+        var auto = 'en';
+        for (var i = 0; i < langs.length; i++) {
+          var base = String(langs[i]).slice(0, 2).toLowerCase();
+          if (base === 'fr' || base === 'en') {
+            auto = base;
+            break;
+          }
+        }
+        var fr = pref === 'fr' || (pref === 'auto' && auto === 'fr');
+        if (fr) {
+          document.documentElement.lang = 'fr';
+          document.title = 'Hors ligne · Tunebox';
+          var text = {
+            title: 'Vous êtes hors ligne',
+            page: 'Cette page n’est pas disponible hors ligne.',
+            library:
+              'Votre bibliothèque, vos playlists et tous les titres importés fonctionnent toujours hors ligne. Ouvrez l’écran d’accueil de Tunebox pour continuer l’écoute.',
+            open: 'Ouvrir ma bibliothèque',
+            retry: 'Réessayer',
+          };
+          document.querySelectorAll('[data-t]').forEach(function (el) {
+            el.textContent = text[el.getAttribute('data-t')];
+          });
+        }
+      } catch (e) {
+        /* stays in English */
+      }
+    </script>
   </body>
 </html>

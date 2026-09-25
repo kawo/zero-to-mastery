@@ -7,13 +7,14 @@ import type { Rgb } from '@/lib/audio';
 import { soundGraphActive } from '@/lib/soundGraph';
 import { cn } from '@/lib/utils';
 import type { Track } from '@/types';
+import { useI18n, type MessageKey } from '@/i18n';
 
 export type VisualizerStyle = 'bars' | 'wave' | 'radial';
 
-const STYLES: { id: VisualizerStyle; label: string; icon: typeof BarChart3 }[] = [
-  { id: 'bars', label: 'Spectrum bars', icon: BarChart3 },
-  { id: 'wave', label: 'Waveform', icon: AudioWaveform },
-  { id: 'radial', label: 'Radial', icon: CircleDot },
+const STYLES: { id: VisualizerStyle; label: MessageKey; icon: typeof BarChart3 }[] = [
+  { id: 'bars', label: 'visualizer.bars', icon: BarChart3 },
+  { id: 'wave', label: 'visualizer.wave', icon: AudioWaveform },
+  { id: 'radial', label: 'visualizer.radial', icon: CircleDot },
 ];
 const STYLE_KEY = 'tunebox-visualizer-style';
 const BAR_COUNT = 56;
@@ -63,6 +64,7 @@ export function Visualizer({
   className?: string;
 }) {
   const { getAnalyser, isPlaying, canCrossfade } = usePlayer();
+  const { t } = useI18n();
   const [style, setStyleState] = useState<VisualizerStyle>(readStyle);
   // iOS (no volume control) is where Web Audio can stop background playback: ask first.
   const [consented, setConsented] = useState(() => canCrossfade || soundGraphActive());
@@ -203,12 +205,9 @@ export function Visualizer({
     >
       {!consented ? (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-          <p className="max-w-xs text-sm text-muted">
-            The visualizer routes audio through Web Audio. On iPhone and iPad that can stop playback
-            when the screen locks, until you reload.
-          </p>
+          <p className="max-w-xs text-sm text-muted">{t('visualizer.consent')}</p>
           <button type="button" className="btn-primary" onClick={() => setConsented(true)}>
-            Start visualizer
+            {t('visualizer.start')}
           </button>
         </div>
       ) : (
@@ -224,7 +223,9 @@ export function Visualizer({
             ref={canvas}
             className="absolute inset-0 h-full w-full"
             role="img"
-            aria-label={`Audio visualizer (${STYLES.find((s) => s.id === style)!.label.toLowerCase()})`}
+            aria-label={t('visualizer.label', {
+              style: t(STYLES.find((s) => s.id === style)!.label).toLowerCase(),
+            })}
           />
           <div className="absolute right-2 top-2 flex gap-1 rounded-full bg-bg/60 p-1 backdrop-blur">
             {STYLES.map(({ id, label, icon: Icon }) => (
@@ -233,14 +234,14 @@ export function Visualizer({
                 type="button"
                 onClick={() => setStyle(id)}
                 aria-pressed={style === id}
-                title={label}
+                title={t(label)}
                 className={cn(
                   'grid h-8 w-8 place-items-center rounded-full',
                   style === id ? 'bg-fg text-bg' : 'text-muted hover:text-fg',
                 )}
               >
                 <Icon className="h-4 w-4" aria-hidden />
-                <span className="sr-only">{label}</span>
+                <span className="sr-only">{t(label)}</span>
               </button>
             ))}
             {canFullscreen && (
@@ -251,7 +252,7 @@ export function Visualizer({
                     ? void document.exitFullscreen()
                     : void box.current?.requestFullscreen()
                 }
-                title={fullscreen ? 'Exit full screen' : 'Full screen'}
+                title={fullscreen ? t('visualizer.exitFullScreen') : t('visualizer.fullScreen')}
                 className="grid h-8 w-8 place-items-center rounded-full text-muted hover:text-fg"
               >
                 {fullscreen ? (
@@ -259,7 +260,9 @@ export function Visualizer({
                 ) : (
                   <Maximize className="h-4 w-4" aria-hidden />
                 )}
-                <span className="sr-only">{fullscreen ? 'Exit full screen' : 'Full screen'}</span>
+                <span className="sr-only">
+                  {fullscreen ? t('visualizer.exitFullScreen') : t('visualizer.fullScreen')}
+                </span>
               </button>
             )}
           </div>

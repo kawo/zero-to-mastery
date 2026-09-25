@@ -14,18 +14,19 @@ import { describeDbError } from '@/db/indexedDb';
 import { useLibrary } from '@/hooks/useIndexedDb';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useTrackActions } from '@/hooks/useTrackActions';
-import { formatTotalDuration } from '@/lib/audio';
-import { normalize, pluralize } from '@/lib/utils';
+
+import { normalize } from '@/lib/utils';
 import { useToast } from '@/state/contexts';
 import type { SortDir, SortKey, Track } from '@/types';
+import { artistName, formatTotalDuration, useI18n, type MessageKey } from '@/i18n';
 
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: 'createdAt', label: 'Date added' },
-  { key: 'title', label: 'Title' },
-  { key: 'artist', label: 'Artist' },
-  { key: 'album', label: 'Album' },
-  { key: 'duration', label: 'Duration' },
-  { key: 'playCount', label: 'Most played' },
+const SORTS: { key: SortKey; label: MessageKey }[] = [
+  { key: 'createdAt', label: 'songs.sortDateAdded' },
+  { key: 'title', label: 'songs.sortTitle' },
+  { key: 'artist', label: 'songs.sortArtist' },
+  { key: 'album', label: 'songs.sortAlbum' },
+  { key: 'duration', label: 'songs.sortDuration' },
+  { key: 'playCount', label: 'songs.sortMostPlayed' },
 ];
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -63,6 +64,7 @@ export default function Songs() {
   const { playTracks } = usePlayer();
   const { menuItems } = useTrackActions();
   const toast = useToast();
+  const { t } = useI18n();
   const [params, setParams] = useSearchParams();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState<string[] | null>(null);
@@ -127,7 +129,7 @@ export default function Songs() {
     try {
       await deleteTracks(ids);
       setSelected((s) => new Set([...s].filter((id) => !ids.includes(id))));
-      toast({ tone: 'success', message: `Deleted ${pluralize(ids.length, 'song')}.` });
+      toast({ tone: 'success', message: t('songs.deleted', { count: ids.length }) });
     } catch (err) {
       toast({ tone: 'error', message: describeDbError(err) });
     }
@@ -137,9 +139,9 @@ export default function Songs() {
   if (tracks === undefined) {
     return (
       <>
-        <TopBar title="Songs" />
+        <TopBar title={t('songs.title')} />
         <p className="py-10 text-center text-muted" role="status">
-          Loading your library…
+          {t('songs.loading')}
         </p>
       </>
     );
@@ -148,7 +150,7 @@ export default function Songs() {
   if (tracks.length === 0) {
     return (
       <>
-        <TopBar title="Songs" />
+        <TopBar title={t('songs.title')} />
         <EmptyLibrary />
       </>
     );
@@ -157,13 +159,13 @@ export default function Songs() {
   return (
     <>
       <TopBar
-        title="Songs"
-        subtitle={`${pluralize(tracks.length, 'song')} · ${formatTotalDuration(totalDuration)}`}
+        title={t('songs.title')}
+        subtitle={`${t('common.songs', { count: tracks.length })} · ${formatTotalDuration(totalDuration)}`}
         actions={
           <>
             <ListPlayButton
               trackIds={shown.map((t) => t.id)}
-              label={filtered ? 'Play matching songs' : 'Play all songs'}
+              label={filtered ? t('songs.playMatching') : t('songs.playAll')}
               textClassName="hidden sm:inline"
             />
             <ShuffleButton />
@@ -175,13 +177,13 @@ export default function Songs() {
         <SearchBar
           value={q}
           onChange={(v) => setParam('q', v)}
-          placeholder="Search title, artist, album  ( / )"
-          label="Search songs"
+          placeholder={t('songs.searchPlaceholder')}
+          label={t('songs.searchLabel')}
           className="w-full sm:w-80"
           hotkey
         />
         <label className="sr-only" htmlFor="filter-artist">
-          Filter by artist
+          {t('songs.filterArtist')}
         </label>
         <select
           id="filter-artist"
@@ -189,17 +191,17 @@ export default function Songs() {
           value={artist}
           onChange={(e) => setParam('artist', e.target.value)}
         >
-          <option value="">All artists</option>
+          <option value="">{t('songs.allArtists')}</option>
           {artists.map((a) => (
             <option key={a} value={a}>
-              {a}
+              {artistName(a)}
             </option>
           ))}
         </select>
         {genres.length > 0 && (
           <>
             <label className="sr-only" htmlFor="filter-genre">
-              Filter by genre
+              {t('songs.filterGenre')}
             </label>
             <select
               id="filter-genre"
@@ -207,7 +209,7 @@ export default function Songs() {
               value={genre}
               onChange={(e) => setParam('genre', e.target.value)}
             >
-              <option value="">All genres</option>
+              <option value="">{t('songs.allGenres')}</option>
               {genres.map((g) => (
                 <option key={g} value={g}>
                   {g}
@@ -218,7 +220,7 @@ export default function Songs() {
         )}
         <div className="flex items-center gap-1 sm:ml-auto">
           <label className="sr-only" htmlFor="sort-by">
-            Sort by
+            {t('songs.sortBy')}
           </label>
           <select
             id="sort-by"
@@ -228,7 +230,7 @@ export default function Songs() {
           >
             {SORTS.map((s) => (
               <option key={s.key} value={s.key}>
-                {s.label}
+                {t(s.label)}
               </option>
             ))}
           </select>
@@ -236,11 +238,7 @@ export default function Songs() {
             type="button"
             className="icon-btn"
             onClick={() => setParam('dir', dir === 'asc' ? 'desc' : 'asc')}
-            aria-label={
-              dir === 'asc'
-                ? 'Sorted ascending. Switch to descending.'
-                : 'Sorted descending. Switch to ascending.'
-            }
+            aria-label={dir === 'asc' ? t('songs.sortAscending') : t('songs.sortDescending')}
           >
             {dir === 'asc' ? (
               <ArrowUpNarrowWide className="h-5 w-5" aria-hidden />
@@ -252,7 +250,7 @@ export default function Songs() {
       </div>
 
       <p className="sr-only" role="status" aria-live="polite">
-        {filtered ? `${pluralize(shown.length, 'song')} found` : ''}
+        {filtered ? t('songs.found', { count: shown.length }) : ''}
       </p>
 
       <SelectionBar
@@ -265,27 +263,27 @@ export default function Songs() {
             onClick={() => setConfirmDelete(selectedIds)}
           >
             <Trash2 className="h-4 w-4" aria-hidden />
-            <span className="hidden sm:inline">Delete</span>
-            <span className="sr-only sm:hidden">Delete</span>
+            <span className="hidden sm:inline">{t('common.delete')}</span>
+            <span className="sr-only sm:hidden">{t('common.delete')}</span>
           </button>
         }
       />
 
       {shown.length === 0 ? (
         <div className="py-16 text-center">
-          <p className="font-semibold">No songs match your filters.</p>
+          <p className="font-semibold">{t('songs.noMatch')}</p>
           <button
             type="button"
             className="btn-secondary mt-4"
             onClick={() => setParams({}, { replace: true })}
           >
-            Clear filters
+            {t('songs.clearFilters')}
           </button>
         </div>
       ) : (
         <SongList
           tracks={shown}
-          label="Songs"
+          label={t('songs.title')}
           onPlay={(i) =>
             playTracks(
               shown.map((t) => t.id),
@@ -293,13 +291,13 @@ export default function Songs() {
             )
           }
           selection={{ selected, onChange: setSelected }}
-          rowActions={(t) => [
-            ...menuItems([t.id]),
+          rowActions={(track) => [
+            ...menuItems([track.id]),
             {
-              label: 'Delete from library',
+              label: t('songs.deleteFromLibrary'),
               icon: <Trash2 />,
               danger: true,
-              onSelect: () => setConfirmDelete([t.id]),
+              onSelect: () => setConfirmDelete([track.id]),
             },
           ]}
         />
@@ -308,45 +306,42 @@ export default function Songs() {
       <Dialog
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
-        title={`Delete ${pluralize(confirmDelete?.length ?? 0, 'song')}?`}
-        description="The audio is removed from this device and from every playlist. This can't be undone."
+        title={t('songs.confirmDelete', { count: confirmDelete?.length ?? 0 })}
+        description={t('songs.confirmDeleteHelp')}
         footer={
           <>
             <button type="button" className="btn-secondary" onClick={() => setConfirmDelete(null)}>
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="button"
               className="btn-danger"
               onClick={() => confirmDelete && void doDelete(confirmDelete)}
             >
-              Delete
+              {t('common.delete')}
             </button>
           </>
         }
       >
-        <p className="text-sm text-muted">
-          Tip: export a full backup first from the Import page if you might want them back.
-        </p>
+        <p className="text-sm text-muted">{t('songs.backupTip')}</p>
       </Dialog>
     </>
   );
 }
 
 function EmptyLibrary() {
+  const { t } = useI18n();
   return (
     <div className="mx-auto flex max-w-md flex-col items-center py-16 text-center">
       <div className="grid h-20 w-20 place-items-center rounded-full bg-elevated">
         <Music2 className="h-9 w-9 text-muted" aria-hidden />
       </div>
-      <h2 className="mt-5 text-xl font-bold">Your library is empty</h2>
-      <p className="mt-2 text-muted">
-        Import your MP3s. They're kept on this device, so they play even when you're offline.
-      </p>
+      <h2 className="mt-5 text-xl font-bold">{t('songs.emptyTitle')}</h2>
+      <p className="mt-2 text-muted">{t('songs.emptyHelp')}</p>
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         <Link to="/upload" className="btn-primary">
           <Upload className="h-4 w-4" aria-hidden />
-          Import songs
+          {t('songs.importSongs')}
         </Link>
         <DemoSeedButton />
       </div>

@@ -12,6 +12,7 @@
  */
 import type { Playlist, Track } from '@/types';
 import { normalize } from '@/lib/utils';
+import { t } from '@/i18n/core';
 
 export type PlaylistFormat = 'm3u' | 'json';
 
@@ -163,13 +164,12 @@ export function parsePlaylistJSON(text: string, fallbackName: string): ParsedPla
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('This file is not valid JSON.');
+    throw new Error(t('files.notJson'));
   }
   const d = data as Omit<Partial<PlaylistFile>, 'format'> & { format?: string };
-  if (d?.format === 'tunebox-backup')
-    throw new Error('This is a full library backup. Restore it from Import → Backup & restore.');
+  if (d?.format === 'tunebox-backup') throw new Error(t('files.isBackup'));
   if (d?.format !== 'tunebox-playlist' || !Array.isArray(d.tracks))
-    throw new Error('This JSON file is not a Tunebox playlist.');
+    throw new Error(t('files.notPlaylist'));
   const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
   return {
     name: str(d.name) ?? fallbackName,
@@ -237,5 +237,5 @@ export function matchEntries(entries: PlaylistFileEntry[], library: Track[]): Ma
 /** Short human label for an unmatched entry. */
 export function describeEntry(e: PlaylistFileEntry): string {
   if (e.title) return e.artist ? `${e.artist} – ${e.title}` : e.title;
-  return e.fileName ?? 'Unknown song';
+  return e.fileName ?? t('files.unknownSong');
 }

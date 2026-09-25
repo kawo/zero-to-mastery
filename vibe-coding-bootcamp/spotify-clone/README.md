@@ -23,8 +23,9 @@ Import your own MP3s and play them in the browser, even offline. Tunebox reads I
 - **Media Session**: title, artist, album and artwork on the lock screen and in OS media controls, plus play, pause, previous, next and seek actions.
 - **PWA**: installable, with the app shell and all code chunks precached. Artwork thumbnails are served and cached by the service worker. The library, playlists and playback work fully offline.
 - **Backup**: export metadata as JSON, or a full `.zip` with the audio. Restore merges into the current library and relinks songs by content hash.
-- **Accessible**: full keyboard use, visible focus rings, labelled controls, live-region announcements, keyboard drag and drop, and `prefers-reduced-motion` support.
-- **Themes**: light, dark or follow the system, applied before first paint.
+- **Accessible**: full keyboard use, visible focus rings, labelled controls, live-region announcements, keyboard drag and drop, and `prefers-reduced-motion` support. Every page, view, menu and dialog passes an [axe](https://github.com/dequelabs/axe-core) audit (WCAG 2.1 AA) in every theme, in both languages, at desktop and phone width. See [Accessibility](#accessibility).
+- **Themes**: light, dark or follow the system, plus a **high-contrast** variant of each (or follow the system's "increase contrast" setting). Windows high-contrast mode is supported too. The theme is applied before first paint.
+- **English and French**: the whole interface, including messages, screen-reader labels, plurals, and number, size and duration formats. It follows the browser's language, or you pick one in **Appearance and language** (the settings button at the top right).
 
 ## Quick start
 
@@ -155,7 +156,8 @@ spotify-clone/
     ├── main.tsx, App.tsx      # providers + router (lazy route chunks)
     ├── sw.ts                  # service worker (Workbox)
     ├── types.ts               # Track, Playlist, BlobDoc, AppSettings, Queue…
-    ├── styles/tailwind.css    # theme tokens, components, focus, reduced motion
+    ├── styles/tailwind.css    # theme tokens (light, dark, high contrast), components, focus, forced colours
+    ├── i18n/                  # en.ts / fr.ts messages, t(), plurals, locale-aware formatting
     ├── db/
     │   ├── indexedDb.ts       # Dexie schema, versions/migrations, settings, error messages
     │   └── library.ts         # write operations (tracks, playlists, storage)
@@ -273,6 +275,23 @@ erDiagram
 - **Accurate seeking**: on Now Playing, the canvas waveform sits under a transparent, full-width native slider with a 1 px thumb, so a click maps linearly to the time under the pointer (a normal thumb shifts values near the edges). The slider stays for keyboard and screen-reader use, with a focus ring on the waveform.
 - **Visualizer** (`src/components/Visualizer.tsx`): an `AnalyserNode` on a side branch after the EQ (see the diagram below). Opening the visualizer builds the Web Audio graph if it isn't there yet; on iOS it asks first, since that can stop background playback. 56 log-spaced bands from 40 Hz to 16 kHz. Drawing stops a moment after playback pauses; with `prefers-reduced-motion` it redraws about 8 times a second instead of every frame.
 
+### Languages
+
+- **Messages** live in `src/i18n/en.ts` (the source of every key) and `src/i18n/fr.ts`, which is typed against it: a missing or extra French key fails the type check. Components call `const { t } = useI18n()` and re-render when the language changes; non-React code (error messages, toasts built in `lib/`) calls `t()` from `@/i18n/core` when it runs.
+- **Placeholders and plurals**: `t('common.songs', { count: 3 })` picks the `one`/`other` form with `Intl.PluralRules`, so French gets « 0 titre » and « 2 titres ». Numbers in placeholders are formatted for the language (« 1,5 »). `formatBytes`, `formatTotalDuration`, `spokenTime`, `formatPercent` and `formatSpeed` in `src/i18n/format.ts` are locale-aware (« 12,3 Mo », « 1 h 12 min », « 80 % »).
+- **Markup inside messages** (links, `<kbd>`) uses tags that `rich()` swaps for React elements, so translations stay plain text.
+- **Choosing the language**: `language` in settings is `auto`, `en` or `fr`. Auto picks the first supported language in `navigator.languages`. The choice is mirrored to `localStorage` so `index.html` sets `<html lang>` before first paint, and screen readers use the right pronunciation.
+- **Stored placeholders**: untagged songs are stored with the artist “Unknown artist”; `artistName()` and `albumName()` show them in the current language without changing the data.
+- **French conventions**: vouvoiement, typographic apostrophes, « guillemets » around titles, and no-break spaces before « : », « ? » and « ! » (written as `\u00a0` / `\u202f` escapes).
+- **Adding a language**: copy `fr.ts`, translate it, add it to `LOCALES` and `LOCALE_NAMES` in `src/i18n/core.ts`, and extend the two language checks in `index.html` and `public/offline.html`.
+
+### Accessibility
+
+- **Audit**: axe-core finds no violations on any page, Now Playing view, menu or dialog, in light, dark and both high-contrast themes, in English and French, at 1360 px and 390 px.
+- **Contrast**: every text and background pair meets WCAG AA (4.5:1) in the standard themes; the high-contrast themes reach AAA (7:1) and add thicker focus rings, visible control edges and underlined links. Under Windows high contrast (`forced-colors: active`), focus outlines, slider tracks, switches and filled buttons use the system colours.
+- **Keyboard**: a skip link, logical tab order and visible focus everywhere. Menus follow the WAI-ARIA menu button pattern (arrow keys, Home/End, Escape), with radio items and labelled groups in **Appearance and language**. Dialogs are native `<dialog>` elements: focus starts on their first field, stays inside, and returns to the button that opened them. A dialog whose content scrolls with nothing focusable inside (the shortcuts list) makes its body focusable so it can be scrolled.
+- **Screen readers**: labelled landmarks, regions and controls; `aria-pressed` / `aria-checked` / `aria-current` for state; live regions for toasts, the shortcut indicator and drag-and-drop announcements (moved out of lists so list markup stays valid). Menus render inside the nearest landmark or dialog.
+
 ### Lyrics
 
 - **Sources**, in this order: tags read at import (ID3 `USLT`/`SYLT`, Vorbis `LYRICS`; LRC text in a plain lyrics tag counts as synced), a sidecar `.lrc` with the same base name as the audio file, [LRCLIB](https://lrclib.net), or text pasted in the lyrics editor. An `.lrc` imported later attaches to the library track with the same file name.
@@ -314,7 +333,7 @@ Backups live on the **Import** page, under _Backup & restore_.
 
 ## Keyboard shortcuts
 
-Press `?` (or click **Keyboard shortcuts** at the bottom of the sidebar) to see this list in the app. Shortcuts work anywhere except while typing in a field or while a dialog is open. Volume, seek, shuffle and repeat keys show a short indicator at the top of the screen, which screen readers also announce. Letter keys work with Caps Lock on.
+Press `?` (or click **Keyboard shortcuts** at the bottom of the sidebar) to see this list in the app, with key names in the current language (Space / Espace, Shift / Maj, Esc / Échap). Shortcuts work anywhere except while typing in a field or while a dialog is open. Volume, seek, shuffle and repeat keys show a short indicator at the top of the screen, which screen readers also announce. Letter keys work with Caps Lock on.
 
 | Key                                       | Action                                               |
 | ----------------------------------------- | ---------------------------------------------------- |
@@ -358,6 +377,7 @@ An automated run of these steps against the production build passed with Playwri
 
 ## Known limitations
 
+- **Languages**: English and French. Song titles, artists, playlist names and lyrics are your own data and aren't translated. The web app manifest (the installed app's name and description) stays in English.
 - **Storage quotas**: every browser caps how much a site can store, usually a share of free disk space; the exact limits vary by browser and version. The Import page shows your usage and quota, and has a **Make storage persistent** button. If storage fills up, the import stops with an explanation.
 - **Safari and iOS**:
   - The equalizer, normalization and visualizer route audio through Web Audio, which iOS may stop when the screen locks. They're off by default (the visualizer asks first); if background playback stops, turn them off and reload. The waveform seek bar doesn't use it.

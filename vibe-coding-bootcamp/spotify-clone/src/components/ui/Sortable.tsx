@@ -20,6 +20,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMediaQuery } from '@/hooks/useBrowser';
+import { useI18n } from '@/i18n';
 
 export interface SortableRenderProps {
   setNodeRef: (el: HTMLElement | null) => void;
@@ -59,25 +60,27 @@ export function SortableList<T>({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const ids = items.map(getId);
+  const { t } = useI18n();
   const labelOf = (id: string | number) => {
     const i = ids.indexOf(String(id));
-    return i >= 0 ? getLabel(items[i]!) : 'item';
+    return i >= 0 ? getLabel(items[i]!) : t('sortable.item');
   };
   const pos = (id: string | number) => ids.indexOf(String(id)) + 1;
 
+  const total = ids.length;
   const announcements: Announcements = {
     onDragStart: ({ active }) =>
-      `Picked up ${labelOf(active.id)}, position ${pos(active.id)} of ${ids.length}.`,
+      t('sortable.pickedUp', { name: labelOf(active.id), position: pos(active.id), total }),
     onDragOver: ({ active, over }) =>
       over
-        ? `${labelOf(active.id)} moved to position ${pos(over.id)} of ${ids.length}.`
+        ? t('sortable.moved', { name: labelOf(active.id), position: pos(over.id), total })
         : undefined,
     onDragEnd: ({ active, over }) =>
       over
-        ? `${labelOf(active.id)} dropped at position ${pos(over.id)} of ${ids.length}.`
-        : `${labelOf(active.id)} dropped.`,
+        ? t('sortable.dropped', { name: labelOf(active.id), position: pos(over.id), total })
+        : t('sortable.droppedAnywhere', { name: labelOf(active.id) }),
     onDragCancel: ({ active }) =>
-      `Reordering cancelled. ${labelOf(active.id)} returned to position ${pos(active.id)}.`,
+      t('sortable.cancelled', { name: labelOf(active.id), position: pos(active.id) }),
   };
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
@@ -94,10 +97,9 @@ export function SortableList<T>({
       onDragEnd={onDragEnd}
       accessibility={{
         announcements,
-        screenReaderInstructions: {
-          draggable:
-            'To reorder, press Space or Enter to pick up. Use the arrow keys to move, Space or Enter to drop, Escape to cancel.',
-        },
+        screenReaderInstructions: { draggable: t('sortable.instructions') },
+        // The live region goes to <body>: inside the <ol>/<ul> it would be invalid list content.
+        container: typeof document !== 'undefined' ? document.body : undefined,
       }}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy} disabled={disabled}>

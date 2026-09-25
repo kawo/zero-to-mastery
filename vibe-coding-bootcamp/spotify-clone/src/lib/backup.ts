@@ -12,6 +12,7 @@
 import { db, getSettings, updateSettings } from '@/db/indexedDb';
 import { uid } from '@/lib/utils';
 import type { BackupFile, BlobDoc, BlobKind, Playlist, Track } from '@/types';
+import { t } from '@/i18n/core';
 
 const EXT: Record<string, string> = {
   'audio/mpeg': 'mp3',
@@ -118,12 +119,9 @@ function assertBackup(value: unknown): asserts value is BackupFile {
     !Array.isArray(v.tracks) ||
     !Array.isArray(v.playlists)
   ) {
-    throw new Error('This file is not a Tunebox backup.');
+    throw new Error(t('files.notBackup'));
   }
-  if (v.version !== 1)
-    throw new Error(
-      `Backup version ${String(v.version)} is not supported by this version of Tunebox.`,
-    );
+  if (v.version !== 1) throw new Error(t('files.backupVersion', { version: String(v.version) }));
 }
 
 /** Restores a `.json` or `.zip` backup, merging into the current library. */
@@ -135,19 +133,17 @@ export async function importBackup(file: File): Promise<RestoreSummary> {
     const { unzip } = await import('fflate');
     const bytes = new Uint8Array(await file.arrayBuffer());
     const unzipped = await new Promise<Record<string, Uint8Array>>((resolve, reject) =>
-      unzip(bytes, (err, out) =>
-        err ? reject(new Error('The zip file is damaged or incomplete.')) : resolve(out),
-      ),
+      unzip(bytes, (err, out) => (err ? reject(new Error(t('files.zipDamaged'))) : resolve(out))),
     );
     zipFiles = unzipped;
     const json = unzipped['backup.json'];
-    if (!json) throw new Error('The zip has no backup.json inside. Was it exported from Tunebox?');
+    if (!json) throw new Error(t('files.zipNoManifest'));
     manifest = JSON.parse(new TextDecoder().decode(json)) as BackupFile;
   } else {
     try {
       manifest = JSON.parse(await file.text()) as BackupFile;
     } catch {
-      throw new Error('The backup file is not valid JSON.');
+      throw new Error(t('files.backupNotJson'));
     }
   }
   assertBackup(manifest);

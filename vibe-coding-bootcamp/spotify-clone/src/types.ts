@@ -3,6 +3,7 @@
  * Everything lives in the browser (IndexedDB); there is no server.
  */
 
+import type { LanguagePreference } from '@/i18n/core';
 import type { EqSettings } from '@/lib/eq';
 
 /** Epoch milliseconds. */
@@ -105,6 +106,8 @@ export interface Playlist {
 
 export type RepeatMode = 'off' | 'all' | 'one';
 export type ThemePreference = 'light' | 'dark' | 'system';
+/** 'system' follows the OS "increase contrast" setting (prefers-contrast: more). */
+export type ContrastPreference = 'standard' | 'high' | 'system';
 
 /** One slot in the play queue. `uid` keeps duplicates of the same track distinct. */
 export interface QueueItem {
@@ -123,6 +126,9 @@ export interface QueueState {
 /** Single row in the `app` store (key: 'settings'). */
 export interface AppSettings {
   theme: ThemePreference;
+  contrast: ContrastPreference;
+  /** 'auto' follows the browser/OS language. */
+  language: LanguagePreference;
   repeat: RepeatMode;
   shuffle: boolean;
   volume: number;

@@ -7,6 +7,7 @@ import { usePlayer } from '@/hooks/usePlayer';
 import { formatTime } from '@/lib/audio';
 import { cn } from '@/lib/utils';
 import type { Track } from '@/types';
+import { albumName, artistName, useI18n } from '@/i18n';
 
 export interface SongListProps {
   tracks: Track[];
@@ -34,6 +35,7 @@ export function SongList({
   showAlbum = true,
 }: SongListProps) {
   const { currentTrack, isPlaying } = usePlayer();
+  const { t } = useI18n();
   const anchor = useRef<number | null>(null);
 
   const toggle = (index: number, shift: boolean) => {
@@ -89,7 +91,7 @@ export function SongList({
               type="checkbox"
               className="h-4 w-4 accent-[rgb(var(--accent))]"
               checked={allSelected}
-              aria-label={allSelected ? 'Deselect all songs' : 'Select all songs'}
+              aria-label={allSelected ? t('songList.deselectAll') : t('songList.selectAll')}
               onChange={() =>
                 selection.onChange(allSelected ? new Set() : new Set(tracks.map((t) => t.id)))
               }
@@ -97,9 +99,9 @@ export function SongList({
           ) : null}
           <span className="w-10" />
         </div>
-        <span>Title</span>
-        <span className="hidden md:block">{showAlbum ? 'Album' : ''}</span>
-        <Clock className="h-4 w-4 justify-self-end" aria-label="Duration" />
+        <span>{t('songList.title')}</span>
+        <span className="hidden md:block">{showAlbum ? t('songList.album') : ''}</span>
+        <Clock className="h-4 w-4 justify-self-end" aria-label={t('songList.duration')} />
         <span className="w-10" />
       </div>
       <ul aria-label={label} className="mt-1">
@@ -147,6 +149,7 @@ const SongRow = memo(function SongRow({
 }: SongRowProps) {
   const style: CSSProperties | undefined = sortable?.style;
   const play = () => onPlay(index);
+  const { t } = useI18n();
   return (
     <li
       ref={sortable?.setNodeRef}
@@ -169,7 +172,7 @@ const SongRow = memo(function SongRow({
             ref={sortable.setHandleRef}
             {...sortable.handleProps}
             {...sortable.handleListeners}
-            aria-label={`Reorder ${track.title}`}
+            aria-label={t('common.reorder', { name: track.title })}
             className="-ml-1 grid h-8 w-6 cursor-grab touch-none place-items-center rounded text-muted hover:text-fg active:cursor-grabbing"
           >
             <GripVertical className="h-4 w-4" aria-hidden />
@@ -180,7 +183,7 @@ const SongRow = memo(function SongRow({
             type="checkbox"
             className="h-4 w-4 accent-[rgb(var(--accent))]"
             checked={!!selected}
-            aria-label={`Select ${track.title}`}
+            aria-label={t('common.select', { name: track.title })}
             onChange={(e) => onToggle(index, (e.nativeEvent as MouseEvent).shiftKey)}
             onDoubleClick={(e) => e.stopPropagation()}
           />
@@ -212,25 +215,30 @@ const SongRow = memo(function SongRow({
             'block max-w-full truncate text-left font-medium hover:underline',
             isCurrent && 'text-accent',
           )}
-          aria-label={`Play ${track.title} by ${track.artist}${track.audioMissing ? ' (audio not on this device)' : ''}`}
+          aria-label={
+            t('common.playByArtist', { title: track.title, artist: artistName(track.artist) }) +
+            (track.audioMissing ? t('common.audioMissingSuffix') : '')
+          }
         >
           {track.title}
         </button>
         <p className="flex items-center gap-1 truncate text-sm text-muted">
           {track.audioMissing && (
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-danger" aria-hidden>
-              <title>Audio not on this device. Import the file to relink.</title>
+              <title>{t('common.audioMissingHint')}</title>
             </AlertTriangle>
           )}
-          <span className="truncate">{track.artist}</span>
-          {showAlbum && <span className="truncate md:hidden"> · {track.album}</span>}
+          <span className="truncate">{artistName(track.artist)}</span>
+          {showAlbum && <span className="truncate md:hidden"> · {albumName(track.album)}</span>}
         </p>
       </div>
 
-      <p className="hidden truncate text-sm text-muted md:block">{showAlbum ? track.album : ''}</p>
+      <p className="hidden truncate text-sm text-muted md:block">
+        {showAlbum ? albumName(track.album) : ''}
+      </p>
       <p className="text-right text-sm tabular-nums text-muted">{formatTime(track.duration)}</p>
       <Menu
-        label={`More options for ${track.title}`}
+        label={t('common.moreOptions', { name: track.title })}
         items={actions}
         className="opacity-100 md:opacity-0 md:focus-visible:opacity-100 md:group-hover:opacity-100 md:aria-expanded:opacity-100"
       />
