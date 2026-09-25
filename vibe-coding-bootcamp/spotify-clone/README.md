@@ -250,7 +250,7 @@ Press `?` (or click **Keyboard shortcuts** at the bottom of the sidebar) to see 
 
 Arrow keys are left alone when the focused control uses them itself: the timeline and volume sliders, menus, and drag handles.
 
-**Media keys**: the play/pause, next, previous and stop keys on keyboards and headsets, and the OS media controls, go through the Media Session API. They work even when Tunebox isn't the focused tab. In browsers without Media Session, the same keys are handled as ordinary key presses while the tab has focus.
+**Media keys**: the play/pause, next, previous and stop keys on keyboards and headsets, and the OS media controls, go through the Media Session API. They work even when Tunebox isn't the focused tab, as long as the OS sends them to Tunebox. The OS sends media keys to one "current" media player, and that can switch to another tab or app once Tunebox pauses (for example a paused video in another browser). When the Tunebox tab has focus, the page therefore also listens for media keys itself: if a key hasn't reached the Media Session within 400 ms, the page handles it, so nothing fires twice. In browsers without Media Session, the page always handles them while the tab has focus. If media keys go to another app while Tunebox is in the background, close that app's media or play Tunebox again.
 
 ## Acceptance test (manual script)
 
