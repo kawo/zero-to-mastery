@@ -14,33 +14,40 @@ export async function deleteTracks(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const idSet = new Set(ids);
   const evicted: string[] = [];
-  await db.transaction('rw', [db.tracks, db.blobs, db.playlists, db.resumePoints], async () => {
-    const tracks = (await db.tracks.bulkGet(ids)).filter((t): t is Track => !!t);
-    const artworkIds = new Set(tracks.map((t) => t.artworkBlobId).filter((x): x is string => !!x));
+  await db.transaction(
+    'rw',
+    [db.tracks, db.blobs, db.playlists, db.resumePoints, db.lyrics],
+    async () => {
+      const tracks = (await db.tracks.bulkGet(ids)).filter((t): t is Track => !!t);
+      const artworkIds = new Set(
+        tracks.map((t) => t.artworkBlobId).filter((x): x is string => !!x),
+      );
 
-    await db.tracks.bulkDelete(ids);
-    await db.resumePoints.bulkDelete(ids);
-    await db.blobs.bulkDelete(tracks.map((t) => t.audioBlobId));
-    evicted.push(...tracks.map((t) => t.audioBlobId));
+      await db.tracks.bulkDelete(ids);
+      await db.resumePoints.bulkDelete(ids);
+      await db.lyrics.bulkDelete(ids);
+      await db.blobs.bulkDelete(tracks.map((t) => t.audioBlobId));
+      evicted.push(...tracks.map((t) => t.audioBlobId));
 
-    // Artwork is shared across an album: only delete it when nothing references it anymore.
-    for (const artId of artworkIds) {
-      const stillUsed = await db.tracks.where('artworkBlobId').equals(artId).count();
-      if (!stillUsed) {
-        await db.blobs.delete(artId);
-        evicted.push(artId);
+      // Artwork is shared across an album: only delete it when nothing references it anymore.
+      for (const artId of artworkIds) {
+        const stillUsed = await db.tracks.where('artworkBlobId').equals(artId).count();
+        if (!stillUsed) {
+          await db.blobs.delete(artId);
+          evicted.push(artId);
+        }
       }
-    }
 
-    const now = Date.now();
-    await db.playlists.toCollection().modify((p) => {
-      const next = p.trackIds.filter((id) => !idSet.has(id));
-      if (next.length !== p.trackIds.length) {
-        p.trackIds = next;
-        p.updatedAt = now;
-      }
-    });
-  });
+      const now = Date.now();
+      await db.playlists.toCollection().modify((p) => {
+        const next = p.trackIds.filter((id) => !idSet.has(id));
+        if (next.length !== p.trackIds.length) {
+          p.trackIds = next;
+          p.updatedAt = now;
+        }
+      });
+    },
+  );
   evicted.forEach(evictBlobUrl);
 }
 

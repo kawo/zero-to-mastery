@@ -189,9 +189,11 @@ async function importHashed(
       createdAt: now,
       updatedAt: now,
     };
-    await db.transaction('rw', db.tracks, db.blobs, async () => {
+    await db.transaction('rw', db.tracks, db.blobs, db.lyrics, async () => {
       await putBlobsIfAbsent(blobs);
       await db.tracks.add(track);
+      if (meta.lyrics)
+        await db.lyrics.put({ trackId: id, ...meta.lyrics, source: 'embedded', updatedAt: now });
     });
     return {
       status: 'done',

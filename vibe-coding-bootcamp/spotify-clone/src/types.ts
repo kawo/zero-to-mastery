@@ -56,6 +56,25 @@ export interface ResumePoint {
   updatedAt: Timestamp;
 }
 
+export type LyricsSource = 'embedded' | 'file' | 'lrclib' | 'manual';
+
+/** Lyrics for one track, in the `lyrics` store (key: trackId). */
+export interface LyricsDoc {
+  trackId: string;
+  /** Time-synced lyrics in LRC format. */
+  lrc?: string;
+  /** Plain (unsynced) lyrics. */
+  plain?: string;
+  /** The track is instrumental (as reported by LRCLIB). */
+  instrumental?: boolean;
+  /** An online lookup found nothing; retried after a while or on request. */
+  notFound?: boolean;
+  source?: LyricsSource;
+  /** User timing correction in ms; positive shows lines sooner. */
+  offsetMs?: number;
+  updatedAt: Timestamp;
+}
+
 export type BlobKind = 'audio' | 'artwork';
 
 export interface BlobDoc {
@@ -112,6 +131,8 @@ export interface AppSettings {
   playbackRate: number;
   /** Play every track at the same loudness. */
   normalize: boolean;
+  /** Look up missing lyrics on lrclib.net when the lyrics view opens. */
+  lyricsOnline: boolean;
   eq: EqSettings;
 }
 
@@ -145,6 +166,8 @@ export interface BackupFile {
   tracks: Track[];
   playlists: Playlist[];
   settings?: Pick<AppSettings, 'theme' | 'repeat' | 'shuffle' | 'volume'>;
+  /** Lyrics by backup track id (optional; older backups have none). */
+  lyrics?: LyricsDoc[];
   /** blobId → path inside the zip (only when `includesAudio`). */
   files?: Record<string, { path: string; type: BlobKind; mimeType: string }>;
 }

@@ -1,6 +1,14 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { DEFAULT_EQ } from '@/lib/eq';
-import type { AppRow, AppSettings, BlobDoc, Playlist, ResumePoint, Track } from '@/types';
+import type {
+  AppRow,
+  AppSettings,
+  BlobDoc,
+  LyricsDoc,
+  Playlist,
+  ResumePoint,
+  Track,
+} from '@/types';
 
 /** Also read directly (without Dexie) by the service worker to serve artwork. */
 export const DB_NAME = 'tunebox';
@@ -11,6 +19,7 @@ export type TuneboxDb = Dexie & {
   playlists: EntityTable<Playlist, 'id'>;
   app: EntityTable<AppRow, 'key'>;
   resumePoints: EntityTable<ResumePoint, 'trackId'>;
+  lyrics: EntityTable<LyricsDoc, 'trackId'>;
 };
 
 export const db = new Dexie(DB_NAME) as TuneboxDb;
@@ -47,6 +56,11 @@ db.version(3).stores({
   resumePoints: 'trackId',
 });
 
+// v4 added lyrics (embedded, .lrc files, LRCLIB or pasted), one row per track.
+db.version(4).stores({
+  lyrics: 'trackId',
+});
+
 // Another tab upgraded the schema: close so it isn't blocked, then reload into the new code.
 db.on('versionchange', () => {
   db.close();
@@ -66,6 +80,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   crossfade: 0,
   playbackRate: 1,
   normalize: false,
+  lyricsOnline: true,
   eq: DEFAULT_EQ,
 };
 

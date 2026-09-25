@@ -1,4 +1,6 @@
+import type { ILyricsTag } from 'music-metadata';
 import { probeDuration } from '@/lib/audio';
+import { isLrc, toLrc } from '@/lib/lrc';
 
 export interface ParsedPicture {
   data: Uint8Array;
@@ -17,6 +19,8 @@ export interface ParsedMetadata {
   picture?: ParsedPicture;
   /** True when tags were missing/unreadable and we fell back to the file name. */
   fromFileName: boolean;
+  /** Lyrics embedded in the tags (ID3 USLT/SYLT, Vorbis LYRICS…). */
+  lyrics?: { lrc?: string; plain?: string };
 }
 
 export const UNKNOWN_ARTIST = 'Unknown artist';
@@ -82,6 +86,7 @@ export async function extractMetadata(file: File): Promise<ParsedMetadata> {
           ? { data: cover.data, mimeType: normalizeImageMime(cover.format) }
           : undefined,
       fromFileName: !clean(common.title),
+      lyrics: embeddedLyrics(common.lyrics),
     };
   } catch (err) {
     console.warn(`Tag parsing failed for ${file.name}; using the file name.`, err);
@@ -94,6 +99,27 @@ export async function extractMetadata(file: File): Promise<ParsedMetadata> {
       fromFileName: true,
     };
   }
+}
+
+/** ID3 SYLT timestamp format: absolute milliseconds (the other one, MPEG frames, is rare). */
+const SYLT_MILLISECONDS = 2;
+
+/** Prefers synced lyrics (SYLT, or LRC text in a lyrics tag) over plain text. */
+function embeddedLyrics(tags: ILyricsTag[] | undefined): ParsedMetadata['lyrics'] {
+  let lrc: string | undefined;
+  let plain: string | undefined;
+  for (const tag of tags ?? []) {
+    const timed = tag.syncText?.filter((l) => l.timestamp !== undefined) ?? [];
+    if (!lrc && timed.length && Number(tag.timeStampFormat) === SYLT_MILLISECONDS) {
+      lrc = toLrc(timed.map((l) => ({ time: l.timestamp! / 1000, text: l.text.trim() })));
+    }
+    const text = tag.text?.trim();
+    if (text) {
+      if (isLrc(text)) lrc ??= text;
+      else plain ??= text;
+    }
+  }
+  return lrc || plain ? { lrc, plain } : undefined;
 }
 
 function normalizeImageMime(format: string | undefined): string {

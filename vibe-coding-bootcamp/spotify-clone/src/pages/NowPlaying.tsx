@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Disc3, ListPlus, Play } from 'lucide-react';
+import { Disc3, ListPlus, MicVocal, Play } from 'lucide-react';
 import { Artwork } from '@/components/Artwork';
+import { LyricsView } from '@/components/Lyrics';
 import { QueueToggle } from '@/components/PlayerBar';
 import { Timeline, TransportControls, VolumeControl } from '@/components/PlayerControls';
 import { SoundButton } from '@/components/SoundPanel';
@@ -9,6 +10,7 @@ import { TopBar } from '@/components/TopBar';
 import { useBlobUrl, useLibrary } from '@/hooks/useIndexedDb';
 import { usePlayer } from '@/hooks/usePlayer';
 import { dominantColor, hueFrom, hslToRgb, type Rgb } from '@/lib/audio';
+import { cn } from '@/lib/utils';
 import { useUi } from '@/state/contexts';
 
 /** Background tint from the artwork's dominant colour (or the placeholder hue). */
@@ -29,10 +31,33 @@ function useTint(blobId: string | undefined, seed: string): Rgb {
   return hslToRgb(hueFrom(seed), 0.55, 0.4);
 }
 
+const LYRICS_KEY = 'tunebox-lyrics-open';
+
+/** Whether the lyrics replace the artwork; remembered per browser. */
+function useLyricsOpen() {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(LYRICS_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const set = (v: boolean) => {
+    setOpen(v);
+    try {
+      localStorage.setItem(LYRICS_KEY, v ? '1' : '0');
+    } catch {
+      /* per-viewer convenience only */
+    }
+  };
+  return [open, set] as const;
+}
+
 export default function NowPlaying() {
   const { currentTrack, queue, index, playTracks } = usePlayer();
   const { tracks, byId } = useLibrary();
   const { addToPlaylist, setQueueOpen } = useUi();
+  const [lyricsOpen, setLyricsOpen] = useLyricsOpen();
   const tint = useTint(
     currentTrack?.artworkBlobId,
     currentTrack?.hash ?? currentTrack?.id ?? 'none',
@@ -97,15 +122,39 @@ export default function NowPlaying() {
         aria-hidden
       />
       <div className="relative">
-        <TopBar title="Now Playing" actions={<QueueToggle />} />
+        <TopBar
+          title="Now Playing"
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={() => setLyricsOpen(!lyricsOpen)}
+                aria-pressed={lyricsOpen}
+                title={lyricsOpen ? 'Show artwork' : 'Show lyrics'}
+                className={cn('icon-btn relative', lyricsOpen && 'text-accent hover:text-accent')}
+              >
+                <MicVocal className="h-5 w-5" aria-hidden />
+                <span className="sr-only">Lyrics</span>
+                {lyricsOpen && (
+                  <span className="absolute bottom-1 h-1 w-1 rounded-full bg-accent" aria-hidden />
+                )}
+              </button>
+              <QueueToggle />
+            </>
+          }
+        />
 
         <div className="mx-auto grid max-w-5xl items-center gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-12">
-          <Artwork
-            track={currentTrack}
-            size="lg"
-            alt={`Artwork for ${currentTrack.album}`}
-            className="mx-auto max-w-sm shadow-2xl md:max-w-md"
-          />
+          {lyricsOpen ? (
+            <LyricsView track={currentTrack} className="h-[55vh] md:h-[32rem]" />
+          ) : (
+            <Artwork
+              track={currentTrack}
+              size="lg"
+              alt={`Artwork for ${currentTrack.album}`}
+              className="mx-auto max-w-sm shadow-2xl md:max-w-md"
+            />
+          )}
 
           <div className="flex flex-col gap-6">
             <div className="flex items-start justify-between gap-3">

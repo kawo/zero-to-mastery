@@ -28,10 +28,11 @@ const EXT: Record<string, string> = {
 };
 
 async function buildManifest(includesAudio: boolean): Promise<BackupFile> {
-  const [tracks, playlists, settings] = await Promise.all([
+  const [tracks, playlists, settings, lyrics] = await Promise.all([
     db.tracks.toArray(),
     db.playlists.toArray(),
     getSettings(),
+    db.lyrics.toArray(),
   ]);
   return {
     format: 'tunebox-backup',
@@ -40,6 +41,7 @@ async function buildManifest(includesAudio: boolean): Promise<BackupFile> {
     includesAudio,
     tracks,
     playlists,
+    lyrics: lyrics.filter((l) => l.lrc || l.plain || l.instrumental),
     settings: {
       theme: settings.theme,
       repeat: settings.repeat,
@@ -161,7 +163,7 @@ export async function importBackup(file: File): Promise<RestoreSummary> {
   const now = Date.now();
 
   const zip = zipFiles;
-  await db.transaction('rw', [db.tracks, db.blobs, db.playlists], async () => {
+  await db.transaction('rw', [db.tracks, db.blobs, db.playlists, db.lyrics], async () => {
     for (const t of manifest.tracks) {
       const local = await db.tracks.where('hash').equals(t.hash).first();
       if (local) {
@@ -202,6 +204,15 @@ export async function importBackup(file: File): Promise<RestoreSummary> {
       await db.tracks.add(track);
       summary.tracksAdded++;
       if (!hasAudio) summary.tracksMissingAudio++;
+    }
+
+    // Lyrics restore onto the mapped track, without overwriting lyrics already here.
+    for (const l of manifest.lyrics ?? []) {
+      const trackId = idMap.get(l.trackId);
+      if (!trackId) continue;
+      const existing = await db.lyrics.get(trackId);
+      if (existing && (existing.lrc || existing.plain)) continue;
+      await db.lyrics.put({ ...l, trackId });
     }
 
     for (const p of manifest.playlists) {

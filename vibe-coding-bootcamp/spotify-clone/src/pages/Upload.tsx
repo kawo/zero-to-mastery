@@ -26,6 +26,7 @@ import {
   importBackup,
 } from '@/lib/backup';
 import { importFiles, isAudioFile } from '@/lib/importer';
+import { attachLyricsFiles, isLyricsFile } from '@/lib/lyrics';
 import { cn, downloadBlob, formatBytes, pluralize, uid } from '@/lib/utils';
 import { useToast } from '@/state/contexts';
 import type { ImportItem, ImportStatus } from '@/types';
@@ -65,14 +66,30 @@ export default function Upload() {
     return () => window.removeEventListener('beforeunload', onUnload);
   }, [busy]);
 
+  /** .lrc files attach to songs with the same file name (just imported or already here). */
+  const addLyricsFiles = async (lrc: File[]) => {
+    if (!lrc.length) return;
+    const matched = await attachLyricsFiles(lrc);
+    toast({
+      tone: matched ? 'success' : 'info',
+      message: matched
+        ? `Added lyrics to ${pluralize(matched, 'song')}${matched < lrc.length ? ` (${lrc.length - matched} .lrc ${lrc.length - matched === 1 ? "file didn't" : "files didn't"} match a song's file name)` : ''}.`
+        : `None of the ${pluralize(lrc.length, '.lrc file')} match a song's file name. Name them like the audio file (Song.mp3 → Song.lrc).`,
+    });
+  };
+
   const onFiles = async (files: File[]) => {
+    const lrc = files.filter(isLyricsFile);
     const audio = files.filter(isAudioFile);
-    const skipped = files.length - audio.length;
+    const skipped = files.length - audio.length - lrc.length;
     if (skipped)
       toast(
-        `Skipped ${pluralize(skipped, 'file')} that ${skipped === 1 ? "isn't" : "aren't"} audio.`,
+        `Skipped ${pluralize(skipped, 'file')} that ${skipped === 1 ? "isn't" : "aren't"} audio or lyrics.`,
       );
-    if (!audio.length) return;
+    if (!audio.length) {
+      await addLyricsFiles(lrc);
+      return;
+    }
 
     const entries = audio.map((file) => ({ key: uid(), file }));
     setItems(
@@ -102,6 +119,7 @@ export default function Upload() {
         tone: res.failed && !res.added ? 'error' : 'success',
         message: `Import finished: ${parts.join(', ')}.`,
       });
+      await addLyricsFiles(lrc);
     } finally {
       setBusy(false);
       refreshStorage();

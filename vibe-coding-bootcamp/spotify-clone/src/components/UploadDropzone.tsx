@@ -67,7 +67,8 @@ export function UploadDropzone({ onFiles, disabled }: UploadDropzoneProps) {
       <div>
         <p className="text-lg font-bold">Drop MP3s or a folder here</p>
         <p id={hintId} className="mt-1 text-sm text-muted">
-          Files stay on this device. Nothing is uploaded to a server.
+          Files stay on this device. Nothing is uploaded to a server. Add .lrc files with the same
+          name as a song to give it synced lyrics.
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
@@ -94,7 +95,7 @@ export function UploadDropzone({ onFiles, disabled }: UploadDropzoneProps) {
       <input
         ref={fileInput}
         type="file"
-        accept="audio/*,.mp3,.m4a,.flac,.ogg,.opus,.wav"
+        accept="audio/*,.mp3,.m4a,.flac,.ogg,.opus,.wav,.lrc"
         multiple
         hidden
         onChange={(e) => {

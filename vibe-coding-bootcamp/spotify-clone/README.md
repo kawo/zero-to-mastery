@@ -15,6 +15,7 @@ Import your own MP3s and play them in the browser, even offline. Tunebox reads I
 - **Playlists** (`/playlists`, `/playlists/:id`): create, rename and delete playlists. You can add songs from a picker or from any song list, remove them, and reorder them with drag and drop (mouse, touch long-press or keyboard). You can also search inside a playlist. Export a playlist from its **⋯** menu as M3U (`.m3u8`, readable by VLC, foobar2000 and most players) or Tunebox JSON, and import either on the Playlists page. Imported entries are matched to songs already in your library by content hash, then file name, then artist and title; the toast lists any that weren't found.
 - **Now Playing** (`/now-playing`): large artwork on a backdrop tinted with the artwork's dominant colour, and a scrubbable timeline driven by `requestAnimationFrame`. It has play/pause, previous/next, shuffle, repeat (off, all, one), volume, a **Sound** button and an "Up next" preview.
 - **Gapless playback and crossfade**: the next song is preloaded, so songs follow each other with no gap. Set **Crossfade** in the Sound panel (off, or 1–12 s) to overlap the end of each song with the start of the next.
+- **Lyrics** (the microphone button on Now Playing): synced lyrics highlight and follow the song (click a line to jump there, nudge the timing with − / +); plain lyrics scroll. **Karaoke** mode shows the current line full screen, filling in as it's sung (word by word when the LRC has word timings). Lyrics come from the file's tags, from `.lrc` files imported with the songs (or later, matched by file name), from [LRCLIB](https://lrclib.net), or are pasted by hand. They're stored on the device, so they work offline.
 - **Sound panel** (the sliders button in the player bar, or **Sound** on Now Playing): playback speed (0.5×–2×, pitch preserved), crossfade, volume normalization (every song at about −14 LUFS), and a 10-band equalizer with presets or custom bands. All settings are saved.
 - **Queue**: a collapsible panel (side panel on desktop, bottom sheet on mobile) with drag-to-reorder, remove, clear and jump-to. It restores after a reload, including the last position.
 - **Media Session**: title, artist, album and artwork on the lock screen and in OS media controls, plus play, pause, previous, next and seek actions.
@@ -213,6 +214,14 @@ erDiagram
 - The timeline reads `audio.currentTime` on `requestAnimationFrame`, but only inside the timeline component, so the rest of the UI doesn't re-render every frame. Dragging previews the position and seeks on release. Arrow keys seek 5 s.
 - A play counts after 30 s (or half of a short track). Play counts drive the "Most played" sort.
 - **Resume**: songs of 10 minutes or more (mixes, audiobooks, podcasts) remember where you stopped, and pick up there the next time you play them, with a toast saying so. Press Previous to start over. The spot is saved every 5 s, on pause, when you switch songs and when the tab is hidden. It's forgotten once you're within 10 s of the start or 15 s of the end. Resume points live in their own `resumePoints` store, so saving them doesn't refresh the library views.
+
+### Lyrics
+
+- **Sources**, in this order: tags read at import (ID3 `USLT`/`SYLT`, Vorbis `LYRICS`; LRC text in a plain lyrics tag counts as synced), a sidecar `.lrc` with the same base name as the audio file, [LRCLIB](https://lrclib.net), or text pasted in the lyrics editor. An `.lrc` imported later attaches to the library track with the same file name.
+- **LRCLIB** is only asked when the lyrics view opens for a song with nothing stored (and for the next song in the queue). The request sends the title, artist, album and duration, nothing else: an exact `/api/get` first, then `/api/search`, preferring synced lyrics within 8 s of the track's length. A miss is remembered for 7 days; **Search LRCLIB again** in the lyrics menu retries now, and **Stop searching online** turns lookups off (`lyricsOnline` in settings).
+- **Storage**: the `lyrics` store (added in v4), one row per track: `lrc` and/or `plain`, `source`, `instrumental`, `notFound`, and `offsetMs` (the per-song timing correction). Deleted with the track; included in backups and restored onto the matching track.
+- **LRC parsing** (`src/lib/lrc.ts`) handles `mm:ss`, `.x`/`.xx`/`.xxx` and `:xx` fractions, several timestamps per line, `[offset:±ms]`, and enhanced per-word `<mm:ss.xx>` timings.
+- **Karaoke** is a full-screen `<dialog>`: Space plays or pauses (even with a button focused), ← / → seek, Esc closes.
 
 ### Equalizer and normalization
 
