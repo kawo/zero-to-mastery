@@ -4,6 +4,7 @@
  * play every track at the same target loudness.
  */
 import { db } from '@/db/indexedDb';
+import { decodeForAnalysis } from '@/lib/decode';
 import type { Loudness, Track } from '@/types';
 
 /** Target loudness, as used by most streaming services. */
@@ -30,9 +31,7 @@ export function normalizationGainDb(loudness: Loudness | null | undefined): numb
 export async function measureLoudness(blob: Blob, duration: number): Promise<Loudness | null> {
   if (duration > MAX_ANALYZE_SECONDS || typeof OfflineAudioContext === 'undefined') return null;
   const sampleRate = duration > 10 * 60 ? 8000 : 22050;
-  const decoded = await new OfflineAudioContext(1, 1, sampleRate).decodeAudioData(
-    await blob.arrayBuffer(),
-  );
+  const decoded = await decodeForAnalysis(blob, sampleRate);
 
   // K-weighting: a high shelf (+4 dB above ~1.7 kHz) and a high-pass at ~38 Hz.
   const ctx = new OfflineAudioContext(decoded.numberOfChannels, decoded.length, decoded.sampleRate);

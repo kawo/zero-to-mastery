@@ -1,13 +1,13 @@
 /**
- * Web Audio routing for the equalizer and loudness normalization.
+ * Web Audio routing for the equalizer, loudness normalization and visualizer.
  *
  *   deck A <audio> ─► source ─► gain (normalization A) ─┐
  *                                                       ├─► preamp ─► 10 peaking EQ bands ─► speakers
- *   deck B <audio> ─► source ─► gain (normalization B) ─┘
+ *   deck B <audio> ─► source ─► gain (normalization B) ─┘                     └─► analyser (visualizer)
  *
- * Built lazily, the first time the EQ or normalization is switched on. Once an
+ * Built lazily, the first time the EQ, normalization or visualizer is switched on. Once an
  * element is routed through Web Audio it can't be un-routed, and on iOS audio that
- * goes through Web Audio can stop when the screen locks, so with both effects off
+ * goes through Web Audio can stop when the screen locks, so with all three off
  * the app never creates it and playback stays on the plain <audio> path.
  *
  * Element `volume` and `muted` still apply before the source node, so the volume
@@ -19,6 +19,7 @@ interface Graph {
   ctx: AudioContext;
   preamp: GainNode;
   bands: BiquadFilterNode[];
+  analyser: AnalyserNode;
   decks: Map<HTMLAudioElement, GainNode>;
 }
 
@@ -47,8 +48,14 @@ export function ensureSoundGraph(elements: readonly (HTMLAudioElement | null)[])
       return f;
     });
     [preamp, ...bands].reduce((a, b) => (a.connect(b), b));
-    bands[bands.length - 1]!.connect(ctx.destination);
-    graph = { ctx, preamp, bands, decks: new Map() };
+    const out = bands[bands.length - 1]!;
+    out.connect(ctx.destination);
+    // A side branch for the visualizer: it reads the audio, it doesn't pass it on.
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.8;
+    out.connect(analyser);
+    graph = { ctx, preamp, bands, analyser, decks: new Map() };
   }
   for (const el of elements) {
     if (!el || graph.decks.has(el)) continue;
@@ -58,6 +65,11 @@ export function ensureSoundGraph(elements: readonly (HTMLAudioElement | null)[])
   }
   void resumeSoundGraph();
   return true;
+}
+
+/** The visualizer's analyser, building the graph if needed. Null without Web Audio. */
+export function getAnalyser(elements: readonly (HTMLAudioElement | null)[]): AnalyserNode | null {
+  return ensureSoundGraph(elements) ? graph!.analyser : null;
 }
 
 /** The context starts suspended until a user gesture; call before playing. */

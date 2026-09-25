@@ -125,6 +125,17 @@
   .range:focus-visible::-webkit-slider-thumb {
     @apply ring-2 ring-accent ring-offset-2 ring-offset-bg;
   }
+  /* Invisible slider over the waveform: a 1px thumb so the value maps linearly to x,
+     matching the waveform drawn underneath. */
+  .wave-range {
+    @apply cursor-pointer appearance-none bg-transparent opacity-0;
+  }
+  .wave-range::-webkit-slider-thumb {
+    @apply h-12 w-px appearance-none;
+  }
+  .wave-range::-moz-range-thumb {
+    @apply h-12 w-px border-0;
+  }
   /* Vertical equalizer band: native slider turned upright (top = boost). */
   .eq-range {
     @apply h-32 w-6 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40;

@@ -15,7 +15,9 @@ Import your own MP3s and play them in the browser, even offline. Tunebox reads I
 - **Playlists** (`/playlists`, `/playlists/:id`): create, rename and delete playlists. You can add songs from a picker or from any song list, remove them, and reorder them with drag and drop (mouse, touch long-press or keyboard). You can also search inside a playlist. Export a playlist from its **⋯** menu as M3U (`.m3u8`, readable by VLC, foobar2000 and most players) or Tunebox JSON, and import either on the Playlists page. Imported entries are matched to songs already in your library by content hash, then file name, then artist and title; the toast lists any that weren't found.
 - **Now Playing** (`/now-playing`): large artwork on a backdrop tinted with the artwork's dominant colour, and a scrubbable timeline driven by `requestAnimationFrame`. It has play/pause, previous/next, shuffle, repeat (off, all, one), volume, a **Sound** button and an "Up next" preview.
 - **Gapless playback and crossfade**: the next song is preloaded, so songs follow each other with no gap. Set **Crossfade** in the Sound panel (off, or 1–12 s) to overlap the end of each song with the start of the next.
-- **Lyrics** (the microphone button on Now Playing): synced lyrics highlight and follow the song (click a line to jump there, nudge the timing with − / +); plain lyrics scroll. **Karaoke** mode shows the current line full screen, filling in as it's sung (word by word when the LRC has word timings). Lyrics come from the file's tags, from `.lrc` files imported with the songs (or later, matched by file name), from [LRCLIB](https://lrclib.net), or are pasted by hand. They're stored on the device, so they work offline.
+- **Waveform seek bar** (Now Playing): the timeline shows the song's waveform, so you can see quiet parts, build-ups and drops before jumping to them. Hovering any timeline (here or in the player bar) shows the time under the pointer.
+- **Visualizer** (the third view on Now Playing, after Artwork and Lyrics): spectrum bars, an oscilloscope line, or bars around the artwork, in the artwork's colours, with a full-screen button.
+- **Lyrics** (the microphone view on Now Playing): synced lyrics highlight and follow the song (click a line to jump there, nudge the timing with − / +); plain lyrics scroll. **Karaoke** mode shows the current line full screen, filling in as it's sung (word by word when the LRC has word timings). Lyrics come from the file's tags, from `.lrc` files imported with the songs (or later, matched by file name), from [LRCLIB](https://lrclib.net), or are pasted by hand. They're stored on the device, so they work offline.
 - **Sound panel** (the sliders button in the player bar, or **Sound** on Now Playing): playback speed (0.5×–2×, pitch preserved), crossfade, volume normalization (every song at about −14 LUFS), and a 10-band equalizer with presets or custom bands. All settings are saved.
 - **Queue**: a collapsible panel (side panel on desktop, bottom sheet on mobile) with drag-to-reorder, remove, clear and jump-to. It restores after a reload, including the last position.
 - **Media Session**: title, artist, album and artwork on the lock screen and in OS media controls, plus play, pause, previous, next and seek actions.
@@ -215,6 +217,12 @@ erDiagram
 - A play counts after 30 s (or half of a short track). Play counts drive the "Most played" sort.
 - **Resume**: songs of 10 minutes or more (mixes, audiobooks, podcasts) remember where you stopped, and pick up there the next time you play them, with a toast saying so. Press Previous to start over. The spot is saved every 5 s, on pause, when you switch songs and when the tab is hidden. It's forgotten once you're within 10 s of the start or 15 s of the end. Resume points live in their own `resumePoints` store, so saving them doesn't refresh the library views.
 
+### Waveform and visualizer
+
+- **Waveform** (`src/lib/waveform.ts`): the first time a song is on Now Playing, it's decoded in the background (at 8 kHz, or 3 kHz for songs over 20 minutes; up to 3 hours) and reduced to 800 peak values (0–255, square-root scaled so quiet passages stay visible). They're stored in the `waveforms` store (added in v5), deleted with the track, and left out of backups since they can be recomputed. This path decodes the file itself and never touches the playing audio, so it needs no Web Audio routing and works on iOS too.
+- **Accurate seeking**: on Now Playing, the canvas waveform sits under a transparent, full-width native slider with a 1 px thumb, so a click maps linearly to the time under the pointer (a normal thumb shifts values near the edges). The slider stays for keyboard and screen-reader use, with a focus ring on the waveform.
+- **Visualizer** (`src/components/Visualizer.tsx`): an `AnalyserNode` on a side branch after the EQ (see the diagram below). Opening the visualizer builds the Web Audio graph if it isn't there yet; on iOS it asks first, since that can stop background playback. 56 log-spaced bands from 40 Hz to 16 kHz. Drawing stops a moment after playback pauses; with `prefers-reduced-motion` it redraws about 8 times a second instead of every frame.
+
 ### Lyrics
 
 - **Sources**, in this order: tags read at import (ID3 `USLT`/`SYLT`, Vorbis `LYRICS`; LRC text in a plain lyrics tag counts as synced), a sidecar `.lrc` with the same base name as the audio file, [LRCLIB](https://lrclib.net), or text pasted in the lyrics editor. An `.lrc` imported later attaches to the library track with the same file name.
@@ -228,10 +236,10 @@ erDiagram
 ```
  deck A <audio> ─► source ─► gain (normalization A) ─┐
                                                      ├─► preamp ─► 10 peaking bands ─► speakers
- deck B <audio> ─► source ─► gain (normalization B) ─┘
+ deck B <audio> ─► source ─► gain (normalization B) ─┘                    └─► analyser (visualizer)
 ```
 
-- The Web Audio graph (`src/lib/soundGraph.ts`) is built only the first time the equalizer or normalization is switched on. Once an `<audio>` element is routed through Web Audio it can't be un-routed, and on iOS that routing can stop playback when the screen locks, so with both effects off playback stays on the plain `<audio>` path. Turning them off later makes the graph neutral; a reload removes it.
+- The Web Audio graph (`src/lib/soundGraph.ts`) is built only the first time the equalizer, normalization or visualizer is switched on. Once an `<audio>` element is routed through Web Audio it can't be un-routed, and on iOS that routing can stop playback when the screen locks, so with both effects off playback stays on the plain `<audio>` path. Turning them off later makes the graph neutral; a reload removes it.
 - **Equalizer**: octave bands at 31 Hz–16 kHz, ±12 dB, Q 1.41. The preamp lowers the input by the largest boost so boosted bands don't clip. Presets live in `src/lib/eq.ts`; moving any band switches the preset to _Custom_.
 - **Normalization** (`src/lib/loudness.ts`): each track is measured once, in the background, when it's current or next with normalization on. The audio is decoded at a reduced sample rate, K-weighted, and gated per ITU-R BS.1770 (400 ms blocks, −70 LUFS absolute and −10 LU relative gates). The result (`loudness: { lufs, peakDb }`) is stored on the track. Playback applies `−14 LUFS − lufs`, limited to −12…+8 dB and to 1 dB below the track's peak, on that deck's own gain node, so crossfades stay balanced. Tracks over 30 minutes aren't measured and play unchanged.
 - Element `volume` and `muted` still apply before the source node, so the volume slider and crossfades work the same with effects on.
@@ -302,7 +310,7 @@ An automated run of these steps against the production build passed with Playwri
 
 - **Storage quotas**: every browser caps how much a site can store, usually a share of free disk space; the exact limits vary by browser and version. The Import page shows your usage and quota, and has a **Make storage persistent** button. If storage fills up, the import stops with an explanation.
 - **Safari and iOS**:
-  - The equalizer and normalization route audio through Web Audio, which iOS may stop when the screen locks. They're off by default; if background playback stops, turn both off and reload.
+  - The equalizer, normalization and visualizer route audio through Web Audio, which iOS may stop when the screen locks. They're off by default (the visualizer asks first); if background playback stops, turn them off and reload. The waveform seek bar doesn't use it.
   - Crossfade is unavailable (iOS ignores `audio.volume`), but playback is still gapless.
   - Safari may delete site data after 7 days without a visit, unless the app is installed to the Home Screen. Install it if you care about your library.
   - iOS ignores `audio.volume`; the hardware buttons control volume.

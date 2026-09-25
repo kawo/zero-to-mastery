@@ -26,6 +26,7 @@ import { normalizationGainDb, queueLoudnessAnalysis } from '@/lib/loudness';
 import { noteMediaSessionAction } from '@/lib/mediaSession';
 import {
   ensureSoundGraph,
+  getAnalyser,
   resumeSoundGraph,
   setDeckGain,
   setEqualizer,
@@ -896,6 +897,7 @@ export function usePlayerEngine(
         ),
       setNormalize,
       setEq: (patch) => setEqState((e) => ({ ...e, ...patch })),
+      getAnalyser: () => (decks[0] && decks[1] ? getAnalyser(decks) : null),
       setCrossfade: (seconds) =>
         setCrossfadeState(Math.round(Math.max(0, Math.min(MAX_CROSSFADE, seconds)))),
       playTracks,
@@ -922,6 +924,7 @@ export function usePlayerEngine(
       playbackRate,
       normalize,
       eq,
+      decks,
       latest,
       next,
       prev,

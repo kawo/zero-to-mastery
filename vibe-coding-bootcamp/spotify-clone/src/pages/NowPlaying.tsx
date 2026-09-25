@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Disc3, ListPlus, MicVocal, Play } from 'lucide-react';
+import { AudioLines, Disc3, Image as ImageIcon, ListPlus, MicVocal, Play } from 'lucide-react';
 import { Artwork } from '@/components/Artwork';
 import { LyricsView } from '@/components/Lyrics';
+import { Visualizer } from '@/components/Visualizer';
 import { QueueToggle } from '@/components/PlayerBar';
 import { Timeline, TransportControls, VolumeControl } from '@/components/PlayerControls';
 import { SoundButton } from '@/components/SoundPanel';
@@ -31,33 +32,42 @@ function useTint(blobId: string | undefined, seed: string): Rgb {
   return hslToRgb(hueFrom(seed), 0.55, 0.4);
 }
 
-const LYRICS_KEY = 'tunebox-lyrics-open';
+type View = 'artwork' | 'lyrics' | 'visualizer';
+const VIEW_KEY = 'tunebox-now-playing-view';
+const VIEWS: { id: View; label: string; icon: typeof MicVocal }[] = [
+  { id: 'artwork', label: 'Artwork', icon: ImageIcon },
+  { id: 'lyrics', label: 'Lyrics', icon: MicVocal },
+  { id: 'visualizer', label: 'Visualizer', icon: AudioLines },
+];
 
-/** Whether the lyrics replace the artwork; remembered per browser. */
-function useLyricsOpen() {
-  const [open, setOpen] = useState(() => {
+/** What fills the left of Now Playing; remembered per browser. */
+function useView() {
+  const [view, setViewState] = useState<View>(() => {
     try {
-      return localStorage.getItem(LYRICS_KEY) === '1';
+      const v = localStorage.getItem(VIEW_KEY);
+      if (v === 'lyrics' || v === 'visualizer') return v;
+      // Earlier versions only had a lyrics on/off toggle.
+      return localStorage.getItem('tunebox-lyrics-open') === '1' ? 'lyrics' : 'artwork';
     } catch {
-      return false;
+      return 'artwork';
     }
   });
-  const set = (v: boolean) => {
-    setOpen(v);
+  const setView = (v: View) => {
+    setViewState(v);
     try {
-      localStorage.setItem(LYRICS_KEY, v ? '1' : '0');
+      localStorage.setItem(VIEW_KEY, v);
     } catch {
       /* per-viewer convenience only */
     }
   };
-  return [open, set] as const;
+  return [view, setView] as const;
 }
 
 export default function NowPlaying() {
   const { currentTrack, queue, index, playTracks } = usePlayer();
   const { tracks, byId } = useLibrary();
   const { addToPlaylist, setQueueOpen } = useUi();
-  const [lyricsOpen, setLyricsOpen] = useLyricsOpen();
+  const [view, setView] = useView();
   const tint = useTint(
     currentTrack?.artworkBlobId,
     currentTrack?.hash ?? currentTrack?.id ?? 'none',
@@ -126,27 +136,38 @@ export default function NowPlaying() {
           title="Now Playing"
           actions={
             <>
-              <button
-                type="button"
-                onClick={() => setLyricsOpen(!lyricsOpen)}
-                aria-pressed={lyricsOpen}
-                title={lyricsOpen ? 'Show artwork' : 'Show lyrics'}
-                className={cn('icon-btn relative', lyricsOpen && 'text-accent hover:text-accent')}
+              <div
+                role="group"
+                aria-label="View"
+                className="flex items-center rounded-full border border-border p-0.5"
               >
-                <MicVocal className="h-5 w-5" aria-hidden />
-                <span className="sr-only">Lyrics</span>
-                {lyricsOpen && (
-                  <span className="absolute bottom-1 h-1 w-1 rounded-full bg-accent" aria-hidden />
-                )}
-              </button>
+                {VIEWS.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setView(id)}
+                    aria-pressed={view === id}
+                    title={label}
+                    className={cn(
+                      'grid h-8 w-8 place-items-center rounded-full transition-colors',
+                      view === id ? 'bg-fg text-bg' : 'text-muted hover:text-fg',
+                    )}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden />
+                    <span className="sr-only">{label}</span>
+                  </button>
+                ))}
+              </div>
               <QueueToggle />
             </>
           }
         />
 
         <div className="mx-auto grid max-w-5xl items-center gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-12">
-          {lyricsOpen ? (
+          {view === 'lyrics' ? (
             <LyricsView track={currentTrack} className="h-[55vh] md:h-[32rem]" />
+          ) : view === 'visualizer' ? (
+            <Visualizer track={currentTrack} tint={tint} className="h-[45vh] md:h-[32rem]" />
           ) : (
             <Artwork
               track={currentTrack}
@@ -178,7 +199,7 @@ export default function NowPlaying() {
               </button>
             </div>
 
-            <Timeline size="lg" />
+            <Timeline size="lg" waveform />
             <TransportControls size="lg" />
 
             <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">

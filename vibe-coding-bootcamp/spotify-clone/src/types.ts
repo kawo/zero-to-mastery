@@ -75,6 +75,14 @@ export interface LyricsDoc {
   updatedAt: Timestamp;
 }
 
+/** Seek-bar waveform preview, in the `waveforms` store (key: trackId). */
+export interface WaveformDoc {
+  trackId: string;
+  /** Peak per bucket, 0–255; null when the file couldn't be decoded for analysis. */
+  peaks: Uint8Array | null;
+  version: number;
+}
+
 export type BlobKind = 'audio' | 'artwork';
 
 export interface BlobDoc {

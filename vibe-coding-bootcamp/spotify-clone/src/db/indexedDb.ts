@@ -8,6 +8,7 @@ import type {
   Playlist,
   ResumePoint,
   Track,
+  WaveformDoc,
 } from '@/types';
 
 /** Also read directly (without Dexie) by the service worker to serve artwork. */
@@ -20,6 +21,7 @@ export type TuneboxDb = Dexie & {
   app: EntityTable<AppRow, 'key'>;
   resumePoints: EntityTable<ResumePoint, 'trackId'>;
   lyrics: EntityTable<LyricsDoc, 'trackId'>;
+  waveforms: EntityTable<WaveformDoc, 'trackId'>;
 };
 
 export const db = new Dexie(DB_NAME) as TuneboxDb;
@@ -59,6 +61,11 @@ db.version(3).stores({
 // v4 added lyrics (embedded, .lrc files, LRCLIB or pasted), one row per track.
 db.version(4).stores({
   lyrics: 'trackId',
+});
+
+// v5 added seek-bar waveform previews (recomputable, so not in backups).
+db.version(5).stores({
+  waveforms: 'trackId',
 });
 
 // Another tab upgraded the schema: close so it isn't blocked, then reload into the new code.

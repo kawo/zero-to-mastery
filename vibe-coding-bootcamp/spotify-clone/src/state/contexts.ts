@@ -57,6 +57,8 @@ export interface PlayerValue {
   setPlaybackRate: (rate: number) => void;
   setNormalize: (on: boolean) => void;
   setEq: (patch: Partial<EqSettings>) => void;
+  /** Routes audio through Web Audio (once) and returns the visualizer's analyser. */
+  getAnalyser: () => AnalyserNode | null;
 
   /** Replace the queue with `trackIds` and start at `startIndex`. */
   playTracks: (trackIds: string[], startIndex?: number, opts?: PlayOptions) => void;

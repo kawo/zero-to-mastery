@@ -16,7 +16,7 @@ export async function deleteTracks(ids: string[]): Promise<void> {
   const evicted: string[] = [];
   await db.transaction(
     'rw',
-    [db.tracks, db.blobs, db.playlists, db.resumePoints, db.lyrics],
+    [db.tracks, db.blobs, db.playlists, db.resumePoints, db.lyrics, db.waveforms],
     async () => {
       const tracks = (await db.tracks.bulkGet(ids)).filter((t): t is Track => !!t);
       const artworkIds = new Set(
@@ -26,6 +26,7 @@ export async function deleteTracks(ids: string[]): Promise<void> {
       await db.tracks.bulkDelete(ids);
       await db.resumePoints.bulkDelete(ids);
       await db.lyrics.bulkDelete(ids);
+      await db.waveforms.bulkDelete(ids);
       await db.blobs.bulkDelete(tracks.map((t) => t.audioBlobId));
       evicted.push(...tracks.map((t) => t.audioBlobId));
 

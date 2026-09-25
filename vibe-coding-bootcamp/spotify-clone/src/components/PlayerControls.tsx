@@ -12,16 +12,33 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import { WaveformCanvas } from '@/components/Waveform';
 import { MAX_CROSSFADE, usePlayer } from '@/hooks/usePlayer';
 import { useProgress } from '@/hooks/useProgress';
+import { useWaveform } from '@/hooks/useWaveform';
 import { formatTime, spokenTime } from '@/lib/audio';
 import { cn } from '@/lib/utils';
 
 const KEY_SEEK = 5; // seconds per arrow key on the timeline
 
-/** Scrubbable timeline. Drag previews the position and seeks on release; keys seek immediately. */
-export function Timeline({ className, size = 'md' }: { className?: string; size?: 'md' | 'lg' }) {
+/**
+ * Scrubbable timeline. Drag previews the position and seeks on release; keys seek
+ * immediately. Hovering shows the time under the pointer. With `waveform`, the track's
+ * waveform is drawn under an invisible full-width slider, so clicks land exactly where
+ * the waveform shows (the slider stays for keyboard and screen-reader use).
+ */
+export function Timeline({
+  className,
+  size = 'md',
+  waveform = false,
+}: {
+  className?: string;
+  size?: 'md' | 'lg';
+  waveform?: boolean;
+}) {
   const { audio, currentTrack, seek } = usePlayer();
+  const peaks = useWaveform(waveform ? currentTrack : null);
+  const [hover, setHover] = useState<number | null>(null); // 0–1 under the pointer
   const { current, duration } = useProgress(audio, currentTrack?.duration ?? 0);
   const [scrub, setScrub] = useState<number | null>(null);
   const scrubRef = useRef<number | null>(null);
@@ -67,6 +84,11 @@ export function Timeline({ className, size = 'md' }: { className?: string; size?
 
   const shown = scrub ?? held ?? current;
   const pct = duration > 0 ? Math.min(100, (shown / duration) * 100) : 0;
+  const withWave = waveform && !!peaks && !!duration;
+  const onHover = (e: React.PointerEvent<HTMLDivElement>) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    setHover(Math.max(0, Math.min(1, (e.clientX - box.left) / box.width)));
+  };
 
   return (
     <div
@@ -75,41 +97,67 @@ export function Timeline({ className, size = 'md' }: { className?: string; size?
       <span className={cn('text-right', size === 'lg' ? 'w-12 text-sm' : 'w-10')}>
         {formatTime(currentTrack ? shown : 0)}
       </span>
-      <input
-        type="range"
-        className="range"
-        min={0}
-        max={duration || 1}
-        step={0.1}
-        value={Math.min(shown, duration || 1)}
-        disabled={!currentTrack || !duration}
-        style={{ '--pct': `${pct}%` } as CSSProperties}
-        aria-label="Seek"
-        aria-valuetext={`${spokenTime(shown)} of ${spokenTime(duration)}`}
-        onPointerDown={() => {
-          scrubRef.current = shown;
-          setScrub(shown);
-        }}
-        onChange={(e) => {
-          const v = Number(e.target.value);
-          if (scrubRef.current !== null) {
-            scrubRef.current = v;
-            setScrub(v);
-          } else if (v !== heldRef.current) seek(v); // the release echo repeats the held value
-        }}
-        onKeyDown={(e) => {
-          const delta =
-            e.key === 'ArrowRight' || e.key === 'ArrowUp'
-              ? KEY_SEEK
-              : e.key === 'ArrowLeft' || e.key === 'ArrowDown'
-                ? -KEY_SEEK
-                : 0;
-          if (!delta) return;
-          e.preventDefault();
-          e.stopPropagation();
-          seek(Math.max(0, Math.min(duration, shown + delta)));
-        }}
-      />
+      <div
+        className={cn(
+          'relative flex flex-1 items-center rounded',
+          withWave && 'h-12 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent',
+        )}
+        onPointerMove={duration ? onHover : undefined}
+        onPointerLeave={() => setHover(null)}
+      >
+        {withWave && (
+          <WaveformCanvas
+            peaks={peaks}
+            progress={duration ? shown / duration : 0}
+            hover={hover}
+            className="absolute inset-0 h-full w-full"
+          />
+        )}
+        {hover !== null && currentTrack && duration > 0 && (
+          <span
+            className="pointer-events-none absolute bottom-full z-10 mb-1.5 -translate-x-1/2 rounded bg-fg px-1.5 py-0.5 text-[11px] font-semibold text-bg shadow"
+            style={{ left: `${hover * 100}%` }}
+            aria-hidden
+          >
+            {formatTime(hover * duration)}
+          </span>
+        )}
+        <input
+          type="range"
+          className={withWave ? 'wave-range absolute inset-0 h-full w-full' : 'range'}
+          min={0}
+          max={duration || 1}
+          step={0.1}
+          value={Math.min(shown, duration || 1)}
+          disabled={!currentTrack || !duration}
+          style={{ '--pct': `${pct}%` } as CSSProperties}
+          aria-label="Seek"
+          aria-valuetext={`${spokenTime(shown)} of ${spokenTime(duration)}`}
+          onPointerDown={() => {
+            scrubRef.current = shown;
+            setScrub(shown);
+          }}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            if (scrubRef.current !== null) {
+              scrubRef.current = v;
+              setScrub(v);
+            } else if (v !== heldRef.current) seek(v); // the release echo repeats the held value
+          }}
+          onKeyDown={(e) => {
+            const delta =
+              e.key === 'ArrowRight' || e.key === 'ArrowUp'
+                ? KEY_SEEK
+                : e.key === 'ArrowLeft' || e.key === 'ArrowDown'
+                  ? -KEY_SEEK
+                  : 0;
+            if (!delta) return;
+            e.preventDefault();
+            e.stopPropagation();
+            seek(Math.max(0, Math.min(duration, shown + delta)));
+          }}
+        />
+      </div>
       <span className={cn(size === 'lg' ? 'w-12 text-sm' : 'w-10')}>
         {currentTrack ? formatTime(duration) : '0:00'}
       </span>
