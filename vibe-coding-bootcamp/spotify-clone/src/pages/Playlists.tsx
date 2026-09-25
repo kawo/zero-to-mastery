@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ListMusic, Plus } from 'lucide-react';
+import { FileUp, ListMusic, Plus } from 'lucide-react';
 import { PlaylistCard } from '@/components/PlaylistCard';
 import { PlaylistNameDialog } from '@/components/PlaylistNameDialog';
 import { TopBar } from '@/components/TopBar';
 import { Dialog } from '@/components/ui/Dialog';
 import { createPlaylist, deletePlaylist, renamePlaylist } from '@/db/library';
 import { describeDbError } from '@/db/indexedDb';
-import { usePlaylists } from '@/hooks/useIndexedDb';
+import { useLibrary, usePlaylists } from '@/hooks/useIndexedDb';
+import { describeEntry, matchEntries, parsePlaylistFile } from '@/lib/playlistFiles';
 import { pluralize } from '@/lib/utils';
 import { useToast } from '@/state/contexts';
 import type { Playlist } from '@/types';
@@ -20,6 +21,37 @@ export default function Playlists() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState<Editing>(null);
   const [deleting, setDeleting] = useState<Playlist | null>(null);
+  const { tracks } = useLibrary();
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const importFile = async (file: File) => {
+    try {
+      const parsed = await parsePlaylistFile(file);
+      if (!parsed.entries.length) throw new Error(`${file.name} has no songs in it.`);
+      const { trackIds, missing } = matchEntries(parsed.entries, tracks ?? []);
+      if (!trackIds.length)
+        throw new Error(
+          `None of the ${pluralize(parsed.entries.length, 'song')} in ${file.name} are in your library. Import the music first.`,
+        );
+      const p = await createPlaylist(parsed.name, trackIds);
+      navigate(`/playlists/${p.id}`);
+      if (missing.length) {
+        const sample = missing.slice(0, 3).map(describeEntry).join(', ');
+        const more = missing.length > 3 ? ` and ${missing.length - 3} more` : '';
+        toast({
+          tone: 'info',
+          message: `Imported ${pluralize(trackIds.length, 'song')} into ${p.name}. Not in your library: ${sample}${more}.`,
+        });
+      } else {
+        toast({
+          tone: 'success',
+          message: `Imported ${p.name} (${pluralize(trackIds.length, 'song')}).`,
+        });
+      }
+    } catch (err) {
+      toast({ tone: 'error', message: describeDbError(err) });
+    }
+  };
 
   const run = async (fn: () => Promise<unknown>, success: string) => {
     try {
@@ -36,15 +68,39 @@ export default function Playlists() {
         title="Playlists"
         subtitle={playlists ? pluralize(playlists.length, 'playlist') : undefined}
         actions={
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setEditing({ mode: 'create' })}
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            <span className="hidden sm:inline">New playlist</span>
-            <span className="sr-only sm:hidden">New playlist</span>
-          </button>
+          <>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => fileInput.current?.click()}
+              disabled={!tracks}
+              title="Import an M3U or Tunebox JSON playlist"
+            >
+              <FileUp className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">Import</span>
+              <span className="sr-only sm:hidden">Import playlist</span>
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setEditing({ mode: 'create' })}
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">New playlist</span>
+              <span className="sr-only sm:hidden">New playlist</span>
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".m3u,.m3u8,.json,audio/x-mpegurl,audio/mpegurl,application/vnd.apple.mpegurl,application/json"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (file) void importFile(file);
+              }}
+            />
+          </>
         }
       />
 
@@ -55,7 +111,8 @@ export default function Playlists() {
           </div>
           <h2 className="mt-5 text-xl font-bold">No playlists yet</h2>
           <p className="mt-2 text-muted">
-            Create one here, or select songs in your library and choose “Add to playlist”.
+            Create one here, import an M3U or JSON playlist, or select songs in your library and
+            choose “Add to playlist”.
           </p>
           <button
             type="button"

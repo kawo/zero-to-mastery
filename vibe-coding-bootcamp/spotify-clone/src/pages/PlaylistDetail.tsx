@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ListMinus, Pencil, Plus, Shuffle, Trash2 } from 'lucide-react';
+import { FileDown, ListMinus, Pencil, Plus, Shuffle, Trash2 } from 'lucide-react';
 import { Artwork, ArtworkMosaic } from '@/components/Artwork';
 import { ListPlayButton } from '@/components/ListPlayButton';
 import { PlaylistNameDialog } from '@/components/PlaylistNameDialog';
@@ -22,7 +22,8 @@ import { useLibrary, usePlaylist, useTracksByIds } from '@/hooks/useIndexedDb';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useTrackActions } from '@/hooks/useTrackActions';
 import { formatTime, formatTotalDuration } from '@/lib/audio';
-import { cn, moveItem, normalize, pluralize } from '@/lib/utils';
+import { exportPlaylist, type PlaylistFormat } from '@/lib/playlistFiles';
+import { cn, downloadBlob, moveItem, normalize, pluralize } from '@/lib/utils';
 import { useToast } from '@/state/contexts';
 import type { Playlist, Track } from '@/types';
 
@@ -97,6 +98,11 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
     void safely(() => setPlaylistOrder(playlist.id, ids));
   };
 
+  const exportAs = (format: PlaylistFormat) => {
+    const { blob, fileName } = exportPlaylist(playlist, tracks, format);
+    downloadBlob(blob, fileName);
+  };
+
   const remove = (ids: string[]) => {
     setSelected((s) => new Set([...s].filter((x) => !ids.includes(x))));
     void safely(
@@ -115,6 +121,18 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
             items={[
               { label: 'Add songs', icon: <Plus />, onSelect: () => setDialog('add') },
               { label: 'Rename', icon: <Pencil />, onSelect: () => setDialog('rename') },
+              {
+                label: 'Export as M3U',
+                icon: <FileDown />,
+                disabled: !tracks.length,
+                onSelect: () => exportAs('m3u'),
+              },
+              {
+                label: 'Export as JSON',
+                icon: <FileDown />,
+                disabled: !tracks.length,
+                onSelect: () => exportAs('json'),
+              },
               {
                 label: 'Delete playlist',
                 icon: <Trash2 />,

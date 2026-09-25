@@ -12,7 +12,7 @@ Import your own MP3s and play them in the browser, even offline. Tunebox reads I
 
 - **Import** (`/upload`): drag and drop files or a whole folder, or use the file and folder pickers. Files are hashed (SHA-256) for dedupe, then their tags are parsed with [`music-metadata`](https://github.com/Borewit/music-metadata), the maintained successor of `music-metadata-browser`. Embedded cover art is extracted. A per-file progress list shows the result: added, duplicate, relinked or failed (with a reason). When a file has no tags, the title and artist come from its file name (`01 - Artist - Title.mp3`).
 - **Songs** (`/songs`): search, filter by artist or genre, and sort by date added, title, artist, album, duration or play count. These settings live in the URL, so they survive reloads and the Back button. You can multi-select (Shift-click selects a range), then Play, Play next, Add to queue, Add to playlist or Delete.
-- **Playlists** (`/playlists`, `/playlists/:id`): create, rename and delete playlists. You can add songs from a picker or from any song list, remove them, and reorder them with drag and drop (mouse, touch long-press or keyboard). You can also search inside a playlist.
+- **Playlists** (`/playlists`, `/playlists/:id`): create, rename and delete playlists. You can add songs from a picker or from any song list, remove them, and reorder them with drag and drop (mouse, touch long-press or keyboard). You can also search inside a playlist. Export a playlist from its **⋯** menu as M3U (`.m3u8`, readable by VLC, foobar2000 and most players) or Tunebox JSON, and import either on the Playlists page. Imported entries are matched to songs already in your library by content hash, then file name, then artist and title; the toast lists any that weren't found.
 - **Now Playing** (`/now-playing`): large artwork on a backdrop tinted with the artwork's dominant colour, and a scrubbable timeline driven by `requestAnimationFrame`. It has play/pause, previous/next, shuffle, repeat (off, all, one), volume and an "Up next" preview.
 - **Queue**: a collapsible panel (side panel on desktop, bottom sheet on mobile) with drag-to-reorder, remove, clear and jump-to. It restores after a reload, including the last position.
 - **Media Session**: title, artist, album and artwork on the lock screen and in OS media controls, plus play, pause, previous, next and seek actions.
@@ -112,6 +112,7 @@ spotify-clone/
     │   ├── importer.ts        # hash → dedupe → parse → store pipeline
     │   ├── queue.ts           # pure queue reducer (shuffle, repeat, reorder…)
     │   ├── backup.ts          # JSON / zip export and restore
+    │   ├── playlistFiles.ts   # playlist M3U / JSON export, import and matching
     │   └── utils.ts
     ├── hooks/
     │   ├── usePlayer.ts       # playback engine + Media Session + persistence
