@@ -1,6 +1,6 @@
 {
   "name": "spotify-clone",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "Offline-first local music player (web app and desktop app): import MP3s, build playlists, play with a queue.",
